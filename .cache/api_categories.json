@@ -131,5 +131,12 @@
     "description": "AI工具贾维斯的相关接口",
     "created_at": "2026-5-29 10:01:41",
     "updated_at": "2026-5-29 10:01:41"
+  },
+  {
+    "category_key": "cat_knowledge_base",
+    "name": "知识库管理",
+    "description": "知识库文档维护与检索相关接口",
+    "created_at": "2026-11-21 00:41:59",
+    "updated_at": "2026-11-21 00:41:59"
   }
 ]

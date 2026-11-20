@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { PROJECT_DIR } from '@/utils/paths';
+import { KNOWLEDGE_CONFIG_FILE, DEFAULT_KNOWLEDGE_DIRS } from '@/types/knowledge';
 
 /**
  * 项目知识库（RAG 检索）
@@ -42,10 +43,26 @@ const BM25_B = 0.75;
 /** 单个片段的最大字符数 */
 const MAX_CHUNK_CHARS = 900;
 
-/** 知识目录（相对项目根，可配置 KNOWLEDGE_DIRS，逗号分隔） */
+/**
+ * 知识目录（相对项目根）
+ * @returns {string[]} 绝对路径列表
+ * @description 优先读取管理页写入的 .cache/knowledge_config.json；
+ *   配置文件不存在时回退到环境变量 KNOWLEDGE_DIRS（逗号分隔）；
+ *   两者都没有时使用默认目录（项目文档 + 用户维护文档）。
+ */
 const resolveKnowledgeDirs = (): string[] => {
-  const raw = (process.env.KNOWLEDGE_DIRS ?? '').trim();
-  const dirs = raw ? raw.split(',').map((d) => d.trim()).filter(Boolean) : ['docs'];
+  let raw = (process.env.KNOWLEDGE_DIRS ?? '').trim();
+  try {
+    if (fs.existsSync(KNOWLEDGE_CONFIG_FILE)) {
+      const config = JSON.parse(fs.readFileSync(KNOWLEDGE_CONFIG_FILE, 'utf-8')) as { dirs?: unknown };
+      if (Array.isArray(config.dirs) && config.dirs.length > 0) {
+        raw = config.dirs.filter((d): d is string => typeof d === 'string').join(',');
+      }
+    }
+  } catch {
+    // 配置损坏时保持环境变量或默认值，不影响检索可用性
+  }
+  const dirs = raw ? raw.split(',').map((d) => d.trim()).filter(Boolean) : DEFAULT_KNOWLEDGE_DIRS;
   return dirs.map((d) => path.join(PROJECT_DIR, d));
 };
 

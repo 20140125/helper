@@ -546,5 +546,22 @@
     "label": "查看项目结构",
     "description": "查看项目目录结构与源码文件内容（只读）",
     "type": "view"
+  },
+  {
+    "code": "knowledge-base:view",
+    "group_id": "knowledge-base",
+    "group_name": "知识库管理",
+    "label": "查看知识库管理",
+    "description": "查看知识库管理页面与检索测试",
+    "type": "view",
+    "route": "/knowledge"
+  },
+  {
+    "code": "knowledge-base:edit",
+    "group_id": "knowledge-base",
+    "group_name": "知识库管理",
+    "label": "维护知识库管理",
+    "description": "新增/编辑/删除知识文档，重建索引与调整索引目录",
+    "type": "edit"
   }
 ]

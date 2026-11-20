@@ -271,4 +271,20 @@ export {
   listSkillMetas,
   findSkillDoc,
   findSkillDocByTool,
+  searchKnowledge,
+  buildKnowledgeIndex,
+  resetKnowledgeIndex,
 } from '@/utils/ai-chat';
+
+export {
+  normalizeDocName,
+  listKnowledgeDocs,
+  readKnowledgeDoc,
+  writeKnowledgeDoc,
+  deleteKnowledgeDoc,
+  readKnowledgeDirs,
+  normalizeKnowledgeDirs,
+  writeKnowledgeDirs,
+  getDocContentBytes,
+  resolveKnowledgeDirPaths,
+} from '@/utils/knowledge';

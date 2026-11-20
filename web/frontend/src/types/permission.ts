@@ -115,4 +115,8 @@ export enum Permission {
 
   // ── 联网搜索 ──
   AI_WEB_SEARCH_VIEW = 'ai-web-search:view',
+
+  // ── 知识库管理 ──
+  KNOWLEDGE_BASE_VIEW = 'knowledge-base:view',
+  KNOWLEDGE_BASE_EDIT = 'knowledge-base:edit',
 }

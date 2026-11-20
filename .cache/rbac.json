@@ -70,7 +70,9 @@
         "ai-web-search:view",
         "ai-approvals:view",
         "ai-approvals:edit",
-        "project:view"
+        "project:view",
+        "knowledge-base:view",
+        "knowledge-base:edit"
       ],
       "builtin": true,
       "created_at": "2026-03-27 16:05:00",
@@ -83,9 +85,7 @@
       "permissions": [
         "dashboard:view",
         "daemon:view",
-        "daemon:edit",
         "web-service:view",
-        "web-service:edit",
         "config:view",
         "config:edit",
         "webhook:view",
@@ -143,12 +143,13 @@
         "ai-chat:view",
         "ai-web-search:view",
         "ai-approvals:view",
-        "ai-approvals:edit",
-        "project:view"
+        "project:view",
+        "knowledge-base:view",
+        "knowledge-base:edit"
       ],
       "builtin": true,
       "created_at": "2026-03-27 16:05:00",
-      "updated_at": "2026/5/26 09:23:01"
+      "updated_at": "2026-11-20 23:14:59"
     },
     {
       "id": "viewer",
@@ -186,11 +187,13 @@
         "reminder-quotes:view",
         "greetings:view",
         "ai-chat:view",
-        "ai-approvals:view"
+        "ai-approvals:view",
+        "project:view",
+        "knowledge-base:view"
       ],
       "builtin": true,
       "created_at": "2026-03-27 16:05:00",
-      "updated_at": "2026/4/27 10:34:59"
+      "updated_at": "2026-11-20 23:15:17"
     }
   ],
   "userRoles": [

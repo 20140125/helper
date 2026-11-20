@@ -18,6 +18,7 @@ import Approvals from '@/views/approvals.vue';
 import PermissionRequests from '@/views/permission-requests.vue';
 import AiCost from '@/views/ai-cost.vue';
 import AiModels from '@/views/ai-models.vue';
+import Knowledge from '@/views/knowledge.vue';
 import Forbidden from '@/views/forbidden.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useStatusStore } from '@/stores/status';
@@ -143,6 +144,18 @@ const router = createRouter({
         menuGroup: 'features',
         permissions: [Permission.AI_MODELS_VIEW],
         superAdminOnly: true,
+      } satisfies RouteMeta,
+    },
+    {
+      path: '/knowledge',
+      name: 'knowledge',
+      component: Knowledge,
+      meta: {
+        label: 'menu.knowledgeBase',
+        icon: 'book',
+        inMenu: true,
+        menuGroup: 'features',
+        permissions: [Permission.KNOWLEDGE_BASE_VIEW],
       } satisfies RouteMeta,
     },
     // ---- 系统运维 ----

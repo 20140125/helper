@@ -52,6 +52,7 @@ import greetingsRouter from '@/routes/greetings';
 import reminderQuotesRouter from '@/routes/reminder-quotes';
 import skillMapRouter from '@/routes/skill-map';
 import aiChatRouter, { aiWebhookRouter } from '@/routes/ai-chat';
+import knowledgeRouter from '@/routes/knowledge';
 import amapRouter from '@/routes/amap';
 import { TOOLS_IMAGES_DIR, TOOLS_IMAGES_URL_PREFIX, pruneTraceFiles } from '@/routes/utils';
 import { startInspectionScheduler } from '@/utils/ai-chat';
@@ -305,6 +306,13 @@ app.use('/api/ai-chat', ...withPermission(aiChatRouter, {
   read: Permission.AI_CHAT_VIEW,
   write: Permission.AI_CHAT_VIEW,
   readPaths: ['/send', '/conversations'],
+}));
+
+// 知识库管理：文档维护与索引重建按 edit 权限；检索测试只是读操作，按 view 放行
+app.use('/api/knowledge', ...withPermission(knowledgeRouter, {
+  read: Permission.KNOWLEDGE_BASE_VIEW,
+  write: Permission.KNOWLEDGE_BASE_EDIT,
+  readPaths: ['/search'],
 }));
 
 // 高德静态地图代理（给贾维斯 / 前端出图；Key 只留在服务端）

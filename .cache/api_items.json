@@ -1087,5 +1087,93 @@
     "enabled": true,
     "created_at": "2026-11-20 16:00:00",
     "updated_at": "2026-11-20 16:00:00"
+  },
+  {
+    "item_key": "api_knowledge_base_overview",
+    "category_id": "cat_knowledge_base",
+    "name": "知识库概览",
+    "method": "GET",
+    "path": "/api/knowledge",
+    "description": "获取知识文档列表与索引目录配置",
+    "enabled": true,
+    "created_at": "2026-11-21 00:41:59",
+    "updated_at": "2026-11-21 00:41:59"
+  },
+  {
+    "item_key": "api_knowledge_base_get_doc",
+    "category_id": "cat_knowledge_base",
+    "name": "读取文档正文",
+    "method": "GET",
+    "path": "/api/knowledge/docs/:name",
+    "description": "读取指定知识文档的 Markdown 正文",
+    "enabled": true,
+    "created_at": "2026-11-21 00:41:59",
+    "updated_at": "2026-11-21 00:41:59"
+  },
+  {
+    "item_key": "api_knowledge_base_create_doc",
+    "category_id": "cat_knowledge_base",
+    "name": "新建文档",
+    "method": "POST",
+    "path": "/api/knowledge/docs",
+    "description": "在 knowledge 目录新建知识文档并触发索引失效",
+    "enabled": true,
+    "created_at": "2026-11-21 00:41:59",
+    "updated_at": "2026-11-21 00:41:59"
+  },
+  {
+    "item_key": "api_knowledge_base_update_doc",
+    "category_id": "cat_knowledge_base",
+    "name": "更新文档",
+    "method": "PUT",
+    "path": "/api/knowledge/docs/:name",
+    "description": "覆盖更新指定知识文档并触发索引失效",
+    "enabled": true,
+    "created_at": "2026-11-21 00:41:59",
+    "updated_at": "2026-11-21 00:41:59"
+  },
+  {
+    "item_key": "api_knowledge_base_delete_doc",
+    "category_id": "cat_knowledge_base",
+    "name": "删除文档",
+    "method": "DELETE",
+    "path": "/api/knowledge/docs/:name",
+    "description": "删除指定知识文档并触发索引失效",
+    "enabled": true,
+    "created_at": "2026-11-21 00:41:59",
+    "updated_at": "2026-11-21 00:41:59"
+  },
+  {
+    "item_key": "api_knowledge_base_reindex",
+    "category_id": "cat_knowledge_base",
+    "name": "重建索引",
+    "method": "POST",
+    "path": "/api/knowledge/reindex",
+    "description": "清空索引缓存并立即重新扫描所有索引目录",
+    "enabled": true,
+    "created_at": "2026-11-21 00:41:59",
+    "updated_at": "2026-11-21 00:41:59"
+  },
+  {
+    "item_key": "api_knowledge_base_search",
+    "category_id": "cat_knowledge_base",
+    "name": "检索测试",
+    "method": "POST",
+    "path": "/api/knowledge/search",
+    "description": "用与贾维斯相同的检索函数验证知识召回效果",
+    "enabled": true,
+    "created_at": "2026-11-21 00:41:59",
+    "updated_at": "2026-11-21 00:41:59"
+  },
+  {
+    "item_key": "api_knowledge_base_update_dirs",
+    "category_id": "cat_knowledge_base",
+    "name": "更新索引目录",
+    "method": "PUT",
+    "path": "/api/knowledge/dirs",
+    "description": "更新参与检索的目录列表并重建索引",
+    "enabled": true,
+    "created_at": "2026-11-21 00:41:59",
+    "updated_at": "2026-11-21 00:41:59"
   }
 ]

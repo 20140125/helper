@@ -183,6 +183,12 @@ export enum Permission {
   /** 使用 AI 联网搜索（智谱 search-std / search-pro） */
   AI_WEB_SEARCH_VIEW = 'ai-web-search:view',
 
+  // ── 知识库管理 ──
+  /** 查看知识库（文档列表、索引目录、检索测试） */
+  KNOWLEDGE_BASE_VIEW = 'knowledge-base:view',
+  /** 维护知识库（新增/编辑/删除文档、重建索引、调整索引目录） */
+  KNOWLEDGE_BASE_EDIT = 'knowledge-base:edit',
+
   // ── 项目结构 ──
   /** 查看项目目录结构（query_project_map）与源码文件内容（read_project_file，只读） */
   PROJECT_VIEW = 'project:view',
