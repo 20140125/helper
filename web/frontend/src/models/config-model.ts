@@ -12,7 +12,7 @@ import type { TemplateItem } from '@/types/playground';
 import type { AutoFormField } from '@/types/auto-form';
 import { enhanceFields, type HandlerRegistry } from '@/utils/field-enhancer';
 import { createConfigHandlers, mergeHandlerRegistries } from '@/utils/handler-registry';
-import { readSectionColumns, writeSectionColumns } from '@/utils/config-section-order';
+import { readSectionOrder, writeSectionOrder } from '@/utils/config-section-order';
 import type { AutoFormRef, ConfigWebHook } from '@/types/config';
 import type { WebhookPayload } from '@/types/webhook';
 import { BaseModel, Permission } from '@/models/base-model';
@@ -285,20 +285,17 @@ export class ConfigModel extends BaseModel {
   // ── 卡片拖拽排序 ───────────────────────────────
 
   /**
-   * 配置分区的双列顺序
-   * @type {Ref<string[][]>}
-   * @description 每列各自的 section key 列表；跨列拖拽保留卡片实际所在列，写入 localStorage
+   * 配置分区的排序
+   * @type {Ref<string[]>}
+   * @description 卡片的线性 section key 列表，拖拽后写入 localStorage；列数完全由 CSS Grid 按容器宽度决定
    */
-  sectionColumnKeys: Ref<string[][]> = ref(readSectionColumns());
+  sectionOrder: Ref<string[]> = ref(readSectionOrder());
 
-  /** 瀑布流列容器 DOM 引用（按列索引） */
-  private columnEls: Array<HTMLElement | null> = [];
+  /** 自适应网格容器 DOM 引用 */
+  private gridEl: HTMLElement | null = null;
 
-  /** 各列容器的 Sortable 实例 */
-  private sortableInstances: Array<Sortable | null> = [];
-
-  /** 稳定的列容器 ref 回调缓存，避免每次渲染重复创建 Sortable */
-  private columnRefCallbacks: Array<(el: unknown) => void> = [];
+  /** 网格容器的 Sortable 实例 */
+  private sortableInstance: Sortable | null = null;
 
   // ==============================
   // 计算属性（computed）
@@ -557,34 +554,26 @@ export class ConfigModel extends BaseModel {
         fields: this.scheduleFields,
       },
     ];
-    const columns = this.sectionColumnKeys.value;
-    const order = columns.length === 2 ? this.interleaveColumns(columns) : [];
-    const rank = new Map(order.map((key, index) => [key, index] as const));
-    return [...list].sort((a, b) =>
-      (rank.get(a.key) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.key) ?? Number.MAX_SAFE_INTEGER),
-    );
+    return list;
   });
 
   /**
-   * 瀑布流分列后的配置分区
-   * @type {ComputedRef<ConfigSectionItem[][]>}
-   * @description 桌面按已保存的列归属渲染两列，移动端合并为单列；每列独立纵向堆叠，
-   *   卡片保持内容高度不被拉齐，跨列拖拽后也不会被重新弹回原列
+   * 按用户拖拽顺序排列的配置分区
+   * @type {ComputedRef<ConfigSectionItem[]>}
+   * @description 视图在单个自适应网格中平铺全部卡片；列数交给 CSS Grid 按容器实际宽度决定，
+   *   新增的分区追加到末尾，避免旧缓存缺 key 而漏渲染
    */
-  sectionColumns: ComputedRef<ConfigSectionItem[][]> = computed(() => {
+  orderedSections: ComputedRef<ConfigSectionItem[]> = computed(() => {
     const list = this.sections.value;
-    if (this.isMobile.value) return [list];
-    const saved = this.sectionColumnKeys.value;
-    const keys = saved.length === 2 ? saved : this.splitByParity(list.map((section) => section.key));
     const byKey = new Map(list.map((section) => [section.key, section] as const));
-    const columns: ConfigSectionItem[][] = keys.map((column) =>
-      column.map((key) => byKey.get(key)).filter((section): section is ConfigSectionItem => !!section),
-    );
-    // 新增的分区补进两列，避免因旧缓存缺 key 而漏渲染
-    const included = new Set(keys.flat());
+    const order = this.sectionOrder.value;
+    const ordered = order
+      .map((key) => byKey.get(key))
+      .filter((section): section is ConfigSectionItem => !!section);
+    const included = new Set(order);
     list.filter((section) => !included.has(section.key))
-      .forEach((section, index) => columns[index % 2].push(section));
-    return columns;
+      .forEach((section) => ordered.push(section));
+    return ordered;
   });
 
   // ==============================
@@ -975,111 +964,48 @@ export class ConfigModel extends BaseModel {
   };
 
   /**
-   * 获取瀑布流列容器的稳定 ref 回调
-   * @param {number} index - 列索引
-   * @returns {(el: unknown) => void} ref 回调
-   * @description 同一列始终返回同一函数，避免 Vue 每次渲染重复销毁/创建 Sortable
-   */
-  getColumnRef = (index: number): ((el: unknown) => void) => {
-    if (!this.columnRefCallbacks[index]) {
-      this.columnRefCallbacks[index] = (el: unknown) => this.setColumnRef(index, el);
-    }
-    return this.columnRefCallbacks[index];
-  };
-
-  /**
-   * 注册列容器并初始化该列的 Sortable
-   * @param {number} index - 列索引
-   * @param {unknown} el - 列容器 DOM（卸载时为 null）
+   * 注册自适应网格容器并初始化 Sortable
+   * @param {unknown} el - 网格容器 DOM（卸载时为 null）
    * @returns {void}
-   * @description group 相同使卡片可跨列拖拽；移动端只有一列时等价于单列排序
+   * @description 所有卡片在同一容器内拖拽；列数由 CSS Grid 决定，拖拽只改变线性顺序
    */
-  private setColumnRef = (index: number, el: unknown): void => {
+  setGridRef = (el: unknown): void => {
     const node = (el as HTMLElement | null) ?? null;
-    if (this.columnEls[index] === node && (this.sortableInstances[index] || !node)) return;
-    this.sortableInstances[index]?.destroy();
-    this.sortableInstances[index] = null;
-    this.columnEls[index] = node;
+    if (this.gridEl === node && (this.sortableInstance || !node)) return;
+    this.sortableInstance?.destroy();
+    this.sortableInstance = null;
+    this.gridEl = node;
     if (!node) return;
 
-    this.sortableInstances[index] = Sortable.create(node, {
-      group: 'config-sections',
+    this.sortableInstance = Sortable.create(node, {
       animation: 150,
       handle: '.config-card__drag-handle',
       ghostClass: 'config-card--drag-ghost',
       onEnd: (evt) => {
-        const { oldIndex, newIndex, item, from, to } = evt;
-        if (oldIndex === undefined || newIndex === undefined) return;
-        if (from === to && oldIndex === newIndex) return;
+        const { oldIndex, newIndex, item, from } = evt;
+        if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) return;
 
-        const dragged = this.collectSectionColumns();
-        // Sortable 已改动真实 DOM，先还原，再由 sectionColumns 数据驱动重排
-        to.removeChild(item);
+        // Sortable 已改动真实 DOM，先读取拖拽后的顺序，再还原交给数据驱动重排
+        const order = Array.from(from.children)
+          .map((child) => child.getAttribute('data-section-key') ?? '')
+          .filter(Boolean);
+        from.removeChild(item);
         from.insertBefore(item, from.children[oldIndex] ?? null);
 
-        // 移动端只有一列，拖拽后按奇偶还原桌面默认双列
-        const columns = this.isMobile.value || dragged.length !== 2
-          ? this.splitByParity(this.interleaveColumns(dragged))
-          : dragged;
-        const included = new Set(columns.flat());
-        this.sections.value
-          .filter((section) => !included.has(section.key))
-          .forEach((section, i) => columns[i % 2].push(section.key));
-        this.sectionColumnKeys.value = columns;
-        writeSectionColumns(columns);
+        this.sectionOrder.value = order;
+        writeSectionOrder(order);
       },
     });
   };
 
   /**
-   * 从各列 DOM 收集卡片 key
-   * @returns {string[][]} 每列的 section key 列表
-   * @description 只统计仍在文档中的列容器，排除视口切换后残留的旧节点
-   */
-  private collectSectionColumns = (): string[][] =>
-    this.columnEls
-      .filter((el): el is HTMLElement => !!el && el.isConnected)
-      .map((el) =>
-        Array.from(el.children)
-          .map((child) => child.getAttribute('data-section-key') ?? '')
-          .filter(Boolean),
-      );
-
-  /**
-   * 双列交错成线性顺序
-   * @param {string[][]} columns - 两列 key 列表
-   * @returns {string[]} 线性顺序（用于 sections 排序与移动端单列展示）
-   */
-  private interleaveColumns = (columns: string[][]): string[] => {
-    const order: string[] = [];
-    const maxLen = Math.max(0, ...columns.map((column) => column.length));
-    for (let i = 0; i < maxLen; i += 1) {
-      columns.forEach((column) => {
-        if (column[i]) order.push(column[i]);
-      });
-    }
-    return order;
-  };
-
-  /**
-   * 按索引奇偶把线性 key 拆成默认双列
-   * @param {string[]} keys - 线性 key 列表
-   * @returns {string[][]} 两列 key 列表
-   */
-  private splitByParity = (keys: string[]): string[][] => {
-    const columns: string[][] = [[], []];
-    keys.forEach((key, index) => columns[index % 2].push(key));
-    return columns;
-  };
-
-  /**
-   * 销毁所有 Sortable 实例
+   * 销毁网格容器的 Sortable 实例
    * @description 组件卸载时调用，避免残留事件监听
    */
   private destroySortable = (): void => {
-    this.sortableInstances.forEach((instance) => instance?.destroy());
-    this.sortableInstances = [];
-    this.columnEls = [];
+    this.sortableInstance?.destroy();
+    this.sortableInstance = null;
+    this.gridEl = null;
   };
 
   // ==============================
@@ -1088,19 +1014,17 @@ export class ConfigModel extends BaseModel {
 
   /**
    * 组件挂载时调用的生命周期方法
-   * @description 加载配置并启动窗口 resize 监听
+   * @description 加载配置
    */
   mounted = (): void => {
     this.loadConfig();
-    this.startResizeListener();
   };
 
   /**
    * 组件卸载前调用的生命周期方法
-   * @description 移除窗口 resize 监听，防止内存泄漏
+   * @description 销毁拖拽实例，避免残留事件监听
    */
   beforeUnmount = (): void => {
-    this.stopResizeListener();
     this.destroySortable();
   };
 }

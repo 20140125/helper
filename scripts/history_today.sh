@@ -70,22 +70,63 @@ _fetch_wikipedia_events() {
     local api_url="https://zh.wikipedia.org/api/rest_v1/feed/onthisday/events/${month_padded}/${day_padded}"
     log_info "🌐 调用维基百科历史事件 API: ${api_url}"
     local start_ts
-    start_ts=$(date +%s%3N 2>/dev/null || date +%s)
-    body=$(curl -s -H "User-Agent: MorningReminder/1.0" "${api_url}")
+    start_ts=$(now_ms)
+    body=$(curl -s --max-time 10 -H "User-Agent: MorningReminder/1.0" "${api_url}")
     local curl_exit=$?
 
-    if [ $curl_exit -ne 0 ] || [ -z "$body" ]; then
+    if [ $curl_exit -eq 0 ] && [ -n "$body" ]; then
+        log_info "📥 API 响应已接收（bytes=${#body}）"
+        log_duration "$start_ts" "维基百科历史事件 API 调用完成"
+    else
         local end_ts
-        end_ts=$(date +%s%3N 2>/dev/null || date +%s)
+        end_ts=$(now_ms)
         local cost=$((end_ts - start_ts))
-        log_error "历史数据 API 调用失败（curl_exit=${curl_exit}, 响应为空: $([ -z "$body" ] && echo yes || echo no), 耗时: ${cost}ms）"
-        echo "API_FAILED"
-        return 1
-    fi
-    log_info "📥 API 响应已接收（bytes=${#body}）"
-    log_duration "$start_ts" "维基百科历史事件 API 调用完成"
+        log_warning "维基百科历史事件 API 调用失败（curl_exit=${curl_exit}, 耗时: ${cost}ms），尝试 Byabbe 备用源"
 
-    # 归档原始 JSON（失败不阻断主流程）
+        # 维基百科 REST 在部分网络下不可达；Byabbe 同样基于 Wikipedia，免 Key 且响应较小。
+        # 统一归一化为 {"events":[{"year":..., "text":...}]}，下游解析无需区分来源。
+        local fallback_url="https://byabbe.se/on-this-day/${month_padded}/${day_padded}/events.json"
+        local fallback_body
+        fallback_body=$(curl -s --max-time 10 -H "User-Agent: MorningReminder/1.0" "${fallback_url}")
+        curl_exit=$?
+        if [ $curl_exit -ne 0 ] || [ -z "$fallback_body" ]; then
+            log_error "Byabbe 备用源也失败（curl_exit=${curl_exit}）"
+            echo "API_FAILED"
+            return 1
+        fi
+
+        body=$(python3 - "$fallback_body" << 'PYEOF'
+import json, sys
+try:
+    doc = json.loads(sys.argv[1])
+except Exception:
+    print('')
+    sys.exit(1)
+
+events = []
+for item in doc.get('events', [])[:10]:
+    year = str(item.get('year', '')).strip()
+    text = str(item.get('description') or item.get('text') or '').strip()
+    if year and text:
+        events.append({'year': year, 'text': text})
+
+if not events:
+    print('')
+    sys.exit(1)
+
+print(json.dumps({'events': events}, ensure_ascii=False))
+PYEOF
+)
+        if [ -z "$body" ]; then
+            log_error "Byabbe 备用源解析失败"
+            echo "API_FAILED"
+            return 1
+        fi
+        log_info "📥 Byabbe 备用源响应已归一化（bytes=${#body}）"
+        log_duration "$start_ts" "历史数据获取完成（Byabbe 备用源）"
+    fi
+
+    # 归档归一化后的 JSON（失败不阻断主流程）
     if archive_api_response "${cache_file}" "${body}"; then
         log_info "🗂  原始 JSON 已归档: ${cache_file}"
     else
@@ -166,7 +207,7 @@ EOF
 $events
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💡 数据来源：维基百科API（100%真实数据）
+💡 数据来源：维基百科 / Byabbe（100%真实数据）
 HISTORY_OUTPUT
 
     log_success "历史数据获取成功（${month}月${day}日，来自 Wikipedia API）"
@@ -232,7 +273,7 @@ EOF
     fi
 
     log_info "📝 输出企微消息 Markdown..."
-    printf '## 📜 历史上的今天\n\n**%s月%s日**\n\n%s\n\n💡 **数据来源**：维基百科（100%%真实数据）\n' "${month}" "${day}" "${events}"
+    printf '## 📜 历史上的今天\n\n**%s月%s日**\n\n%s\n\n💡 **数据来源**：维基百科 / Byabbe（100%%真实数据）\n' "${month}" "${day}" "${events}"
 
     log_success "历史事件消息生成成功（${month}月${day}日）"
     return 0

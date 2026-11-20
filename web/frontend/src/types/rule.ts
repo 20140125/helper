@@ -41,10 +41,12 @@ export interface Rule {
   webhookIds: string[];
   created_at: string;
   updated_at: string;
+  /** 最后触发时间（YYYY-MM-DDTHH:mm:ss，由执行脚本写入） */
+  lastTriggeredAt: string;
 }
 
 /** 创建/更新规则的请求体 */
-export type RulePayload = Omit<Rule, 'id' | 'created_at' | 'updated_at'>;
+export type RulePayload = Omit<Rule, 'id' | 'created_at' | 'updated_at' | 'lastTriggeredAt'>;
 
 /** 规则列表响应 */
 export type RulesResponse = ApiResponse<{ rules: Rule[] }>;

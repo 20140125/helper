@@ -55,7 +55,7 @@ parse_birthday_entry() {
         days_remaining=$(python3 "${PROJECT_DIR}/date_utils.py" days_until_lunar "$lunar_month" "$lunar_day" 2>/dev/null)
     else
         # 公历格式：提取 MM-DD
-        birth_md=$(echo "$birthday_str" | grep -oP '\d{2}-\d{2}$' || echo "$birthday_str")
+        birth_md=$(echo "$birthday_str" | grep -Eo '[0-9]{2}-[0-9]{2}$' || echo "$birthday_str")
         birthday_display="$birthday_str"
 
         # 提取月和日计算倒计时

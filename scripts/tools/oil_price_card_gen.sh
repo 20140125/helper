@@ -34,9 +34,9 @@ fetch_data() {
     page=$(curl -s "http://www.qiyoujiage.com/guangdong.shtml" 2>/dev/null)
 
     local p92 p95 p98
-    p92=$(echo "$page" | grep -A1 '92#汽油' | grep -oP '[0-9]+\.[0-9]+' | head -1)
-    p95=$(echo "$page" | grep -A1 '95#汽油' | grep -oP '[0-9]+\.[0-9]+' | head -1)
-    p98=$(echo "$page" | grep -A1 '98#汽油' | grep -oP '[0-9]+\.[0-9]+' | head -1)
+    p92=$(echo "$page" | grep -A1 '92#汽油' | grep -Eo '[0-9]+\.[0-9]+' | head -1)
+    p95=$(echo "$page" | grep -A1 '95#汽油' | grep -Eo '[0-9]+\.[0-9]+' | head -1)
+    p98=$(echo "$page" | grep -A1 '98#汽油' | grep -Eo '[0-9]+\.[0-9]+' | head -1)
 
     if [ -z "$p92" ] || [ -z "$p95" ] || [ -z "$p98" ]; then
         log_error "油价数据抓取失败"
@@ -56,8 +56,8 @@ fetch_data() {
     # 调价信息
     local home adjust_date adjust_change adjust_info
     home=$(curl -s "http://www.qiyoujiage.com/" 2>/dev/null)
-    adjust_date=$(echo "$home" | grep -oP '油价\d+月\d+日24时调整' | head -1 || true)
-    adjust_change=$(echo "$home" | grep -oP '(下跌|上涨)[0-9.]+元/升[^<()）]*' | head -1 || true)
+    adjust_date=$(echo "$home" | grep -Eo '油价[0-9]+月[0-9]+日24时调整' | head -1 || true)
+    adjust_change=$(echo "$home" | grep -Eo '(下跌|上涨)[0-9.]+元/升[^<()）]*' | head -1 || true)
     if [ -n "$adjust_date" ]; then
         adjust_info="$adjust_date"
         [ -n "$adjust_change" ] && adjust_info="${adjust_info}，${adjust_change}"

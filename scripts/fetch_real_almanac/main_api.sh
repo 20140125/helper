@@ -4,7 +4,7 @@
 # ======================================
 # 由主脚本 fetch_real_almanac.sh source 加载
 # 不设置 SCRIPT_DIR / LOG_FILE（由主脚本统一管理）
-# 依赖：log_utils / api_archive / JUHE_API_KEY
+# 依赖：log_utils / api_archive / JUHE_ALMANAC_API_KEY
 # ======================================
 
 # 获取真实黄历
@@ -25,12 +25,12 @@ get_real_almanac() {
     log_info "🔍 准备获取黄历数据（目标日期: ${date_str}）"
 
     # 如果没有配置API Key，返回提示
-    if [ -z "$JUHE_API_KEY" ]; then
+    if [ -z "$JUHE_ALMANAC_API_KEY" ]; then
         log_warning "未配置聚合数据API Token，请在 .env 中设置 JUHE_ALMANAC_KEY"
         echo "API_TOKEN_NOT_CONFIGURED"
         return 1
     fi
-    log_info "🔑 API Key 已加载（长度: ${#JUHE_API_KEY}）"
+    log_info "🔑 API Key 已加载（长度: ${#JUHE_ALMANAC_API_KEY}）"
 
     # 归档策略：只有目标日期 == 今天时才走 “一月一文件 + entries[今日]” 归档，
     # 否则直接实调 API，避免用历史日期数据覆盖 entries[today] 槽位
@@ -50,12 +50,12 @@ get_real_almanac() {
         local api_url="http://v.juhe.cn/laohuangli/d"
         log_info "🌐 调用聚合数据老黄历API: ${api_url}"
         local start_ts
-        start_ts=$(date +%s%3N 2>/dev/null || date +%s)
-        response=$(curl -s -m 10 "${api_url}?key=${JUHE_API_KEY}&date=${date_str}" 2>/dev/null)
+        start_ts=$(now_ms)
+        response=$(curl -s -m 10 "${api_url}?key=${JUHE_ALMANAC_API_KEY}&date=${date_str}" 2>/dev/null)
         local curl_exit=$?
 
         if [ $curl_exit -ne 0 ] || [ -z "$response" ]; then
-            local end_ts=$(date +%s%3N 2>/dev/null || date +%s)
+            local end_ts=$(now_ms)
             local cost=$((end_ts - start_ts))
             log_error "API请求失败（curl_exit=${curl_exit}, 响应为空: $([ -z "$response" ] && echo yes || echo no), 耗时: ${cost}ms）"
             echo "API_REQUEST_FAILED"
@@ -67,10 +67,10 @@ get_real_almanac() {
         # 先校验接口状态再归档：错误响应（如 10001 错误的请求KEY）不能写入缓存，
         # 否则坏数据会被固化成"当日归档"，之后每次都命中这份错误内容
         local api_error_code
-        api_error_code=$(echo "$response" | grep -oP '"error_code":\s*\K[0-9]+')
+        api_error_code=$(json_get_number "$response" error_code)
         if [ "${api_error_code:-0}" != "0" ]; then
             local api_reason
-            api_reason=$(echo "$response" | grep -oP '"reason":\s*"\K[^"]+')
+            api_reason=$(json_get_string "$response" reason)
             log_error "API返回错误（error_code=${api_error_code}, reason=${api_reason}），不写入归档"
             echo "API_ERROR: ${api_reason}"
             return 1
@@ -90,10 +90,10 @@ get_real_almanac() {
 
     # 检查API返回状态
     local error_code
-    error_code=$(echo "$response" | grep -oP '"error_code":\s*\K[0-9]+')
+    error_code=$(json_get_number "$response" error_code)
     if [ "$error_code" != "0" ]; then
         local reason
-        reason=$(echo "$response" | grep -oP '"reason":\s*"\K[^"]+')
+        reason=$(json_get_string "$response" reason)
         log_error "API返回错误（error_code=${error_code}, reason=${reason}）"
         echo "API_ERROR: $reason"
         return 1
@@ -102,15 +102,15 @@ get_real_almanac() {
 
     # 解析JSON数据（根据实际API返回结构）
     log_info "🧩 开始解析黄历字段..."
-    local yangli=$(echo "$response" | grep -oP '"yangli":\s*"\K[^"]+' | head -1)
-    local yinli=$(echo "$response" | grep -oP '"yinli":\s*"\K[^"]+' | head -1)
-    local wuxing=$(echo "$response" | grep -oP '"wuxing":\s*"\K[^"]+' | head -1)
-    local chongsha=$(echo "$response" | grep -oP '"chongsha":\s*"\K[^"]+' | head -1)
-    local baiji=$(echo "$response" | grep -oP '"baiji":\s*"\K[^"]+' | head -1)
-    local jishen=$(echo "$response" | grep -oP '"jishen":\s*"\K[^"]+' | head -1)
-    local yi=$(echo "$response" | grep -oP '"yi":\s*"\K[^"]+' | head -1)
-    local xiongshen=$(echo "$response" | grep -oP '"xiongshen":\s*"\K[^"]+' | head -1)
-    local ji=$(echo "$response" | grep -oP '"ji":\s*"\K[^"]+' | head -1)
+    local yangli=$(json_get_string "$response" yangli)
+    local yinli=$(json_get_string "$response" yinli)
+    local wuxing=$(json_get_string "$response" wuxing)
+    local chongsha=$(json_get_string "$response" chongsha)
+    local baiji=$(json_get_string "$response" baiji)
+    local jishen=$(json_get_string "$response" jishen)
+    local yi=$(json_get_string "$response" yi)
+    local xiongshen=$(json_get_string "$response" xiongshen)
+    local ji=$(json_get_string "$response" ji)
 
     log_info "   阳历: ${yangli:-<空>}"
     log_info "   农历: ${yinli:-<空>}"

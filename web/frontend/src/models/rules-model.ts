@@ -19,6 +19,7 @@ import {
   createEmptyRuleFormData,
   buildCondition,
   parseRuleToFormData,
+  isExecutedToday as checkExecutedToday,
   type RuleFlatFormData,
 } from '@/utils/rules';
 import { BaseModel } from '@/models/base-model';
@@ -208,6 +209,14 @@ export class RulesModel extends BaseModel {
   // ==============================
   // 公共方法
   // ==============================
+
+  /**
+   * 判断规则今天是否已经执行过
+   * @param {Rule} rule - 待判断的规则
+   * @returns {boolean} 最后触发时间年月日与今天相同则为 true
+   * @description 供卡片展示「今日已执行 / 今日未执行」状态
+   */
+  isExecutedToday = (rule: Rule): boolean => checkExecutedToday(rule.lastTriggeredAt);
 
   /**
    * 打开新增规则抽屉

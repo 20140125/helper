@@ -72,27 +72,37 @@
       >
         <template #actions="{ row }">
           <div class="flex gap-2">
-            <t-button
-              v-if="canEdit()"
-              variant="text"
-              size="small"
-              @click="openEditDoc(row)"
-            >
-              <template #icon><t-icon name="edit" /></template>
-            </t-button>
-            <t-popconfirm
-              :content="t.knowledgeBase.deleteDocConfirm"
-              @confirm="removeDoc(row.name)"
-            >
+            <template v-if="canEdit() && row.readonly">
               <t-button
-                v-if="canEdit()"
                 variant="text"
-                theme="danger"
                 size="small"
+                @click="importDoc(row)"
               >
-                <template #icon><t-icon name="delete" /></template>
+                <template #icon><t-icon name="download" /></template>
+                {{ t.knowledgeBase.importBtn }}
               </t-button>
-            </t-popconfirm>
+            </template>
+            <template v-else-if="canEdit()">
+              <t-button
+                variant="text"
+                size="small"
+                @click="openEditDoc(row)"
+              >
+                <template #icon><t-icon name="edit" /></template>
+              </t-button>
+              <t-popconfirm
+                :content="t.knowledgeBase.deleteDocConfirm"
+                @confirm="removeDoc(row.path)"
+              >
+                <t-button
+                  variant="text"
+                  theme="danger"
+                  size="small"
+                >
+                  <template #icon><t-icon name="delete" /></template>
+                </t-button>
+              </t-popconfirm>
+            </template>
           </div>
         </template>
       </t-table>
@@ -217,6 +227,7 @@ const {
   closeDocDrawer,
   submitDocForm,
   removeDoc,
+  importDoc,
   openDirsDrawer,
   closeDirsDrawer,
   submitDirsForm,

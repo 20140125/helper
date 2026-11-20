@@ -17,6 +17,14 @@
         <span class="text-sm font-semibold truncate" style="color: var(--text-primary);">{{ name }}</span>
       </div>
       <div class="flex items-center gap-2 shrink-0">
+        <t-tag
+          :theme="executedToday ? 'success' : 'default'"
+          variant="light"
+          size="small"
+          :title="lastTriggeredAt ? t.rules.lastTriggeredAt + ': ' + lastTriggeredAt : t.rules.neverExecuted"
+        >
+          {{ executedToday ? t.rules.executedToday : t.rules.notExecutedToday }}
+        </t-tag>
         <t-tag :theme="tagTheme" variant="light" size="small">{{ tagLabel }}</t-tag>
         <t-switch
           v-if="showActions"
@@ -138,6 +146,10 @@ withDefaults(defineProps<{
   created_at?: string;
   /** 最后修改时间文案 */
   updated_at?: string;
+  /** 今日是否已执行（最后触发日期与今天相同） */
+  executedToday?: boolean;
+  /** 最后触发时间，用于状态标签的悬浮提示 */
+  lastTriggeredAt?: string;
   /** 测试中状态（点击"测试"后的加载指示） */
   testing?: boolean;
   /** 脚本执行结果（传入后在卡片底部展开） */
@@ -171,6 +183,10 @@ withDefaults(defineProps<{
   created_at: '',
   /** TODO: updated_at 描述 */
   updated_at: '',
+  /** TODO: executedToday 描述 */
+  executedToday: false,
+  /** TODO: lastTriggeredAt 描述 */
+  lastTriggeredAt: '',
   /** TODO: testing 描述 */
   testing: false,
   /** TODO: result 描述 */

@@ -44,7 +44,14 @@ source "${PROJECT_DIR}/log_utils.sh"
 source "${PROJECT_DIR}/api_archive.sh"
 
 # 聚合数据API配置
-JUHE_API_KEY="${JUHE_ALMANAC_KEY:-}"
+# 老黄历与万年历是聚合数据两个独立接口，Key 也可能不同：
+# - 老黄历：JUHE_ALMANAC_KEY
+# - 万年历：JUHE_CALENDAR_KEY，未配置时兼容回退到 JUHE_ALMANAC_KEY
+JUHE_ALMANAC_API_KEY="${JUHE_ALMANAC_KEY:-}"
+JUHE_CALENDAR_API_KEY="${JUHE_CALENDAR_KEY:-${JUHE_ALMANAC_KEY:-}}"
+if [ -z "${JUHE_CALENDAR_KEY:-}" ]; then
+    log_warning "⚠️  未配置 JUHE_CALENDAR_KEY，万年历接口回退使用 JUHE_ALMANAC_KEY"
+fi
 
 # ======================================
 # 加载子模块（规范：主脚本+同名子目录）

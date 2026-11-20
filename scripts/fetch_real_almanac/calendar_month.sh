@@ -4,7 +4,7 @@
 # ======================================
 # 由主脚本 fetch_real_almanac.sh source 加载
 # 不设置 SCRIPT_DIR / LOG_FILE（由主脚本统一管理）
-# 依赖：log_utils / api_archive / JUHE_API_KEY / python3
+# 依赖：log_utils / api_archive / JUHE_CALENDAR_API_KEY / python3
 # ======================================
 
 # -----------------------------------------
@@ -29,7 +29,7 @@ get_calendar_month() {
     fi
     log_info "🔍 准备获取万年历·当月数据（目标月份: ${year_month}）"
 
-    if [ -z "$JUHE_API_KEY" ]; then
+    if [ -z "$JUHE_CALENDAR_API_KEY" ]; then
         log_warning "未配置聚合数据API Token，请在 .env 中设置 JUHE_ALMANAC_KEY"
         echo "API_TOKEN_NOT_CONFIGURED"
         return 1
@@ -51,8 +51,8 @@ get_calendar_month() {
         local api_url="http://v.juhe.cn/calendar/month"
         log_info "🌐 调用万年历·当月API: ${api_url}"
         local start_ts
-        start_ts=$(date +%s%3N 2>/dev/null || date +%s)
-        response=$(curl -s -m 15 --data-urlencode "year-month=${year_month}" --data-urlencode "key=${JUHE_API_KEY}" -G "${api_url}" 2>/dev/null)
+        start_ts=$(now_ms)
+        response=$(curl -s -m 15 --data-urlencode "year-month=${year_month}" --data-urlencode "key=${JUHE_CALENDAR_API_KEY}" -G "${api_url}" 2>/dev/null)
         local curl_exit=$?
 
         if [ $curl_exit -ne 0 ] || [ -z "$response" ]; then
@@ -66,10 +66,10 @@ get_calendar_month() {
         # 先校验接口状态再归档：错误响应（如 10001 错误的请求KEY）不能写入缓存，
         # 否则坏数据会被固化成"当月归档"，之后每次都命中这份错误内容
         local api_error_code
-        api_error_code=$(echo "$response" | grep -oP '"error_code":\s*\K[0-9]+')
+        api_error_code=$(json_get_number "$response" error_code)
         if [ "${api_error_code:-0}" != "0" ]; then
             local api_reason
-            api_reason=$(echo "$response" | grep -oP '"reason":\s*"\K[^"]+')
+            api_reason=$(json_get_string "$response" reason)
             log_error "API返回错误（error_code=${api_error_code}, reason=${api_reason}），不写入归档"
             echo "API_ERROR: ${api_reason}"
             return 1
@@ -87,10 +87,10 @@ get_calendar_month() {
     fi
 
     local error_code
-    error_code=$(echo "$response" | grep -oP '"error_code":\s*\K[0-9]+')
+    error_code=$(json_get_number "$response" error_code)
     if [ "$error_code" != "0" ]; then
         local reason
-        reason=$(echo "$response" | grep -oP '"reason":\s*"\K[^"]+')
+        reason=$(json_get_string "$response" reason)
         log_error "API返回错误（error_code=${error_code}, reason=${reason}）"
         echo "API_ERROR: $reason"
         return 1

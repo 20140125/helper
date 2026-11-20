@@ -1175,5 +1175,16 @@
     "enabled": true,
     "created_at": "2026-11-21 00:41:59",
     "updated_at": "2026-11-21 00:41:59"
+  },
+  {
+    "item_key": "api_knowledge_base_import_doc",
+    "category_id": "cat_knowledge_base",
+    "name": "导入系统文档",
+    "method": "POST",
+    "path": "/api/knowledge/docs/:docPath/import",
+    "description": "把系统文档复制为 knowledge/ 下的用户文档，原文档保持不变",
+    "enabled": true,
+    "created_at": "2026-11-21 00:48:45",
+    "updated_at": "2026-11-21 00:48:45"
   }
 ]

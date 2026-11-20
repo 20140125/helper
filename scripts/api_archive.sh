@@ -57,6 +57,30 @@ API_ARCHIVE_DIR="${CACHE_DIR}/api_responses"
 API_ARCHIVE_KEEP_MONTHS="${API_ARCHIVE_KEEP_MONTHS:-1}"
 
 # -----------------------------------------
+# 跨平台 JSON 字段提取（替代 GNU grep -oP / \K）
+# macOS BSD grep 不支持 -P，原来 "'\"key\":\\s*\"\\K[^\"]+'" 会直接报
+# "grep: invalid option -- P"，导致聚合数据接口全部被误判为失败。
+# 这里用 grep -Eo + sed 实现同样的「取第 nth 个同名字段」语义。
+# 参数：
+#   $1 - JSON 文本
+#   $2 - 字段名
+#   $3 - 第几个同名字段（默认 1）
+# -----------------------------------------
+json_get_string() {
+    local json="$1" key="$2" nth="${3:-1}"
+    printf '%s' "$json" | grep -Eo "\"${key}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" 2>/dev/null \
+        | sed -E "s/^\"${key}\"[[:space:]]*:[[:space:]]*\"(.*)\"\$/\1/" \
+        | sed -n "${nth}p"
+}
+
+json_get_number() {
+    local json="$1" key="$2" nth="${3:-1}"
+    printf '%s' "$json" | grep -Eo "\"${key}\"[[:space:]]*:[[:space:]]*-?[0-9]+" 2>/dev/null \
+        | sed -E "s/^\"${key}\"[[:space:]]*:[[:space:]]*//" \
+        | sed -n "${nth}p"
+}
+
+# -----------------------------------------
 # 归档写入器（Python 源码，供 archive_api_response 用 python3 -c 调用）
 # -----------------------------------------
 # 响应体一律通过 stdin 传入，不走命令行参数：

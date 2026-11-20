@@ -22,8 +22,12 @@ export const KNOWLEDGE_MAX_DOC_BYTES = 2 * 1024 * 1024;
 export interface KnowledgeDoc {
   /** 文件名（含 .md 后缀） */
   name: string;
-  /** 相对项目根的路径 */
+  /** 相对项目根的路径（唯一标识，供读取/编辑/删除使用） */
   path: string;
+  /** 所属索引目录（相对项目根） */
+  source_dir: string;
+  /** 是否只读系统文档（来自非 knowledge/ 目录，不可编辑或删除） */
+  readonly: boolean;
   /** 文件字节数 */
   size: number;
   /** 最近修改时间（YYYY-MM-DD HH:mm:ss） */

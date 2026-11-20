@@ -17,6 +17,14 @@ const DOC_NAME_PATTERN = /^[\w\u4e00-\u9fa5-]+(\.md)?$/i;
 /** 文档名最大长度 */
 const MAX_DOC_NAME_LENGTH = 80;
 
+/** 扫描索引目录时忽略的子目录（与 ai-chat/knowledge.ts 保持一致） */
+const IGNORE_SCAN_DIRS = new Set([
+  'node_modules', '.git', '.cache', '.runtime', '.codebuddy', 'dist', 'build', 'public',
+]);
+
+/** 最大扫描深度 */
+const MAX_SCAN_DEPTH = 4;
+
 /**
  * 格式化时间为 YYYY-MM-DD HH:mm:ss
  * @param {Date} date - 时间对象
@@ -50,23 +58,112 @@ export const normalizeDocName = (raw: string): string | null => {
 const getDocPath = (name: string): string => path.join(KNOWLEDGE_USER_DIR_ABS, `${name}.md`);
 
 /**
- * 列出用户维护的知识文档
- * @returns {KnowledgeDoc[]} 文档元信息列表，按更新时间倒序
+ * 判断文档相对路径是否属于用户维护目录
+ * @param {string} relativePath - 相对项目根的文档路径
+ * @returns {boolean} 位于 knowledge/ 目录时返回 true
+ */
+export const isUserDocPath = (relativePath: string): boolean => {
+  const normalized = relativePath.replace(/\\/g, '/');
+  return normalized.startsWith(`${KNOWLEDGE_USER_DIR}/`);
+};
+
+/**
+ * 列出所有参与索引的 Markdown 文档
+ * @returns {KnowledgeDoc[]} 文档元信息列表，用户文档在前、系统文档在后，各自按路径排序
+ * @description 覆盖全部已配置索引目录；系统文档（非 knowledge/ 目录）标记为只读
  */
 export const listKnowledgeDocs = (): KnowledgeDoc[] => {
-  if (!fs.existsSync(KNOWLEDGE_USER_DIR_ABS)) return [];
-  return fs.readdirSync(KNOWLEDGE_USER_DIR_ABS)
-    .filter((file) => file.toLowerCase().endsWith('.md'))
-    .map((file) => {
-      const stat = fs.statSync(path.join(KNOWLEDGE_USER_DIR_ABS, file));
-      return {
-        name: file,
-        path: `${KNOWLEDGE_USER_DIR}/${file}`,
-        size: stat.size,
-        updated_at: formatTimestamp(stat.mtime),
-      } satisfies KnowledgeDoc;
-    })
-    .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  const docs: KnowledgeDoc[] = [];
+  const seen = new Set<string>();
+
+  for (const sourceDir of readKnowledgeDirs().dirs) {
+    const root = path.join(PROJECT_DIR, sourceDir);
+    if (!fs.existsSync(root)) continue;
+
+    const walk = (current: string, depth: number): void => {
+      if (depth > MAX_SCAN_DEPTH) return;
+      let items: fs.Dirent[];
+      try {
+        items = fs.readdirSync(current, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const item of items) {
+        const abs = path.join(current, item.name);
+        if (item.isDirectory()) {
+          if (!IGNORE_SCAN_DIRS.has(item.name)) walk(abs, depth + 1);
+          continue;
+        }
+        if (!item.isFile() || !item.name.toLowerCase().endsWith('.md')) continue;
+
+        const relativePath = path.relative(PROJECT_DIR, abs).split(path.sep).join('/');
+        if (seen.has(relativePath)) continue;
+        seen.add(relativePath);
+        const stat = fs.statSync(abs);
+        docs.push({
+          name: item.name,
+          path: relativePath,
+          source_dir: sourceDir,
+          readonly: !isUserDocPath(relativePath),
+          size: stat.size,
+          updated_at: formatTimestamp(stat.mtime),
+        } satisfies KnowledgeDoc);
+      }
+    };
+    walk(root, 1);
+  }
+
+  return docs.sort((a, b) => {
+    if (a.readonly !== b.readonly) return a.readonly ? 1 : -1;
+    return a.path.localeCompare(b.path);
+  });
+};
+
+/**
+ * 解析文档相对路径为绝对路径（仅限已配置索引目录内的 .md 文件）
+ * @param {string} relativePath - 相对项目根的文档路径
+ * @returns {string | null} 绝对路径；越界、非 Markdown 或不存在时返回 null
+ * @description 防止路径穿越，确保只能访问知识库索引范围内的文件
+ */
+export const resolveDocPath = (relativePath: string): string | null => {
+  const normalized = (relativePath ?? '').replace(/\\/g, '/').replace(/^\.\//, '').trim();
+  if (!normalized || path.isAbsolute(normalized) || normalized.includes('..') || normalized.includes('\0')) return null;
+  if (!normalized.toLowerCase().endsWith('.md')) return null;
+
+  const abs = path.resolve(PROJECT_DIR, normalized);
+  const allowed = resolveKnowledgeDirPaths().some((dir) => abs === dir || abs.startsWith(`${dir}${path.sep}`));
+  if (!allowed) return null;
+  if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) return null;
+  return abs;
+};
+
+/**
+ * 按相对路径读取文档正文（支持系统文档与用户文档）
+ * @param {string} relativePath - 相对项目根的文档路径
+ * @returns {string | null} 文档内容；路径非法或不存在时返回 null
+ */
+export const readDocByPath = (relativePath: string): string | null => {
+  const abs = resolveDocPath(relativePath);
+  return abs ? fs.readFileSync(abs, 'utf-8') : null;
+};
+
+/**
+ * 导入系统文档为用户文档副本
+ * @param {string} relativePath - 系统文档的相对路径
+ * @returns {KnowledgeDoc | null} 导入后的用户文档元信息；失败时返回 null
+ * @description 仅复制内容到 knowledge/ 目录，原系统文档保持不变；目标同名时拒绝覆盖
+ */
+export const importSystemDoc = (relativePath: string): KnowledgeDoc | null => {
+  const abs = resolveDocPath(relativePath);
+  if (!abs || isUserDocPath(relativePath)) return null;
+
+  const rawName = path.basename(abs, path.extname(abs));
+  const safeName = normalizeDocName(rawName.replace(/[^\w\u4e00-\u9fa5-]+/g, '-').replace(/^-+|-+$/g, ''));
+  if (!safeName) return null;
+  if (readKnowledgeDoc(safeName) !== null) return null;
+
+  writeKnowledgeDoc(safeName, fs.readFileSync(abs, 'utf-8'));
+  return listKnowledgeDocs().find((doc) => doc.path === `${KNOWLEDGE_USER_DIR}/${safeName}.md`) ?? null;
 };
 
 /**

@@ -4,12 +4,20 @@
 export interface KnowledgeDoc {
   /** 文件名（含 .md 后缀） */
   name: string;
-  /** 相对项目根的路径 */
+  /** 相对项目根的路径（唯一标识） */
   path: string;
+  /** 所属索引目录 */
+  source_dir: string;
+  /** 是否为只读系统文档 */
+  readonly: boolean;
   /** 文件字节数 */
   size: number;
   /** 最近修改时间 */
   updated_at: string;
+  /** 文档类型显示文本（Model 预处理） */
+  typeLabel?: string;
+  /** 文件大小显示文本（Model 预处理） */
+  sizeText?: string;
 }
 
 /**
@@ -69,6 +77,15 @@ export interface KnowledgeDocContentResponse {
 export interface KnowledgeReindexResponse {
   code: number;
   data: { chunkCount: number; sources: number };
+  message: string;
+}
+
+/**
+ * 导入系统文档响应
+ */
+export interface KnowledgeImportResponse {
+  code: number;
+  data: { doc: KnowledgeDoc };
   message: string;
 }
 

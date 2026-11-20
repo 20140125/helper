@@ -78,12 +78,12 @@ get_real_weather() {
         local api_url="http://apis.juhe.cn/simpleWeather/query"
         log_info "🌐 调用聚合数据天气API: ${api_url}"
         local start_ts
-        start_ts=$(date +%s%3N 2>/dev/null || date +%s)
+        start_ts=$(now_ms)
         response=$(curl -s -m 10 "${api_url}?key=${JUHE_API_KEY}&city=${city}" 2>/dev/null)
         local curl_exit=$?
 
         if [ $curl_exit -ne 0 ] || [ -z "$response" ]; then
-            local end_ts=$(date +%s%3N 2>/dev/null || date +%s)
+            local end_ts=$(now_ms)
             local cost=$((end_ts - start_ts))
             log_error "API请求失败（curl_exit=${curl_exit}, 响应为空: $([ -z "$response" ] && echo yes || echo no), 耗时: ${cost}ms）"
             echo "API_REQUEST_FAILED"
@@ -102,10 +102,10 @@ get_real_weather() {
 
     # 检查API返回状态
     local error_code
-    error_code=$(echo "$response" | grep -oP '"error_code":\s*\K[0-9]+')
+    error_code=$(json_get_number "$response" error_code)
     if [ "$error_code" != "0" ]; then
         local reason
-        reason=$(echo "$response" | grep -oP '"reason":\s*"\K[^"]+')
+        reason=$(json_get_string "$response" reason)
         log_error "API返回错误（error_code=${error_code}, reason=${reason}）"
         echo "API_ERROR: $reason"
         return 1
@@ -114,12 +114,12 @@ get_real_weather() {
 
     # 解析JSON数据 - 实况天气（realtime字段）
     log_info "🧩 解析实况天气字段..."
-    local temperature=$(echo "$response" | grep -oP '"temperature":\s*"\K[^"]+' | head -1)
-    local info=$(echo "$response" | grep -oP '"info":\s*"\K[^"]+' | head -1)
-    local humidity=$(echo "$response" | grep -oP '"humidity":\s*"\K[^"]+' | head -1)
-    local wind_direction=$(echo "$response" | grep -oP '"direct":\s*"\K[^"]+' | head -1)
-    local wind_power=$(echo "$response" | grep -oP '"power":\s*"\K[^"]+' | head -1)
-    local aqi=$(echo "$response" | grep -oP '"aqi":\s*"\K[^"]+' | head -1)
+    local temperature=$(json_get_string "$response" temperature 1)
+    local info=$(json_get_string "$response" info 1)
+    local humidity=$(json_get_string "$response" humidity 1)
+    local wind_direction=$(json_get_string "$response" direct 1)
+    local wind_power=$(json_get_string "$response" power 1)
+    local aqi=$(json_get_string "$response" aqi 1)
 
     log_info "   温度:     ${temperature:-<空>}℃"
     log_info "   天气:     ${info:-<空>}"
@@ -135,21 +135,21 @@ get_real_weather() {
     log_info "🧩 解析未来 3 天天气..."
     local future_data=$(echo "$response" | grep -A 300 '"future"')
 
-    # 提取未来 3 天
-    local day1_date=$(echo "$future_data" | grep -oP '"date":\s*"\K[^"]+' | sed -n '1p')
-    local day1_temp=$(echo "$future_data" | grep -oP '"temperature":\s*"\K[^"]+' | sed -n '1p')
-    local day1_weather=$(echo "$future_data" | grep -oP '"weather":\s*"\K[^"]+' | sed -n '1p')
-    local day1_direct=$(echo "$future_data" | grep -oP '"direct":\s*"\K[^"]+' | sed -n '1p')
+    # 提取未来 3 天（future 与 realtime 都有 temperature/direct，故按出现顺序取第 2/3/4 个）
+    local day1_date=$(json_get_string "$future_data" date 1)
+    local day1_temp=$(json_get_string "$future_data" temperature 2)
+    local day1_weather=$(json_get_string "$future_data" weather 1)
+    local day1_direct=$(json_get_string "$future_data" direct 2)
 
-    local day2_date=$(echo "$future_data" | grep -oP '"date":\s*"\K[^"]+' | sed -n '2p')
-    local day2_temp=$(echo "$future_data" | grep -oP '"temperature":\s*"\K[^"]+' | sed -n '2p')
-    local day2_weather=$(echo "$future_data" | grep -oP '"weather":\s*"\K[^"]+' | sed -n '2p')
-    local day2_direct=$(echo "$future_data" | grep -oP '"direct":\s*"\K[^"]+' | sed -n '2p')
+    local day2_date=$(json_get_string "$future_data" date 2)
+    local day2_temp=$(json_get_string "$future_data" temperature 3)
+    local day2_weather=$(json_get_string "$future_data" weather 2)
+    local day2_direct=$(json_get_string "$future_data" direct 3)
 
-    local day3_date=$(echo "$future_data" | grep -oP '"date":\s*"\K[^"]+' | sed -n '3p')
-    local day3_temp=$(echo "$future_data" | grep -oP '"temperature":\s*"\K[^"]+' | sed -n '3p')
-    local day3_weather=$(echo "$future_data" | grep -oP '"weather":\s*"\K[^"]+' | sed -n '3p')
-    local day3_direct=$(echo "$future_data" | grep -oP '"direct":\s*"\K[^"]+' | sed -n '3p')
+    local day3_date=$(json_get_string "$future_data" date 3)
+    local day3_temp=$(json_get_string "$future_data" temperature 4)
+    local day3_weather=$(json_get_string "$future_data" weather 3)
+    local day3_direct=$(json_get_string "$future_data" direct 4)
 
     log_info "   D+1: ${day1_date:-?} ${day1_weather:-?} ${day1_temp:-?} ${day1_direct:-?}"
     log_info "   D+2: ${day2_date:-?} ${day2_weather:-?} ${day2_temp:-?} ${day2_direct:-?}"

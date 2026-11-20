@@ -148,6 +148,13 @@
       </div>
     </div>
   </div>
+
+  <!-- Mermaid 图表放大预览：点击气泡内图表后以原始尺寸 + 缩放方式查看 -->
+  <mermaid-preview-dialog
+    v-model:visible="mermaidPreviewVisible"
+    :svg="mermaidPreviewSvg"
+    :t="t"
+  />
 </template>
 
 <script setup lang="ts">
@@ -159,6 +166,7 @@ import ChatToolCallCard from './chat-tool-call-card.vue';
 import ChatPlanCard from './chat-plan-card.vue';
 import ChatReasoningCard from './chat-reasoning-card.vue';
 import ImagePreviewer from '@/components/common/image-previewer.vue';
+import MermaidPreviewDialog from './mermaid-preview-dialog.vue';
 import type { UiMessage } from '@/types/ai-chat';
 import { ChatRole } from '@/types/ai-chat';
 import type { Locale } from '@/locales/zh';
@@ -228,14 +236,35 @@ const renderedContent = computed(() => {
   return renderChatMarkdown(text, internalPaths.value);
 });
 
+/** 气泡内渲染完成的 mermaid 块 class（用于事件委托识别点击目标） */
+const MERMAID_BLOCK_CLASS = 'msg__mermaid';
+
+/** 放大预览对话框显示状态 */
+const mermaidPreviewVisible = ref(false);
+
+/** 当前要预览的 mermaid svg HTML（点击时从气泡节点提取） */
+const mermaidPreviewSvg = ref('');
+
 /**
- * 正文点击：站内路由链接改走 vue-router，外链维持浏览器默认（新标签打开）
+ * 正文点击：mermaid 图表放大预览 / 站内路由链接改走 vue-router，外链维持浏览器默认（新标签打开）
  * @param {MouseEvent} e - 点击事件
  * @returns {void}
- * @description 目标不在路由表里（页面已下线 / 模型编造路径）时拦下并提示，避免跳到空白页
+ * @description 点击 mermaid 图时提取其 SVG 交给预览对话框；链接目标不在路由表里时拦下并提示，避免跳到空白页
  */
 const onContentClick = (e: MouseEvent): void => {
   const target = e.target as HTMLElement | null;
+
+  // 点击 mermaid 图表：提取 svg 交给预览对话框放大展示
+  const mermaidBlock = target?.closest?.(`.${MERMAID_BLOCK_CLASS}`) as HTMLElement | null;
+  if (mermaidBlock) {
+    const svg = mermaidBlock.querySelector('svg')?.outerHTML;
+    if (svg) {
+      mermaidPreviewSvg.value = svg;
+      mermaidPreviewVisible.value = true;
+    }
+    return;
+  }
+
   const link = target?.closest?.(`a[${INTERNAL_LINK_ATTR}]`) as HTMLAnchorElement | null;
   if (!link) return;
   const to = link.getAttribute('href') ?? '';
@@ -375,7 +404,8 @@ const renderMermaidBlocks = async (): Promise<void> => {
       try {
         const { svg } = await mermaid.render(`mermaid-${Date.now()}-${i}`, code);
         const wrap = document.createElement('div');
-        wrap.className = 'msg__mermaid';
+        wrap.className = MERMAID_BLOCK_CLASS;
+        wrap.title = props.t.aiChat.mermaidZoomHint;
         wrap.innerHTML = svg;
         node.replaceWith(wrap);
       } catch (error) {
@@ -800,6 +830,12 @@ const onStop = (): void => {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-color);
   border-radius: 8px;
+  cursor: zoom-in;
+  transition: border-color 0.2s ease;
+}
+
+.msg__content :deep(.msg__mermaid:hover) {
+  border-color: var(--accent-primary, #0052d9);
 }
 
 .msg__content :deep(.msg__mermaid svg) {

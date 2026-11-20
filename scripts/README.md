@@ -356,7 +356,8 @@ cp web/.env.example web/.env
 |------|------|------|
 | `WECOM_WEBHOOK` | — | 企业微信 Webhook（已迁移到 Web 管理界面 → 系统配置 → 企业微信机器人） |
 | `JUHE_WEATHER_KEY` | — | 聚合数据天气 API Key |
-| `JUHE_ALMANAC_KEY` | — | 聚合数据黄历 API Key |
+| `JUHE_ALMANAC_KEY` | — | 聚合数据老黄历 API Key |
+| `JUHE_CALENDAR_KEY` | — | 聚合数据万年历 API Key；未配置时回退到 `JUHE_ALMANAC_KEY`（两个接口 Key 可能不同） |
 | `JUHE_HOROSCOPE_KEY` | — | 聚合数据星座 API Key |
 | `WEATHER_CITY_NAME` | — | 天气查询城市（默认：深圳） |
 | `HOLIDAY_API_URL` | — | 节假日 API 地址（默认 timor.tech） |

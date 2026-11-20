@@ -2,6 +2,7 @@ import type {
   KnowledgeOverviewResponse,
   KnowledgeDocResponse,
   KnowledgeDocContentResponse,
+  KnowledgeImportResponse,
   KnowledgeReindexResponse,
   KnowledgeSearchResponse,
   KnowledgeDirsResponse,
@@ -29,12 +30,22 @@ export class KnowledgeService extends BaseService {
 
   /**
    * 读取知识文档正文
-   * @param {string} name - 文档名（含 .md 后缀）
+   * @param {string} docPath - 文档相对路径（系统文档与用户文档均可读）
    * @returns {Promise<KnowledgeDocContentResponse>} 文档正文响应
    * @description 编辑抽屉打开前读取完整正文，避免仅凭列表元信息回填
    */
-  fetchDocContent = async (name: string): Promise<KnowledgeDocContentResponse> => {
-    return this.get<KnowledgeDocContentResponse>(`/knowledge/docs/${encodeURIComponent(name)}`);
+  fetchDocContent = async (docPath: string): Promise<KnowledgeDocContentResponse> => {
+    return this.get<KnowledgeDocContentResponse>(`/knowledge/docs/${encodeURIComponent(docPath)}`);
+  };
+
+  /**
+   * 导入系统文档为用户文档副本
+   * @param {string} docPath - 系统文档相对路径
+   * @returns {Promise<KnowledgeImportResponse>} 导入后的用户文档
+   * @description 原系统文档保持不变，仅复制内容到 knowledge/ 目录
+   */
+  importDoc = async (docPath: string): Promise<KnowledgeImportResponse> => {
+    return this.post<KnowledgeImportResponse>(`/knowledge/docs/${encodeURIComponent(docPath)}/import`);
   };
 
   /**
@@ -48,24 +59,24 @@ export class KnowledgeService extends BaseService {
   };
 
   /**
-   * 更新知识文档
-   * @param {string} name - 文档名（含 .md 后缀）
+   * 更新用户知识文档
+   * @param {string} docPath - 用户文档相对路径
    * @param {{ content: string }} payload - 新的 Markdown 正文
    * @returns {Promise<KnowledgeDocResponse>} 更新后的文档响应
-   * @description 覆盖写入指定文档并触发索引失效
+   * @description 覆盖写入指定文档并触发索引失效；系统文档由后端拒绝修改
    */
-  updateDoc = async (name: string, payload: { content: string }): Promise<KnowledgeDocResponse> => {
-    return this.put<KnowledgeDocResponse>(`/knowledge/docs/${encodeURIComponent(name)}`, payload);
+  updateDoc = async (docPath: string, payload: { content: string }): Promise<KnowledgeDocResponse> => {
+    return this.put<KnowledgeDocResponse>(`/knowledge/docs/${encodeURIComponent(docPath)}`, payload);
   };
 
   /**
-   * 删除知识文档
-   * @param {string} name - 文档名（含 .md 后缀）
+   * 删除用户知识文档
+   * @param {string} docPath - 用户文档相对路径
    * @returns {Promise<KnowledgeDocResponse>} 删除操作响应
-   * @description 删除指定文档并触发索引失效
+   * @description 删除指定文档并触发索引失效；系统文档由后端拒绝删除
    */
-  deleteDoc = async (name: string): Promise<KnowledgeDocResponse> => {
-    return this.del<KnowledgeDocResponse>(`/knowledge/docs/${encodeURIComponent(name)}`);
+  deleteDoc = async (docPath: string): Promise<KnowledgeDocResponse> => {
+    return this.del<KnowledgeDocResponse>(`/knowledge/docs/${encodeURIComponent(docPath)}`);
   };
 
   /**

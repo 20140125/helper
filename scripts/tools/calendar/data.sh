@@ -20,7 +20,7 @@ fetch_lunar_data() {
     fi
     # 输出如 "2026-03-09 (三月初九)"，提取括号内
     local lunar_cn
-    lunar_cn=$(echo "$lunar_raw" | grep -oP '\(\K[^)]+')
+    lunar_cn=$(echo "$lunar_raw" | sed -n 's/.*(\([^)]*\)).*/\1/p')
     echo "$lunar_cn"
 }
 

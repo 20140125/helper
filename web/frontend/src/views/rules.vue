@@ -67,6 +67,8 @@
           :webhook-count="(rule.webhookIds || []).length"
           :created-at="rule.created_at"
           :updated-at="rule.updated_at"
+          :executed-today="isExecutedToday(rule)"
+          :last-triggered-at="rule.lastTriggeredAt"
           :testing="testingId === rule.id"
           :result="testResults[rule.id]"
           :show-actions="canEdit()"
@@ -119,6 +121,7 @@ const {
   typeTheme,
   templateNameMap,
   formatCondition,
+  isExecutedToday,
   pageLoading,
   isMobile,
   openCreate,

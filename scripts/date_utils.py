@@ -19,7 +19,7 @@ import calendar
 import json
 import sys
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional  # pyright: ignore[reportDeprecated]
 
 from lunar_python import Lunar, Solar  # pyright: ignore[reportMissingTypeStubs]
 
@@ -29,7 +29,7 @@ class DateManager:
     
     holidays: dict[str, list[str]]
     
-    def __init__(self, holidays_config: Optional[dict[str, list[str]]] = None) -> None:
+    def __init__(self, holidays_config: Optional[dict[str, list[str]]] = None) -> None:  # pyright: ignore[reportDeprecated]
         """初始化
         
         Args:
@@ -86,12 +86,12 @@ class DateManager:
             lunar = solar.getLunar()
             
             return {
-                'year': lunar.getYear(),
-                'month': lunar.getMonth(),
-                'day': lunar.getDay(),
-                'lunar_str': f"{lunar.getMonthInChinese()}月{lunar.getDayInChinese()}",
-                'gan_zhi_year': lunar.getYearInGanZhi(),
-                'zodiac': lunar.getYearShengXiao()
+                'year': int(lunar.getYear()),
+                'month': int(lunar.getMonth()),
+                'day': int(lunar.getDay()),
+                'lunar_str': str(f"{lunar.getMonthInChinese()}月{lunar.getDayInChinese()}"),
+                'gan_zhi_year': str(lunar.getYearInGanZhi()),
+                'zodiac': str(lunar.getYearShengXiao())
             }
         except Exception as e:
             raise ValueError(f"公历转农历失败: {date}, 错误: {e}")
@@ -238,7 +238,7 @@ class DateManager:
     # 生日相关
     # =================================================
     
-    def calculate_age(self, birth_date: datetime, reference_date: Optional[datetime] = None) -> int:
+    def calculate_age(self, birth_date: datetime, reference_date: Optional[datetime] = None) -> int:  # pyright: ignore[reportDeprecated]
         """计算年龄
         
         Args:
@@ -259,7 +259,7 @@ class DateManager:
         
         return age
     
-    def days_until_birthday(self, month: int, day: int, reference_date: Optional[datetime] = None) -> int:
+    def days_until_birthday(self, month: int, day: int, reference_date: Optional[datetime] = None) -> int:  # pyright: ignore[reportDeprecated]
         """计算距离生日还有多少天
         
         Args:
@@ -292,7 +292,7 @@ class DateManager:
     # 节气相关
     # =================================================
     
-    def get_solar_term(self, date: datetime) -> Optional[str]:
+    def get_solar_term(self, date: datetime) -> Optional[str]:  # pyright: ignore[reportDeprecated]
         """获取指定日期的节气
         
         Args:
@@ -309,7 +309,7 @@ class DateManager:
         except:
             return None
     
-    def get_next_solar_term(self, date: Optional[datetime] = None) -> Optional[dict[str, str | datetime]]:
+    def get_next_solar_term(self, date: Optional[datetime] = None) -> Optional[dict[str, str | datetime]]:  # pyright: ignore[reportDeprecated]
         """获取下一个节气
         
         Args:

@@ -1,3 +1,4 @@
+import path from 'path';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import {
@@ -5,6 +6,9 @@ import {
   ErrorCode,
   listKnowledgeDocs,
   readKnowledgeDoc,
+  readDocByPath,
+  isUserDocPath,
+  importSystemDoc,
   writeKnowledgeDoc,
   deleteKnowledgeDoc,
   readKnowledgeDirs,
@@ -16,7 +20,7 @@ import {
   buildKnowledgeIndex,
   resetKnowledgeIndex,
 } from './utils';
-import { KNOWLEDGE_MAX_DOC_BYTES } from '@/types/knowledge';
+import { KNOWLEDGE_MAX_DOC_BYTES, KNOWLEDGE_USER_DIR } from '@/types/knowledge';
 import type {
   CreateKnowledgeDocBody,
   UpdateKnowledgeDocBody,
@@ -37,19 +41,29 @@ router.get('/', (_req: Request, res: Response) => {
 });
 
 /**
- * 读取知识文档正文
- * @route GET /docs/:name
+ * 读取知识文档正文（系统文档与用户文档均可读）
+ * @route GET /docs/:docPath
  */
-router.get('/docs/:name', (req: Request, res: Response) => {
-  const safeName = normalizeDocName(req.params.name ?? '');
-  if (!safeName) {
-    return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '文档名不合法');
-  }
-  const content = readKnowledgeDoc(safeName);
+router.get('/docs/:docPath', (req: Request, res: Response) => {
+  const content = readDocByPath(req.params.docPath ?? '');
   if (content === null) {
-    return returnResponse(res, ErrorCode.NOT_FOUND, {}, '文档不存在');
+    return returnResponse(res, ErrorCode.NOT_FOUND, {}, '文档不存在或路径不合法');
   }
   return returnResponse(res, ErrorCode.SUCCESS, { content } as Record<string, unknown>, '');
+});
+
+/**
+ * 导入系统文档为用户文档副本
+ * @route POST /docs/:docPath/import
+ * @description 原系统文档保持不变，仅复制内容到 knowledge/ 目录供编辑
+ */
+router.post('/docs/:docPath/import', (req: Request, res: Response) => {
+  const doc = importSystemDoc(req.params.docPath ?? '');
+  if (!doc) {
+    return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '导入失败：文档不可访问或用户目录已有同名文档');
+  }
+  resetKnowledgeIndex();
+  return returnResponse(res, ErrorCode.SUCCESS, { doc } as Record<string, unknown>, '已导入为用户文档');
 });
 
 /**
@@ -75,21 +89,22 @@ router.post('/docs', (req: Request, res: Response) => {
 
   writeKnowledgeDoc(safeName, content);
   resetKnowledgeIndex();
-  const doc = listKnowledgeDocs().find((item) => item.name === `${safeName}.md`);
+  const doc = listKnowledgeDocs().find((item) => item.path === `${KNOWLEDGE_USER_DIR}/${safeName}.md`);
   return returnResponse(res, ErrorCode.SUCCESS, { doc } as Record<string, unknown>, '创建成功');
 });
 
 /**
- * 更新知识文档
- * @route PUT /docs/:name
+ * 更新用户知识文档（系统文档只读，拒绝修改）
+ * @route PUT /docs/:docPath
  * @body {UpdateKnowledgeDocBody}
  */
-router.put('/docs/:name', (req: Request, res: Response) => {
-  const safeName = normalizeDocName(req.params.name ?? '');
-  if (!safeName) {
-    return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '文档名不合法');
+router.put('/docs/:docPath', (req: Request, res: Response) => {
+  const docPath = req.params.docPath ?? '';
+  if (!isUserDocPath(docPath)) {
+    return returnResponse(res, ErrorCode.FORBIDDEN, {}, '系统文档为只读，请先导入为用户文档再编辑');
   }
-  if (readKnowledgeDoc(safeName) === null) {
+  const safeName = normalizeDocName(path.basename(docPath, path.extname(docPath)));
+  if (!safeName || readKnowledgeDoc(safeName) === null) {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, '文档不存在');
   }
   const { content } = (req.body ?? {}) as UpdateKnowledgeDocBody;
@@ -102,20 +117,21 @@ router.put('/docs/:name', (req: Request, res: Response) => {
 
   writeKnowledgeDoc(safeName, content);
   resetKnowledgeIndex();
-  const doc = listKnowledgeDocs().find((item) => item.name === `${safeName}.md`);
+  const doc = listKnowledgeDocs().find((item) => item.path === `${KNOWLEDGE_USER_DIR}/${safeName}.md`);
   return returnResponse(res, ErrorCode.SUCCESS, { doc } as Record<string, unknown>, '更新成功');
 });
 
 /**
- * 删除知识文档
- * @route DELETE /docs/:name
+ * 删除用户知识文档（系统文档只读，拒绝删除）
+ * @route DELETE /docs/:docPath
  */
-router.delete('/docs/:name', (req: Request, res: Response) => {
-  const safeName = normalizeDocName(req.params.name ?? '');
-  if (!safeName) {
-    return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '文档名不合法');
+router.delete('/docs/:docPath', (req: Request, res: Response) => {
+  const docPath = req.params.docPath ?? '';
+  if (!isUserDocPath(docPath)) {
+    return returnResponse(res, ErrorCode.FORBIDDEN, {}, '系统文档为只读，不可删除');
   }
-  if (!deleteKnowledgeDoc(safeName)) {
+  const safeName = normalizeDocName(path.basename(docPath, path.extname(docPath)));
+  if (!safeName || !deleteKnowledgeDoc(safeName)) {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, '文档不存在');
   }
   resetKnowledgeIndex();

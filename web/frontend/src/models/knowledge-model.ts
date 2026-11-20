@@ -128,16 +128,12 @@ export class KnowledgeModel extends BaseModel {
     return computed(() => {
       const { t } = this.localeStore;
       return [
-        { colKey: 'name', title: t.knowledgeBase.colName, width: 200 },
+        { colKey: 'name', title: t.knowledgeBase.colName, width: 260 },
+        { colKey: 'typeLabel', title: t.knowledgeBase.colType, width: 110 },
         { colKey: 'path', title: t.knowledgeBase.colPath, ellipsis: true },
-        {
-          colKey: 'size',
-          title: t.knowledgeBase.colSize,
-          width: 110,
-          formatter: (row: KnowledgeDoc) => this.formatSize(row.size),
-        },
+        { colKey: 'sizeText', title: t.knowledgeBase.colSize, width: 110 },
         { colKey: 'updated_at', title: t.knowledgeBase.colUpdatedAt, width: 190 },
-        { colKey: 'actions', title: t.knowledgeBase.colActions, width: 100, fixed: 'right' },
+        { colKey: 'actions', title: t.knowledgeBase.colActions, width: 150, fixed: 'right' },
       ];
     });
   }
@@ -215,12 +211,18 @@ export class KnowledgeModel extends BaseModel {
   /**
    * 加载知识库概览（文档列表 + 索引目录配置）
    * @param {boolean} [silent] - 静默加载，不显示页面级 loading
+   * @description 同时预处理类型标签与大小文本，供表格直接展示
    */
   loadOverview = async (silent: boolean = false): Promise<void> => {
     if (!silent) this.pageLoading.value = true;
     try {
       const res = await this.service.fetchOverview();
-      this.docs.value = res.data.docs;
+      const { t } = this.localeStore;
+      this.docs.value = res.data.docs.map((doc) => ({
+        ...doc,
+        typeLabel: doc.readonly ? t.knowledgeBase.typeSystem : t.knowledgeBase.typeUser,
+        sizeText: this.formatSize(doc.size),
+      }));
       this.config.value = res.data.config;
     } catch {
       MessagePlugin.error(this.localeStore.t.common.operationFailedRetry);
@@ -244,8 +246,9 @@ export class KnowledgeModel extends BaseModel {
    * @description 先从服务端读取正文再回填，避免只拿到元信息
    */
   openEditDoc = async (doc: KnowledgeDoc): Promise<void> => {
+    if (doc.readonly) return;
     try {
-      const res = await this.service.fetchDocContent(doc.name);
+      const res = await this.service.fetchDocContent(doc.path);
       this.editingDoc.value = doc;
       this.docFormData.value = { name: doc.name, content: res.data.content };
       this.docDrawerVisible.value = true;
@@ -276,7 +279,7 @@ export class KnowledgeModel extends BaseModel {
     this.pageLoading.value = true;
     try {
       if (this.editingDoc.value) {
-        await this.service.updateDoc(this.editingDoc.value.name, { content: form.content });
+        await this.service.updateDoc(this.editingDoc.value.path, { content: form.content });
         MessagePlugin.success(this.localeStore.t.common.updateSuccess);
       } else {
         await this.service.createDoc({ name: form.name.trim(), content: form.content });
@@ -292,16 +295,31 @@ export class KnowledgeModel extends BaseModel {
   };
 
   /**
-   * 删除指定文档
-   * @param {string} name - 文档名（含 .md 后缀）
+   * 删除指定用户文档
+   * @param {string} docPath - 文档相对路径
    */
-  removeDoc = async (name: string): Promise<void> => {
+  removeDoc = async (docPath: string): Promise<void> => {
     try {
-      await this.service.deleteDoc(name);
+      await this.service.deleteDoc(docPath);
       MessagePlugin.success(this.localeStore.t.common.deleteSuccess);
       await this.loadOverview(true);
     } catch {
       MessagePlugin.error(this.localeStore.t.common.deleteFailedRetry);
+    }
+  };
+
+  /**
+   * 导入系统文档为用户文档副本
+   * @param {KnowledgeDoc} doc - 系统文档元信息
+   * @description 原系统文档保持不变，导入后可在用户文档中编辑或删除
+   */
+  importDoc = async (doc: KnowledgeDoc): Promise<void> => {
+    try {
+      await this.service.importDoc(doc.path);
+      MessagePlugin.success(this.localeStore.t.knowledgeBase.importSuccess);
+      await this.loadOverview(true);
+    } catch {
+      MessagePlugin.error(this.localeStore.t.common.operationFailedRetry);
     }
   };
 

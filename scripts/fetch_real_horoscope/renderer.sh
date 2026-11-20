@@ -19,15 +19,15 @@ _render_horoscope_day() {
     local response="$3"
 
     log_info "🧩 解析日度运势字段..."
-    local summary=$(echo "$response" | grep -oP '"summary":\s*"\K[^"]+')
-    local love=$(echo "$response"    | grep -oP '"love":\s*"\K[^"]+')
-    local work=$(echo "$response"    | grep -oP '"work":\s*"\K[^"]+')
-    local money=$(echo "$response"   | grep -oP '"money":\s*"\K[^"]+')
-    local health=$(echo "$response"  | grep -oP '"health":\s*"\K[^"]+')
-    local color=$(echo "$response"   | grep -oP '"color":\s*"\K[^"]+')
-    local number=$(echo "$response"  | grep -oP '"number":\s*[0-9]+' | grep -oP '[0-9]+')
-    local QFriend=$(echo "$response" | grep -oP '"QFriend":\s*"\K[^"]+')
-    local all=$(echo "$response"     | grep -oP '"all":\s*"\K[^"]+')
+    local summary=$(json_get_string "$response" summary)
+    local love=$(json_get_string "$response" love)
+    local work=$(json_get_string "$response" work)
+    local money=$(json_get_string "$response" money)
+    local health=$(json_get_string "$response" health)
+    local color=$(json_get_string "$response" color)
+    local number=$(json_get_number "$response" number)
+    local QFriend=$(json_get_string "$response" QFriend)
+    local all=$(json_get_string "$response" all)
 
     if [ -z "$summary" ] && [ -z "$all" ]; then
         log_warning "⚠️  关键字段（summary/all）均为空，API 结构可能已变更"
@@ -63,13 +63,13 @@ _render_horoscope_week() {
     local response="$3"
 
     log_info "🧩 解析周运字段..."
-    local date_str=$(echo "$response" | grep -oP '"date":\s*"\K[^"]+' | head -1)
-    local weekth=$(echo "$response"   | grep -oP '"weekth":\s*"\K[^"]+' | head -1)
-    local health=$(echo "$response"   | grep -oP '"health":\s*"\K[^"]+' | head -1)
-    local job=$(echo "$response"      | grep -oP '"job":\s*"\K[^"]+' | head -1)
-    local love=$(echo "$response"     | grep -oP '"love":\s*"\K[^"]+' | head -1)
-    local money=$(echo "$response"    | grep -oP '"money":\s*"\K[^"]+' | head -1)
-    local work=$(echo "$response"     | grep -oP '"work":\s*"\K[^"]+' | head -1)
+    local date_str=$(json_get_string "$response" date)
+    local weekth=$(json_get_string "$response" weekth)
+    local health=$(json_get_string "$response" health)
+    local job=$(json_get_string "$response" job)
+    local love=$(json_get_string "$response" love)
+    local money=$(json_get_string "$response" money)
+    local work=$(json_get_string "$response" work)
 
     cat << HOROSCOPE
 ## ✨ ${label}星座运势（${zodiac_cn}）
@@ -94,13 +94,13 @@ _render_horoscope_month() {
     local response="$3"
 
     log_info "🧩 解析月运字段..."
-    local date_str=$(echo "$response"   | grep -oP '"date":\s*"\K[^"]+' | head -1)
-    local month_n=$(echo "$response"    | grep -oP '"mN":\s*"\K[^"]+' | head -1)
-    local all=$(echo "$response"        | grep -oP '"all":\s*"\K[^"]+' | head -1)
-    local love=$(echo "$response"       | grep -oP '"love":\s*"\K[^"]+' | head -1)
-    local money=$(echo "$response"      | grep -oP '"money":\s*"\K[^"]+' | head -1)
-    local work=$(echo "$response"       | grep -oP '"work":\s*"\K[^"]+' | head -1)
-    local happy_magic=$(echo "$response"| grep -oP '"happyMagic":\s*"\K[^"]+' | head -1)
+    local date_str=$(json_get_string "$response" date)
+    local month_n=$(json_get_string "$response" mN)
+    local all=$(json_get_string "$response" all)
+    local love=$(json_get_string "$response" love)
+    local money=$(json_get_string "$response" money)
+    local work=$(json_get_string "$response" work)
+    local happy_magic=$(json_get_string "$response" happyMagic)
 
     cat << HOROSCOPE
 ## ✨ ${label}星座运势（${zodiac_cn}）
@@ -127,12 +127,12 @@ _render_horoscope_year() {
     local response="$3"
 
     log_info "🧩 解析年运字段..."
-    local date_str=$(echo "$response" | grep -oP '"date":\s*"\K[^"]+' | head -1)
-    local career=$(echo "$response"   | grep -oP '"career":\s*"\K[^"]+' | head -1)
-    local love=$(echo "$response"     | grep -oP '"love":\s*"\K[^"]+' | head -1)
-    local health=$(echo "$response"   | grep -oP '"health":\s*"\K[^"]+' | head -1)
-    local finance=$(echo "$response"  | grep -oP '"finance":\s*"\K[^"]+' | head -1)
-    local mima=$(echo "$response"     | grep -oP '"mima":\s*"\K[^"]+' | head -1)
+    local date_str=$(json_get_string "$response" date)
+    local career=$(json_get_string "$response" career)
+    local love=$(json_get_string "$response" love)
+    local health=$(json_get_string "$response" health)
+    local finance=$(json_get_string "$response" finance)
+    local mima=$(json_get_string "$response" mima)
 
     cat << HOROSCOPE
 ## ✨ ${label}星座运势（${zodiac_cn}）

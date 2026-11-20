@@ -252,12 +252,12 @@ get_real_horoscope() {
         local api_url="http://web.juhe.cn/constellation/getAll"
         log_info "🌐 调用聚合数据星座API: ${api_url} (type=${type})"
         local start_ts
-        start_ts=$(date +%s%3N 2>/dev/null || date +%s)
+        start_ts=$(now_ms)
         response=$(curl -s -m 10 "${api_url}?consName=${encoded_zodiac}&type=${type}&key=${JUHE_API_KEY}" 2>/dev/null)
         local curl_exit=$?
 
         if [ $curl_exit -ne 0 ] || [ -z "$response" ]; then
-            local end_ts=$(date +%s%3N 2>/dev/null || date +%s)
+            local end_ts=$(now_ms)
             local cost=$((end_ts - start_ts))
             log_error "API请求失败（curl_exit=${curl_exit}, 响应为空: $([ -z "$response" ] && echo yes || echo no), 耗时: ${cost}ms）"
             echo "API_REQUEST_FAILED"
@@ -276,10 +276,10 @@ get_real_horoscope() {
 
     # 检查API返回状态
     local error_code
-    error_code=$(echo "$response" | grep -oP '"error_code":\s*\K[0-9]+')
+    error_code=$(json_get_number "$response" error_code)
     if [ "$error_code" != "0" ]; then
         local reason
-        reason=$(echo "$response" | grep -oP '"reason":\s*"\K[^"]+')
+        reason=$(json_get_string "$response" reason)
         log_error "API返回错误（error_code=${error_code}, reason=${reason}）"
         echo "API_ERROR: $reason"
         return 1

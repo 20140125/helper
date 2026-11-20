@@ -23,7 +23,7 @@
 #   source log_utils.sh
 #   log_info "服务启动"
 #   log_error "连接失败" '{"host":"api.example.com","port":443}'
-#   start_time=$(date +%s%3N)
+#   start_time=$(now_ms)
 #   # ... 执行任务 ...
 #   log_duration $start_time "任务完成"
 #
@@ -53,6 +53,26 @@ COLOR_DEBUG="\033[0;36m"    # 青色
 # ======================================
 # 内部工具函数
 # ======================================
+
+# 获取毫秒时间戳（兼容 GNU date 与 macOS BSD date）
+# @returns {string} 13 位毫秒时间戳
+# @description BSD date 不支持 %3N，会原样输出 N 导致算术运算报错；统一走此函数
+now_ms() {
+  local candidate
+  candidate=$(date +%s%3N 2>/dev/null || true)
+  if [[ "$candidate" =~ ^[0-9]+$ ]]; then
+    printf '%s' "$candidate"
+    return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    candidate=$(python3 -c 'import time; print(int(time.time() * 1000))' 2>/dev/null || true)
+    if [[ "$candidate" =~ ^[0-9]+$ ]]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  fi
+  printf '%s000' "$(date +%s)"
+}
 
 # 获取调用栈信息
 # 参数: $1 - 调用栈深度（默认 2）
@@ -237,13 +257,18 @@ log_success() {
 }
 
 # 性能日志（记录耗时）
-# 参数: $1 - 开始时间（毫秒，通过 date +%s%3N 获取）, $2 - 消息
+# 参数: $1 - 开始时间（毫秒，通过 now_ms 获取）, $2 - 消息
 log_duration() {
   local start_time="$1"
   local message="$2"
-  
+
+  # 兼容旧调用传入秒级/非法值；统一按毫秒计算耗时
+  if [[ ! "$start_time" =~ ^[0-9]+$ ]]; then
+    start_time=$(now_ms)
+  fi
+
   # 计算耗时（毫秒）
-  local end_time=$(date +%s%3N 2>/dev/null || echo "$start_time")
+  local end_time=$(now_ms)
   local duration=$((end_time - start_time))
   
   # 构建额外信息
@@ -274,6 +299,7 @@ log_separator() {
 # 导出函数（供其他脚本使用）
 # ======================================
 
+export -f now_ms
 export -f log_info
 export -f log_warning
 export -f log_error

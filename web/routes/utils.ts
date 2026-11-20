@@ -278,10 +278,14 @@ export {
 
 export {
   normalizeDocName,
+  isUserDocPath,
   listKnowledgeDocs,
   readKnowledgeDoc,
+  readDocByPath,
+  resolveDocPath,
   writeKnowledgeDoc,
   deleteKnowledgeDoc,
+  importSystemDoc,
   readKnowledgeDirs,
   normalizeKnowledgeDirs,
   writeKnowledgeDirs,
