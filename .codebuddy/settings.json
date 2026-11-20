@@ -1,0 +1,7 @@
+{
+  "enabledPlugins": {
+    "frontend-design@codebuddy-plugins-official": true,
+    "shell-scripting@codebuddy-plugins-official": true,
+    "skill-creator@codebuddy-plugins-official": true
+  }
+}

@@ -1,0 +1,96 @@
+
+-- ============================================================
+-- 14. 消息模板配置表 (message_templates.json → templates)
+-- ============================================================
+CREATE TABLE `hp_message_templates` (
+  `id`            INT UNSIGNED    NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+  `template_key`  VARCHAR(64)     NOT NULL COMMENT '模板类型标识（如 morning, lunch）',
+  `style`         VARCHAR(32)     NOT NULL DEFAULT 'default' COMMENT '风格（default/brief/formal）',
+  `content`       MEDIUMTEXT      NOT NULL COMMENT '模板内容（支持占位符）',
+  `version`       VARCHAR(20)     NOT NULL DEFAULT '1.0.0' COMMENT '版本号',
+  `created_at`    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at`    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_key_style` (`template_key`, `style`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='消息模板配置表';
+
+-- 模板数据量大（20 种 × 3 风格 = 60 条），以下为核心模板的插入示例
+-- 完整模板内容因 Markdown 格式较长，实际使用时建议通过程序批量导入
+
+INSERT INTO `hp_message_templates` (`template_key`, `style`, `content`) VALUES
+('morning',   'default', '## 🌅 早安提醒\n\n> **当前时间**: {date_time}\n> **今天是**: {week_day}\n> **城市**：{city}\n\n{weather}\n\n{horoscope_title}\n{horoscope_content}\n\n{almanac_title}\n{almanac_content}\n\n### 💫 每日励志\n> **{quote}**\n\n### 💝 温馨提示\n✅ 新一天，好心情随身带。\n📋 要事优先，累了就歇会儿。\n☕ 早餐记得吃，能量满格再出发。\n🌟 稳扎稳打，你就是最棒的。\n\n💡 *此消息由智能提醒系统发送*'),
+('morning',   'brief',   '## 🌅 早安**{city}**！\n\n{weather}\n\n> 💪 {quote}\n\n💡 *此消息由智能提醒系统发送*'),
+('morning',   'formal',  '## 🌅 早安提醒\n\n各位同事早上好！\n\n> **当前时间**: {date_time}\n> **今天是**: {week_day}\n> **城市**：{city}\n\n{weather}\n\n{horoscope_title}\n{horoscope_content}\n\n{almanac_title}\n{almanac_content}\n\n### 💫 每日励志\n> **{quote}**\n\n💡 *此消息由智能提醒系统发送*'),
+('breakfast', 'default', '## 🍜 早餐提醒\n\n> **当前时间**: {date_time}\n> **今天是**: {week_day}\n\n### {greeting}\n\n### 🥗 营养建议\n{breakfast_suggestion}\n\n### 💡 温馨提示\n✅ 早餐是一天中最重要的一餐\n🥚 蛋白质 + 碳水 + 果蔬，营养均衡\n☕ 一杯温水唤醒肠胃，再享用早餐\n⏰ 7:00-9:00 是最佳早餐时间\n\n### 🍴 健康小贴士\n> {tips}\n\n💡 *此消息由智能提醒系统发送*'),
+('breakfast', 'brief',   '## 🍜 早餐提醒\n\n☀️ {greeting}\n\n> 💡 {tips}\n\n💡 *此消息由智能提醒系统发送*'),
+('breakfast', 'formal',  '## 🍜 早餐提醒\n\n各位同事，早上好！现在是早餐时间。\n\n> **当前时间**: {date_time}\n\n请注意：\n• 不要空腹工作，吃好早餐很重要\n• {breakfast_suggestion}\n\n祝用餐愉快，元气满满开启新一天！\n\n💡 *此消息由智能提醒系统发送*'),
+('lunch',     'default', '## 🍽️ 午餐提醒\n\n> **当前时间**: {date_time}\n> **今天是**: {week_day}\n\n### {greeting}\n\n### 🥗 营养建议\n{lunch_suggestion}\n\n### 💡 温馨提示\n✅ 放下工作，专心享受午餐\n🚶 饭后散步10分钟，帮助消化\n💧 多喝水，保持身体水分\n⏰ 适当午休，下午更有精神\n\n### 🍴 健康小贴士\n> {tips}\n\n💡 *此消息由智能提醒系统发送*'),
+('lunch',     'brief',   '## 🍽️ 午餐提醒\n\n🍚 {greeting}\n\n> 💡 {tips}\n\n💡 *此消息由智能提醒系统发送*'),
+('lunch',     'formal',  '## 🍽️ 午餐提醒\n\n各位同事，现在是午餐时间。\n\n> **当前时间**: {date_time}\n\n请注意：\n• 适当休息，保持活力\n• {lunch_suggestion}\n\n祝用餐愉快！\n\n💡 *此消息由智能提醒系统发送*'),
+('dinner',    'default', '## 🍽️ 晚餐提醒\n\n> **当前时间**: {date_time}\n> **今天是**: {week_day}\n\n### {greeting}\n\n### 🥗 营养建议\n{dinner_suggestion}\n\n### 💡 温馨提示\n✅ 忙碌了一天，好好享受晚餐\n🍵 晚餐宜清淡，少油少盐更健康\n🚶 饭后散步有助于消化和放松\n🌙 晚餐不宜太晚，睡前2小时吃完最佳\n\n### 🍴 健康小贴士\n> {tips}\n\n💡 *此消息由智能提醒系统发送*'),
+('dinner',    'brief',   '## 🍽️ 晚餐提醒\n\n🌙 {greeting}\n\n> 💡 {tips}\n\n💡 *此消息由智能提醒系统发送*'),
+('dinner',    'formal',  '## 🍽️ 晚餐提醒\n\n各位同事，辛苦了一天，现在是晚餐时间。\n\n> **当前时间**: {date_time}\n\n请注意：\n• 晚餐宜清淡，注意营养均衡\n• {dinner_suggestion}\n\n祝用餐愉快，晚上好好休息！\n\n💡 *此消息由智能提醒系统发送*'),
+('evening',   'default', '## 🌆 下班提醒\n\n> **当前时间**: {date_time}\n> **今天是**: {week_day}\n\n### 💼 辛苦了一天，该下班啦！\n\n✅ 记得保存工作文件\n📊 整理今日工作成果\n🚶 注意安全，早点回家\n🌙 好好休息，明天继续加油\n\n### 💬 今日寄语\n> **{quote}**\n\n💡 *此消息由智能提醒系统发送*'),
+('evening',   'brief',   '## 🌆 下班啦！\n\n{wish}\n\n> 💪 {quote}\n\n💡 *此消息由智能提醒系统发送*'),
+('evening',   'formal',  '## 🌆 下班提醒\n\n各位同事，感谢您今日的辛勤工作。\n\n> **当前时间**: {date_time}\n\n📌 温馨提示：\n{tomorrow_tips}\n\n祝您晚上愉快，注意安全！\n\n💡 *此消息由智能提醒系统发送*'),
+('birthday',  'default', '## 🎂 生日快乐！\n\n> **当前时间**: {date_time}\n\n### 🎉 今天是 {name} 的生日！\n\n{birthday_wish}\n\n🎁 愿你的每一天都充满欢笑和惊喜！\n\n💡 *此消息由智能提醒系统发送*'),
+('birthday',  'brief',   '## 🎂 生日快乐！\n\n🎉 {name}，生日快乐！\n\n{birthday_wish}\n\n💡 *此消息由智能提醒系统发送*'),
+('birthday',  'formal',  '## 🎂 生日祝福\n\n尊敬的 {name} 同事：\n\n值此生日之际，谨代表全体同事向您致以最诚挚的祝福！\n\n{birthday_wish}\n\n祝您生日快乐，工作顺利，身体健康！\n\n💡 *此消息由智能提醒系统发送*'),
+
+-- ── 其余 14 种模板 × 3 风格 = 42 条（source: message_templates.json） ──
+('birthday_countdown', 'default', '## 🎂 生日倒计时！\n\n> **当前时间**: {date_time}\n\n### 🎉 {name} 的生日还有 {days} 天！\n\n> 📅 **生日日期**: {birthday_date}\n> ⏰ **倒计时**: {days} 天\n\n### 🎁 温馨提示\n✅ 提前准备生日祝福\n✅ 考虑准备一份小礼物\n✅ 安排生日聚会或活动\n\n🌟 让我们一起期待这个特别的日子！\n\n💡 *此消息由智能提醒系统发送*'),
+('birthday_countdown', 'brief',   '## 🎂 生日倒计时\n\n🎉 {name} 的生日还有 **{days}** 天！（{birthday_date}）\n\n🎁 记得提前准备祝福哦！\n\n💡 *此消息由智能提醒系统发送*'),
+('birthday_countdown', 'formal',  '## 🎂 生日倒计时提醒\n\n各位同事：\n\n距 {name} 的生日还有 **{days}** 天。\n\n> **当前时间**: {date_time}\n> **生日日期**: {birthday_date}\n\n请提前做好祝福准备，届时别忘了送上温暖的祝福！\n\n💡 *此消息由智能提醒系统发送*'),
+
+('holiday', 'default', '## 🎉 {holiday_name}\n\n> **当前时间**: {date_time}\n\n{greeting}\n\n📌 假期小贴士：\n{holiday_tips}\n\n🎊 愿你度过一个美好的假期！\n\n💡 *此消息由智能提醒系统发送*'),
+('holiday', 'brief',   '## 🎉 {holiday_name}\n\n{greeting}\n\n💡 *此消息由智能提醒系统发送*'),
+('holiday', 'formal',  '## 🎉 节日祝福\n\n各位同事：\n\n值此{holiday_name}之际，谨向各位致以节日的问候！\n\n{greeting}\n\n📌 温馨提示：\n{holiday_tips}\n\n祝大家节日快乐，阖家幸福！\n\n💡 *此消息由智能提醒系统发送*'),
+
+('weekend', 'default', '## 📊 本周工作总结\n\n> **统计周期**: {week_start} - {week_end}\n> **当前时间**: {date_time}\n\n### 📅 出勤统计\n{week_summary}\n\n### 💬 周末寄语\n{greeting}\n\n#### 🎯 周末活动建议\n✨ 运动健身，保持活力\n📚 阅读充电，提升自我\n👨‍👩‍👧 陪伴家人，享受温馨\n🎮 娱乐放松，释放压力\n\n#### ⏰ 下周提醒\n{next_monday_reminder}\n\n#### 📈 下周展望\n{next_week_preview}\n\n💡 *此消息由智能提醒系统发送*'),
+('weekend', 'brief',   '## 🎉 周末愉快！\n\n{greeting}\n\n> {next_week_preview}\n\n💡 *此消息由智能提醒系统发送*'),
+('weekend', 'formal',  '## 📊 本周工作总结\n\n各位同事：\n\n本周工作已圆满结束，感谢大家的辛勤付出。\n\n> **统计周期**: {week_start} - {week_end}\n\n### 📊 本周工作回顾\n{week_summary}\n\n祝大家周末愉快，好好休息！\n\n#### ⏰ 下周提醒\n{next_monday_reminder}\n\n#### 📈 下周工作计划\n{next_week_preview}\n\n💡 *此消息由智能提醒系统发送*'),
+
+('adjustment', 'default', '## ⚠️ 重要提醒：{adjustment_date}调休上班！\n\n> **当前时间**: {date_time}\n> **调休原因**: {reason}\n\n### 🚨 调休上班通知\n📅 {adjustment_date}需要正常上班，不是休息日！\n\n### ⚠️ 注意事项\n❗ 别忘记了\n   • 需要正常上班打卡\n   • 调好闹钟，别睡过头\n   • 准备好工作内容\n\n### 💡 温馨提示\n> **{tips}**\n\n🎯 调休是为了更长的假期，{reason}假期更长！\n\n💡 *此消息由智能提醒系统发送*'),
+('adjustment', 'brief',   '## ⚠️ 调休提醒：{adjustment_date}上班\n\n📅 原因：{reason}\n\n> 💡 {tips}\n\n💡 *此消息由智能提醒系统发送*'),
+('adjustment', 'formal',  '## ⚠️ 调休上班通知\n\n各位同事：\n\n根据国务院办公厅通知，{adjustment_date}需要上班（调休）。\n\n> **当前时间**: {date_time}\n> **调休原因**: {reason}\n\n💡 请注意：\n{tips}\n\n请各位同事相互提醒，准时到岗。\n\n💡 *此消息由智能提醒系统发送*'),
+
+('monthly_start', 'default', '## 🎊 新月快乐！{month_name}你好！\n\n> **当前时间**: {date_time}\n> **今天是**: {current_year}年{current_month}月 第一天\n\n### 📊 本月工作统计\n> 📅 **本月总天数**: {last_day}天\n> 💼 **本月工作日**: {monthly_workdays}天\n> 🎯 **休息日天数**: {rest_days}天\n> 📈 **工作日占比**: {workday_ratio}%\n\n### ✨ 月初寄语\n🌟 **新月新气象**\n   • 过去的已经过去，新的月份充满希望\n   • 为自己定下新的目标和计划\n   • 保持积极的心态，迎接新的挑战\n\n📋 **本月提醒**\n   • 📊 制定本月工作计划\n   • 🎯 设定本月目标和KPI\n   • 📝 回顾上月总结，吸取经验\n   • 💪 调整状态，全力以赴\n\n🌈 新的一月，让我们一起努力！加油！💪\n\n💡 *此消息由智能提醒系统发送*'),
+('monthly_start', 'brief',   '## 🎊 {month_name}你好！\n\n💼 本月工作日 **{monthly_workdays}** 天，共 {last_day} 天\n\n🌈 新的一月，加油！\n\n💡 *此消息由智能提醒系统发送*'),
+('monthly_start', 'formal',  '## 🎊 月初提醒\n\n各位同事：\n\n新的一月（{month_name}）已经开始，请做好本月工作规划。\n\n> **当前时间**: {date_time}\n> 📅 本月总天数：{last_day}天 | 💼 工作日：{monthly_workdays}天\n\n请各位同事合理安排工作计划，祝大家新月顺利！\n\n💡 *此消息由智能提醒系统发送*'),
+
+('monthly_end', 'default', '## 📊 月底总结时刻！\n\n> **当前时间**: {date_time}\n> **今天是**: {current_year}年{current_month}月 最后一天\n\n### 📊 本月工作统计\n> 📊 **本月工作日**: {monthly_workdays}天\n> 📅 **本月总天数**: {last_day}天\n\n### 🎯 月度总结\n📋 **该做的事**\n   • 📝 完成本月工作总结\n   • 📊 整理本月数据报表\n   • 💰 核对本月财务报销\n   • 📧 发送月度汇报邮件\n\n### 🌟 下月展望\n📅 **{next_month} 即将到来**\n   • 提前规划下月工作\n   • 思考下月重点目标\n   • 准备下月所需资源\n\n💪 总结过去，展望未来！{next_month}，我们继续加油！\n\n💡 *此消息由智能提醒系统发送*'),
+('monthly_end', 'brief',   '## 📊 月底提醒\n\n今天是本月最后一天，记得提交月度总结！\n\n📅 下月：{next_month}\n\n💡 *此消息由智能提醒系统发送*'),
+('monthly_end', 'formal',  '## 📊 月底工作提醒\n\n各位同事：\n\n今天是{current_year}年{current_month}月最后一天，请做好月度收尾工作。\n\n> **当前时间**: {date_time}\n> 📊 本月工作日：{monthly_workdays}天 / 共{last_day}天\n\n请及时提交月度总结，{next_month}继续加油！\n\n💡 *此消息由智能提醒系统发送*'),
+
+('solar_term', 'default', '## 🌸 {term_name}节气到了！\n\n> **当前时间**: {date_time}\n\n{greeting}\n\n💡 *此消息由智能提醒系统发送*'),
+('solar_term', 'brief',   '## 🌸 {term_name}\n\n{greeting}\n\n💡 *此消息由智能提醒系统发送*'),
+('solar_term', 'formal',  '## 🌸 节气提醒：{term_name}\n\n各位同事：\n\n今日是二十四节气中的「{term_name}」。\n\n{greeting}\n\n祝大家身体健康，万事如意！\n\n💡 *此消息由智能提醒系统发送*'),
+
+('lunar_festival', 'default', '## 🎉 {festival_name}快乐！\n\n> **当前时间**: {date_time}\n\n{greeting}\n\n💡 *此消息由智能提醒系统发送*'),
+('lunar_festival', 'brief',   '## 🎉 {festival_name}快乐！\n\n{greeting}\n\n💡 *此消息由智能提醒系统发送*'),
+('lunar_festival', 'formal',  '## 🎉 传统节日：{festival_name}\n\n各位同事：\n\n今天是传统节日「{festival_name}」，谨向大家致以节日问候！\n\n{greeting}\n\n祝大家节日快乐！\n\n💡 *此消息由智能提醒系统发送*'),
+
+('holiday_countdown', 'default', '## ⏰ 假期倒计时！\n\n> **当前时间**: {date_time}\n> **假期名称**: {holiday_name}\n> **假期日期**: {holiday_start} 至 {holiday_end}（共{holiday_days}）\n\n### 📅 还有 {days} 天就放假啦！\n\n🎯 **假期前准备**\n   • ✅ 完成手头紧急工作\n   • ✅ 安排好工作交接\n   • ✅ 规划假期行程\n   • ✅ 预订车票/机票\n\n💡 **温馨提示**\n   距离放假还有{days}天，把握时间，做好收尾工作！\n\n💡 *此消息由智能提醒系统发送*'),
+('holiday_countdown', 'brief',   '## ⏰ 距{holiday_name}还有 {days} 天！\n\n📅 {holiday_start} 至 {holiday_end}（共{holiday_days}）\n\n💡 *此消息由智能提醒系统发送*'),
+('holiday_countdown', 'formal',  '## ⏰ 假期倒计时通知\n\n各位同事：\n\n距{holiday_name}还有 **{days}** 天。\n\n> **当前时间**: {date_time}\n> **假期日期**: {holiday_start} 至 {holiday_end}（共{holiday_days}）\n\n请提前做好工作安排，合理规划假期行程。\n\n💡 *此消息由智能提醒系统发送*'),
+
+('holiday_progress', 'default', '## 🏖️ 假期进行中！\n\n> **当前时间**: {date_time}\n> **假期名称**: {holiday_name}\n> **假期日期**: {holiday_start} 至 {holiday_end}（共{holiday_days}）\n\n### 📅 假期进度\n   • 已享受：{days_passed} 天\n   • 剩余：{days_left} 天\n\n🌟 **好好珍惜剩余假期**\n   • 继续放松，享受当下\n   • 安排好剩余假期行程\n   • 提前规划返程事宜\n\n💡 *此消息由智能提醒系统发送*'),
+('holiday_progress', 'brief',   '## 🏖️ {holiday_name}进行中\n\n已过 {days_passed} 天，剩余 {days_left} 天，好好享受！\n\n💡 *此消息由智能提醒系统发送*'),
+('holiday_progress', 'formal',  '## 🏖️ 假期进度提醒\n\n各位同事：\n\n{holiday_name}假期正在进行中。\n\n> **当前时间**: {date_time}\n> **假期日期**: {holiday_start} 至 {holiday_end}（共{holiday_days}）\n> 已过：{days_passed} 天 | 剩余：{days_left} 天\n\n祝大家假期愉快，注意休息！\n\n💡 *此消息由智能提醒系统发送*'),
+
+('holiday_end', 'default', '## ⚠️ 假期余额不足提醒！\n\n> **当前时间**: {date_time}\n> **假期名称**: {holiday_name}\n> **假期时长**: {holiday_days}（今天是最后一天）\n\n### 😭 假期感言\n时间过得真快啊...\n   • 感觉刚放假就要结束了\n   • 还有好多想做的事没做\n   • 但是，该收心了！\n\n### 💪 收心准备\n今晚开始调整状态：\n   • 🛌 早点休息，调整作息\n   • 📋 回顾假期，总结收获\n   • 📝 规划工作，列出待办\n   • 💼 检查工作邮件和消息\n\n💡 *此消息由智能提醒系统发送*'),
+('holiday_end', 'brief',   '## ⚠️ {holiday_name}最后一天！\n\n假期共{holiday_days}，今天结束，明天上班，早点休息！\n\n💡 *此消息由智能提醒系统发送*'),
+('holiday_end', 'formal',  '## ⚠️ 假期结束提醒\n\n各位同事：\n\n{holiday_name}假期（共{holiday_days}）今天结束，明日恢复正常上班。\n\n> **当前时间**: {date_time}\n\n请提前调整作息，做好返岗准备，祝大家工作顺利！\n\n💡 *此消息由智能提醒系统发送*'),
+
+('custom_rule', 'default', '## 📌 自定义规则提醒\n\n> **当前时间**: {date_time}\n> **规则名称**: {rule_name}\n> **触发条件**: {condition_text}（{type_label}）@ {rule_time}\n\n### 📝 提醒内容\n{message}\n\n### 💪 每日励志\n> **{quote}**\n\n💡 *此消息由智能提醒系统发送*'),
+('custom_rule', 'brief',   '## 📌 {rule_name}\n\n{message}\n\n💡 *此消息由智能提醒系统发送*'),
+('custom_rule', 'formal',  '## 📌 自定义提醒通知\n\n> **当前时间**: {date_time}\n> **规则名称**: {rule_name}\n> **触发条件**: {condition_text}（{type_label}）@ {rule_time}\n\n{message}\n\n💡 *此消息由智能提醒系统发送*'),
+
+-- 注：special_day 的第三种风格为 'advance'（提前提醒），而非 'formal'
+('special_day', 'default', '## 🎉 {day_name}快乐！\n\n> **当前时间**: {date_time}\n\n{greeting}\n\n💡 *此消息由智能提醒系统发送*'),
+('special_day', 'brief',   '## 🎉 {day_name}快乐！\n\n{greeting}\n\n💡 *此消息由智能提醒系统发送*'),
+('special_day', 'advance', '## 📅 节日提前提醒\n\n> **当前时间**: {date_time}\n> **明天是**: {day_name}\n\n### 🔔 温馨提示\n✅ 准备相关礼物或祝福\n✅ 提前安排相关活动\n✅ 关注节日氛围\n\n🎉 提前祝大家 {day_name} 快乐！\n\n💡 *此消息由智能提醒系统发送*'),
+
+('update_report', 'default', '## 🎊 {year}年年度数据更新报告\n\n> **更新时间**: {date_time}\n\n### ✅ 更新结果\n\n1. **节假日配置** ⭐\n   - 状态：{holiday_status}\n   - 按公司标准生成\n\n2. **公司特别假** ⭐\n{special_holiday_detail}\n\n3. **月份配置更新** ⭐\n   - 状态：{month_status}\n   - 动态计算闰年2月天数\n\n4. **24节气数据** ⭐\n   - 状态：{solar_terms_status}\n\n5. **农历节日数据** ⭐\n   - 状态：{lunar_festivals_status}\n\n🎉 {year}年数据已准备就绪！\n\n💡 *此消息由智能提醒系统发送*'),
+('update_report', 'brief',   '## 🎊 {year}年数据更新完成\n\n1. 节假日：{holiday_status}\n2. 特别假：{special_holiday_detail}\n3. 月份：{month_status}\n4. 节气：{solar_terms_status}\n5. 农历：{lunar_festivals_status}\n\n🎉 {year}年数据已就绪！\n\n💡 *此消息由智能提醒系统发送*'),
+('update_report', 'formal',  '## 🎊 年度数据更新报告\n\n各位同事：\n\n{year}年年度数据更新已完成，以下是更新结果：\n\n> **更新时间**: {date_time}\n\n1. **节假日配置**：{holiday_status}\n2. **公司特别假**：{special_holiday_detail}\n3. **月份配置更新**：{month_status}\n4. **24节气数据**：{solar_terms_status}\n\n🎉 {year}年数据已准备就绪，系统将按计划正常运行。\n\n💡 *此消息由智能提醒系统发送*');

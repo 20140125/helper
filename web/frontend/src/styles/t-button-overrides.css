@@ -1,0 +1,347 @@
+/**
+ * t-button 自定义皮肤公共类
+ *
+ * 项目规范：禁止使用原生 <button>，统一使用 <t-button>。
+ * 但 t-button 默认带边框/背景，无法直接覆盖项目内"图标按钮""圆形浮窗""胶囊"等自定义视觉。
+ * 本文件提供统一的 modifier 类，配合 variant="text" 使用，可在各处复用，避免重复样式。
+ *
+ * 用法示例：
+ *   <t-button variant="text" class="app-icon-btn app-icon-btn--bordered">
+ *     <template #icon><t-icon name="close" /></template>
+ *   </t-button>
+ *
+ * 命名遵循 BEM：app-{component}-btn[--{modifier}]
+ *
+ * 注：本文件由 main.ts 全局引入（非 scoped），因此 :deep() 在这里写为子选择器。
+ * 由于 TDesign 的 t-button 渲染为 <button class="t-button">，
+ * 这里的 .app-xxx-btn 类我们直接挂在 <t-button> 上（通过 class 透传），
+ * 然后用 .app-xxx-btn.t-button 选中根 <button> 元素，避免 :deep() 写法。
+ *
+ * ⚠️ !important 强制策略（重要，请勿删除）：
+ *   style.css 中 `.t-button--variant-text` / `.t-button--variant-text:hover` 已经使用了
+ *   `background/color !important`（统一压制 TDesign 默认 variant=text 样式）。
+ *   而本文件所有 modifier 都以 `variant="text"` 为基础工作，特异性同为 0,2,0，
+ *   声明顺序虽然在后但因对方带 !important 直接落败 ——
+ *   表现为：所有 .app-xxx-btn 的 background 都会被强制改成 `transparent`、
+ *   color 被强制改成 `var(--text-muted)`，主题切换时背景/前景色完全不跟随。
+ *   因此本文件所有 modifier 的 base/hover 状态的 `background` 与 `color`
+ *   都必须显式带 `!important`，才能赢过全局 variant-text 的强制规则。
+ *   其他属性（width / border / box-shadow / transform 等）不受影响，无需 !important。
+ */
+
+/* ============================================================
+ * 1. 通用图标按钮 .app-icon-btn
+ * 适用：header / topbar / sidebar 中的小尺寸图标按钮（无边框 ghost 样式）
+ * ============================================================ */
+.app-icon-btn.t-button {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent !important;
+  color: var(--text-muted) !important;
+  font-size: 16px;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.app-icon-btn.t-button:hover:not(:disabled):not(.t-is-disabled) {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06)) !important;
+  color: var(--text-primary) !important;
+}
+
+.app-icon-btn.t-button:active:not(:disabled):not(.t-is-disabled) {
+  transform: scale(0.95);
+}
+
+.app-icon-btn.t-button:disabled,
+.app-icon-btn.t-button.t-is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* —— modifier: 带边框（外观为方框图标按钮，34×34，topbar 中常用） —— */
+.app-icon-btn--bordered.t-button {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border-radius: 8px;
+  border-color: var(--border-color);
+  background: var(--bg-card) !important;
+  color: var(--text-secondary) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-icon-btn--bordered.t-button:hover:not(:disabled):not(.t-is-disabled) {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary) !important;
+  background: rgba(var(--accent-primary-rgb, 99, 102, 241), 0.08) !important;
+  transform: translateY(-1px);
+}
+
+/* —— modifier: 28×28 小号方框（输入区工具开关用） —— */
+.app-icon-btn--sm.t-button {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 8px;
+  border-color: var(--border-color);
+  font-size: 14px;
+}
+
+.app-icon-btn--sm.t-button:hover:not(:disabled):not(.t-is-disabled) {
+  color: var(--text-primary) !important;
+  border-color: var(--text-muted);
+  background: transparent !important;
+  transform: none;
+}
+
+/* —— modifier: 危险态（hover 变红） —— */
+.app-icon-btn--danger.t-button:hover:not(:disabled):not(.t-is-disabled) {
+  border-color: rgba(var(--accent-red-rgb), 0.4);
+  color: var(--accent-red) !important;
+  background: rgba(var(--accent-red-rgb), 0.08) !important;
+  box-shadow: 0 2px 4px rgba(var(--accent-red-rgb), 0.15);
+}
+
+/* —— modifier: 移动端紧凑关闭按钮（28×28，hover 变红） —— */
+.app-icon-btn--xs.t-button {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 6px;
+  border-color: var(--border-color);
+  background: var(--bg-card-hover) !important;
+  color: var(--text-muted) !important;
+}
+
+.app-icon-btn--xs.t-button:hover:not(:disabled):not(.t-is-disabled) {
+  background: rgba(var(--accent-red-rgb), 0.1) !important;
+  border-color: rgba(var(--accent-red-rgb), 0.3);
+  color: var(--accent-red) !important;
+}
+
+/* —— modifier: 激活态（toggle 按钮，例如 AI 工具开关启用时） —— */
+.app-icon-btn--active.t-button {
+  background: var(--accent-primary-bg, rgba(0, 82, 217, 0.12)) !important;
+  border-color: var(--accent-primary, #0052d9);
+  color: var(--accent-primary, #0052d9) !important;
+}
+
+/* ============================================================
+ * 2. 悬浮圆形按钮 .app-floating-btn
+ * 适用：right/bottom fixed 定位的圆形浮窗按钮
+ *   （back-to-top / page-anchor / chat-trigger / scroll-bottom 等）
+ * 注：定位与 z-index 由各组件自己写（不同浮窗层级不同），本类只统一外观与交互。
+ *     如果在此处设置 z-index，会因为 scoped 选择器 `.xxx[data-v-hash]` 与
+ *     `.app-floating-btn.t-button` 特异性相同（均为 0,2,0），而本规则声明顺序更晚，
+ *     会反向覆盖组件 scoped 里设的 z-index（导致浮窗按钮被弹层/抽屉遮挡）。
+ * 注 2：style.css 中 `.t-button--variant-text` 使用了 `background/color !important`，
+ *     由于 page-anchor / back-to-top 等组件都用 `variant="text"` + `app-floating-btn`，
+ *     必须在此处给 background/color 也加 `!important`，否则圆形浮窗会变成透明 + muted
+ *     色调，且无法跟随主题切换（仅 border 和 box-shadow 跟随）。
+ * ============================================================ */
+.app-floating-btn.t-button {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  padding: 0;
+  border-radius: 50% !important;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  font-size: 18px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.app-floating-btn.t-button:hover:not(:disabled):not(.t-is-disabled) {
+  background: var(--td-brand-color) !important;
+  color: #fff !important;
+  transform: translateY(-2px);
+}
+
+.app-floating-btn.t-button:active:not(:disabled):not(.t-is-disabled) {
+  transform: translateY(0);
+}
+
+/* —— modifier: 移动端缩小到 38×38 —— */
+@media (max-width: 768px) {
+  .app-floating-btn.t-button {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    font-size: 16px;
+  }
+}
+
+/* —— modifier: 抽屉内"滚到底部"使用的小号变体（32×32，hover 不上浮） —— */
+.app-floating-btn--sm.t-button {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.app-floating-btn--sm.t-button:hover:not(:disabled):not(.t-is-disabled) {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.04)) !important;
+  color: var(--accent-primary, #0052d9) !important;
+  transform: none;
+}
+
+.app-floating-btn--sm.t-button:active:not(:disabled):not(.t-is-disabled) {
+  transform: scale(0.92);
+}
+
+/* ============================================================
+ * 3. 胶囊按钮 .app-pill-btn
+ * 适用：theme-selector-btn / ai-chat-input model-btn 等带 icon + label 的胶囊
+ * ============================================================ */
+.app-pill-btn.t-button {
+  height: 28px;
+  padding: 0 10px 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card, transparent) !important;
+  color: var(--text-primary) !important;
+  font-size: 12px;
+  line-height: 1;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s,
+    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-pill-btn.t-button:hover:not(:disabled):not(.t-is-disabled) {
+  border-color: var(--accent-primary, #0052d9);
+  color: var(--accent-primary, #0052d9) !important;
+}
+
+.app-pill-btn.t-button:disabled,
+.app-pill-btn.t-button.t-is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* —— modifier: 大号（topbar 主题切换器，34×*，圆角 8px） —— */
+.app-pill-btn--lg.t-button {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: var(--text-secondary) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.app-pill-btn--lg.t-button:hover:not(:disabled):not(.t-is-disabled) {
+  background: rgba(var(--accent-primary-rgb, 99, 102, 241), 0.08) !important;
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================================
+ * 4. 侧栏折叠按钮 .app-collapse-btn
+ * 适用：sidebar-footer 中宽度撑满的折叠/展开按钮
+ * ============================================================ */
+.app-collapse-btn.t-button {
+  width: 100%;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: rgba(var(--accent-primary-rgb, 99, 102, 241), 0.04) !important;
+  color: var(--sidebar-text-secondary) !important;
+  transition: all 0.2s ease;
+}
+
+.app-collapse-btn.t-button:hover:not(:disabled):not(.t-is-disabled) {
+  background: rgba(var(--accent-primary-rgb, 99, 102, 241), 0.1) !important;
+  border-color: rgba(var(--accent-primary-rgb, 99, 102, 241), 0.3);
+  color: var(--text-secondary) !important;
+}
+
+/* 亮色主题下的特殊覆盖（迁移自原 style.css 中 [data-theme="light"] .sidebar-footer .collapse-btn） */
+[data-theme="light"] .sidebar-footer .app-collapse-btn.t-button {
+  color: var(--sidebar-text-secondary) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="light"] .sidebar-footer .app-collapse-btn.t-button:hover:not(:disabled):not(.t-is-disabled) {
+  color: var(--sidebar-text) !important;
+  background: rgba(var(--accent-primary-rgb, 99, 102, 241), 0.08) !important;
+}
+
+/* ============================================================
+ * 5. 主题模式切换按钮 .app-mode-btn
+ * 适用：topbar 中亮/暗模式分段按钮组
+ * ============================================================ */
+.app-mode-btn.t-button {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  padding: 0;
+  border-radius: 5px;
+  border: none;
+  background: transparent !important;
+  color: var(--text-muted) !important;
+  font-size: 14px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 仅对未激活按钮的 hover 生效，避免覆盖 active 的高亮 */
+.app-mode-btn.t-button:not(.app-mode-btn--active):hover:not(:disabled):not(.t-is-disabled) {
+  color: var(--text-secondary) !important;
+  background: var(--bg-card) !important;
+  transform: translateY(-1px);
+}
+
+/* 加大优先级（叠加 .app-mode-btn）以确保覆盖 TDesign 默认及 hover 样式。
+   使用 !important 兜底，避免 TDesign 的 :hover / :focus-visible 等同/高特异性选择器覆盖。 */
+.app-mode-btn.app-mode-btn--active.t-button,
+.app-mode-btn.app-mode-btn--active.t-button:hover,
+.app-mode-btn.app-mode-btn--active.t-button:focus,
+.app-mode-btn.app-mode-btn--active.t-button:focus-visible,
+.app-mode-btn.app-mode-btn--active.t-button:active {
+  background: var(--accent-primary) !important;
+  background-color: var(--accent-primary) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 6px var(--glow-primary), 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+  border-color: var(--accent-primary) !important;
+  transform: translateY(0);
+}
+
+/* active 状态下，内部 icon 也保持白色（防止 TDesign 的 color 继承被覆盖） */
+.app-mode-btn.app-mode-btn--active.t-button .t-icon,
+.app-mode-btn.app-mode-btn--active.t-button .t-button__text {
+  color: #fff !important;
+}
+
+.app-mode-btn--active.t-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15), transparent);
+  border-radius: 5px;
+  pointer-events: none;
+}
+
+/* ============================================================
+ * 通用：让 t-button 内部 t-button__text 能正常承载图标 + 文字
+ * （TDesign 默认 t-button__text 是 inline-block，部分场景需要 inline-flex）
+ * ============================================================ */
+.app-icon-btn.t-button .t-button__text,
+.app-pill-btn.t-button .t-button__text,
+.app-floating-btn.t-button .t-button__text,
+.app-collapse-btn.t-button .t-button__text,
+.app-mode-btn.t-button .t-button__text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}

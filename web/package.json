@@ -1,0 +1,56 @@
+{
+  "name": "helper-web",
+  "version": "1.0.0",
+  "description": "智能提醒系统 - Web 管理界面",
+  "main": "server.ts",
+  "scripts": {
+    "start": "npx ts-node -r tsconfig-paths/register server.ts",
+    "dev": "NODE_ENV=development npx ts-node -r tsconfig-paths/register server.ts",
+    "eval": "npx ts-node -r tsconfig-paths/register evals/run-eval.ts",
+    "test:tools": "npx ts-node -r tsconfig-paths/register evals/run-tool-tests.ts",
+    "build": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "gen": "npx ts-node -P ../.codebuddy/skills/helper-web-spec/scripts/tsconfig.json ../.codebuddy/skills/helper-web-spec/scripts/generate-component.ts",
+    "gen:page": "npx ts-node -P ../.codebuddy/skills/helper-web-spec/scripts/tsconfig.json ../.codebuddy/skills/helper-web-spec/scripts/generate-page.ts",
+    "gen:type": "npx ts-node -P ../.codebuddy/skills/helper-web-spec/scripts/tsconfig.json ../.codebuddy/skills/helper-web-spec/scripts/generate-type.ts",
+    "gen:store": "npx ts-node -P ../.codebuddy/skills/helper-web-spec/scripts/tsconfig.json ../.codebuddy/skills/helper-web-spec/scripts/generate-store.ts",
+    "lint:style": "npx ts-node -P ../.codebuddy/skills/helper-web-spec/scripts/tsconfig.json ../.codebuddy/skills/helper-web-spec/scripts/check-code-style.ts frontend/src",
+    "lint:unused": "NODE_PATH=node_modules npx ts-node -P ../.codebuddy/skills/helper-web-spec/scripts/tsconfig.json ../.codebuddy/skills/helper-web-spec/scripts/check-unused.ts frontend/src",
+    "lint:i18n": "npx ts-node -P ../.codebuddy/skills/helper-web-spec/scripts/tsconfig.json ../.codebuddy/skills/helper-web-spec/scripts/add-i18n.ts frontend/src",
+    "lint:timer": "npx ts-node -P ../.codebuddy/skills/helper-web-spec/scripts/tsconfig.json ../.codebuddy/skills/helper-web-spec/scripts/check-timer.ts frontend/src",
+    "lint:route": "npx ts-node -P ../.codebuddy/skills/helper-web-spec/scripts/tsconfig.json ../.codebuddy/skills/helper-web-spec/scripts/check-route.ts frontend/src/router",
+    "lint:import-order": "npx ts-node -P ../.codebuddy/skills/helper-web-spec/scripts/tsconfig.json ../.codebuddy/skills/helper-web-spec/scripts/check-import-order.ts frontend/src",
+    "lint:model-service": "npx ts-node -P ../.codebuddy/skills/helper-web-spec/scripts/tsconfig.json ../.codebuddy/skills/helper-web-spec/scripts/check-model-service.ts frontend/src",
+    "lint:a11y": "npx ts-node -P ../.codebuddy/skills/helper-web-spec/scripts/tsconfig.json ../.codebuddy/skills/helper-web-spec/scripts/check-a11y.ts frontend/src",
+    "auto-fix": "npx ts-node -P ../.codebuddy/skills/helper-web-spec/scripts/tsconfig.json ../.codebuddy/skills/helper-web-spec/scripts/auto-fix.ts frontend/src"
+  },
+  "dependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.1.0",
+    "@types/nodemailer": "^7.0.11",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "json2md": "^2.0.3",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.19.40",
+    "eslint": "^9.39.5",
+    "eslint-plugin-vue": "^9.33.0",
+    "globals": "^15.15.0",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.71.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

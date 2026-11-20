@@ -1,0 +1,5 @@
+# Python 依赖包
+# 用于 date_utils.py 的农历/公历转换
+# 安装方式: pip3 install -r requirements.txt
+
+lunar_python>=1.4.8

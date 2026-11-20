@@ -1,0 +1,44 @@
+name: AI Agent Eval
+
+# AI 评测需要真实调用 LLM，因此不放在每次 push 上跑：
+# - PR 改动了 Agent 核心链路（提示词 / 工具 / 循环）时自动跑一次防回归
+# - 每周一凌晨定时跑一次，观察模型侧漂移
+# - 随时可在 Actions 页面手动触发
+on:
+  pull_request:
+    paths:
+      - 'web/utils/ai-chat/**'
+      - 'web/evals/**'
+      - 'web/types/ai-chat.ts'
+      - '.github/workflows/eval.yml'
+  schedule:
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 安装依赖
+        working-directory: web
+        run: npm ci
+
+      - name: 生成模型配置（写入 .cache/ai-model-configs.json，与配置页同一格式）
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+        run: |
+          mkdir -p .cache
+          python3 -c "import json,os; m=os.environ.get('LLM_MODEL') or 'glm-4.7-flash'; g={'id':'group_ci','name':'CI','baseUrl':os.environ.get('LLM_BASE_URL') or '','apiKey':os.environ.get('LLM_API_KEY') or '','maxTokens':4096,'models':[{'id':m,'label':m,'description':'','streamable':True,'vision':False}],'created_at':'','updated_at':''}; json.dump([g],open('.cache/ai-model-configs.json','w',encoding='utf-8'),ensure_ascii=False,indent=2)"
+
+      - name: 运行评测（对比 baseline.json，回归即失败）
+        working-directory: web
+        run: npm run eval -- --delay=1500

@@ -1,0 +1,54 @@
+.agent
+*.log
+*.pid
+__pycache__
+node_modules
+uploads
+
+# 技能地图卡片运行时产物（由 scripts/tools/ 下脚本生成，写入 CARD_OUTPUT_DIR）
+web/public/skill-images/
+
+# 用户配置文件
+.cache/users.json
+
+# 服务端配置文件
+.cache/daemon_sent_state.json
+
+# Webhook配置文件
+.cache/webhooks.json
+
+# 自定义 AI 模型配置（含 API Key，属用户运行时数据）
+.cache/ai-model-configs.json
+
+# AI会话配置文件
+.cache/ai-conversations
+
+# AI运行追踪数据（append-only JSONL，按月滚动）
+.cache/ai-traces/
+
+# AI长期记忆数据（按用户一个 JSON）
+.cache/ai-memory/
+
+# AI副作用操作审批单
+.cache/ai-approvals.json
+
+# IDE / 插件运行时日志
+.codebuddy/logs/
+
+
+# Web 服务运行日志（JSONL 唯一真源）及其按天归档
+web/.runtime/web_server.jsonl
+web/.runtime/logs/
+
+# HTTP 访问日志按天归档
+scripts/logs/
+
+# 环境变量配置文件（包含敏感信息）
+.env
+
+# Web 服务运行时目录（PID、巡检状态标记等）
+web/.runtime/
+
+# watchdog 保活时间戳（每次保活都会变，无提交价值）
+.cache/watchdog_ensure.stamp
+

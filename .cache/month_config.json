@@ -1,0 +1,85 @@
+{
+  "months": {
+    "01": {
+      "name": "January",
+      "name_cn": "一月",
+      "days": 31,
+      "description": "新年伊始，充满希望"
+    },
+    "02": {
+      "name": "February",
+      "name_cn": "二月",
+      "days": "28",
+      "description": "春回大地，万物复苏",
+      "leap_year_rule": "能被4整除但不能被100整除，或能被400整除的年份为闰年，2月有29天，否则28天",
+      "is_leap_year": false
+    },
+    "03": {
+      "name": "March",
+      "name_cn": "三月",
+      "days": 31,
+      "description": "春暖花开，生机勃勃"
+    },
+    "04": {
+      "name": "April",
+      "name_cn": "四月",
+      "days": 30,
+      "description": "清明时节，雨纷纷"
+    },
+    "05": {
+      "name": "May",
+      "name_cn": "五月",
+      "days": 31,
+      "description": "劳动光荣，青春飞扬"
+    },
+    "06": {
+      "name": "June",
+      "name_cn": "六月",
+      "days": 30,
+      "description": "仲夏时节，热情似火"
+    },
+    "07": {
+      "name": "July",
+      "name_cn": "七月",
+      "days": 31,
+      "description": "盛夏酷暑，砥砺前行"
+    },
+    "08": {
+      "name": "August",
+      "name_cn": "八月",
+      "days": 31,
+      "description": "秋高气爽，收获在望"
+    },
+    "09": {
+      "name": "September",
+      "name_cn": "九月",
+      "days": 30,
+      "description": "金秋时节，硕果累累"
+    },
+    "10": {
+      "name": "October",
+      "name_cn": "十月",
+      "days": 31,
+      "description": "国庆佳节，举国欢庆"
+    },
+    "11": {
+      "name": "November",
+      "name_cn": "十一月",
+      "days": 30,
+      "description": "冬日将至，蓄势待发"
+    },
+    "12": {
+      "name": "December",
+      "name_cn": "十二月",
+      "days": 31,
+      "description": "岁末年终，总结展望"
+    }
+  },
+  "config": {
+    "version": "1.0",
+    "last_updated": "2026-03-10",
+    "current_year": "2026",
+    "is_leap_year": false,
+    "description": "月份配置信息，已根据2026年闰年状态更新2月天数"
+  }
+}

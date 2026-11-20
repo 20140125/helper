@@ -1,0 +1,195 @@
+# Changelog
+
+本文档记录 Helper 智能提醒系统的所有版本变更。
+
+格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
+版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+
+---
+
+## [3.8] - 2026-04-21
+
+### 新增
+- `workday_manager.sh` 新增 `auto` 子命令：根据当前小时自动路由到 `morning`/`lunch`/`evening`，使用 `exec "$0"` 自我递归
+- Crontab 存活保活：`@reboot sleep 60 && daemon.sh start` 开机自启 + `*/5 * * * *` 每 5 分钟存活检查自动拉起
+- 守护进程 cron 托管日志独立文件 `scripts/daemon_cron.log`
+
+### 变更
+- **多实例检测模式升级**：`annual_scheduler.sh` 等守护进程由 `pgrep -f` 改为 `ps -eo pid,args | grep "bash.*脚本名" | grep -v grep`（避免匹配自身），检测到多实例时 `kill → sleep 2 → kill -9` 二阶段清理
+- **PID 文件安全回收**：`trap` 退出钩子引入自检 `[ "$(cat PID_FILE)" = "$$" ]` 才删除 PID 文件，防止新实例 PID 被旧实例 trap 误删
+- **`annual_scheduler.sh` 日志清理策略调整**：由"每月 1 日 02:00 一次"改为"每月 1 号和 15 号 00:01 各一次"，保留最近 15 天日志
+- 守护进程启动清理旧实例后新增 `sleep 1` 缓冲，等待旧进程 EXIT trap 执行完毕
+
+### 文档
+- `docs/01-系统概述.md` 版本号更新至 v3.8，技术栈补充 Node.js / Web 管理界面，架构图扩展 crontab/Web 层与模块化子目录
+- `docs/02-脚本分类.md` `annual_scheduler.sh` 描述与代码对齐（双日清理 + 15 天保留）
+- `docs/09-更新日志.md` 新增 v3.8 条目并补充"重要变更"说明
+- Skills 更新：`.codebuddy/skills/helper-scripts-spec` 同步守护进程多实例检测范式
+- Commands 更新：`.codebuddy/commands/` 同步最新 skill 规范
+
+---
+
+## [3.7] - 2026-03-23
+
+### 变更
+- 脚本合并：`workday_reminder.sh` + `workday_adjust_reminder.sh` 合并为 `workday_manager.sh`，支持 `adjust|morning|lunch|evening|all` 子命令
+- 脚本合并：`holiday_greetings.sh` + `lunar_festivals.sh` + `solar_terms.sh` + `special_days.sh` 合并为 `festival_greetings.sh`，支持 `holiday|lunar|solar_term|special|list_lunar|all` 子命令
+- 脚本合并：`prefetch_daily_data.sh` + `read_cached_data.sh` 合并为 `daily_data_manager.sh`，支持 `prefetch|read` 子命令
+- Web 前端触发器页面重构：新增脚本分组（日常/节日/系统），优化 UI 图标和样式
+- 后端触发白名单更新：新增 `clear_logs`（映射到 `view_logs.sh force-clean`）和 `annual_update`
+- `reminder_daemon.sh` 显式传递 `all` 参数给 `festival_greetings.sh` 和 `workday_manager.sh`
+- 所有脚本 `case *)`  分支从 `echo` 改为 `log_error`/`log_info`，符合日志规范
+- 全量更新项目文档和 Skills 规范
+
+### 移除
+- 删除 `workday_reminder.sh`：功能已合并入 `workday_manager.sh`
+- 删除 `workday_adjust_reminder.sh`：功能已合并入 `workday_manager.sh`
+- 删除 `holiday_greetings.sh`：功能已合并入 `festival_greetings.sh`
+- 删除 `lunar_festivals.sh`：功能已合并入 `festival_greetings.sh`
+- 删除 `solar_terms.sh`：功能已合并入 `festival_greetings.sh`
+- 删除 `special_days.sh`：功能已合并入 `festival_greetings.sh`
+- 删除 `prefetch_daily_data.sh`：功能已合并入 `daily_data_manager.sh`
+- 删除 `read_cached_data.sh`：功能已合并入 `daily_data_manager.sh`
+- 删除 `get_morning_data.sh`：功能已合并入其他脚本
+
+---
+
+## [3.6] - 2026-03-11
+
+### 新增
+- Web 界面全面 UI 优化：侧边栏折叠、移动端适配、主题切换、按钮规范统一
+- 下拉框 Icon 优化（运行日志、缓存文件选择器）
+- 按钮使用规范写入 Web Skills
+
+### 变更
+- 全项目按钮风格统一（size/variant/theme 对照表）
+- 危险操作二次确认统一使用 `t-popconfirm`
+- 新增缓存系统文档（`docs/11-缓存系统.md`）
+
+---
+
+## [3.5] - 2026-03-09
+
+### 新增
+- 新增 `daemon.sh`：整合守护进程管理，支持 `start|stop|restart|status` 四个子命令
+- 为 `scripts/` 目录生成完整架构图（Mermaid 流程图），更新至 `scripts/README.md`
+
+### 变更
+- 更新后端 `web/routes/daemon.ts`：改为调用统一的 `daemon.sh start/stop/restart`
+- 同步更新 `annual_update.sh`：移除对 `apply_company_policy.sh` 的调用，功能编号重排
+- 年度更新流程从 7 步精简为 6 步
+- 全量更新 `docs/` 目录下所有文档，与当前脚本结构保持一致
+
+### 移除
+- 删除 `start_daemon.sh`：功能已合并入 `daemon.sh`
+- 删除 `stop_daemon.sh`：功能已合并入 `daemon.sh`
+- 删除 `apply_company_policy.sh`：公司特别假政策识别逻辑合并进 `generate_holiday_config.sh`
+- 删除 `check_morning_reminder_sent.sh`：无任何调用方，功能已由 `workday_reminder.sh` 内部逻辑覆盖
+
+---
+
+## [3.4] - 2026-03-04
+
+### 新增
+- 新增 `project_config.sh`：统一路径配置文件，通过脚本自身位置自动推导 `PROJECT_DIR`
+- 安装 `lunar-python` 依赖（`date_utils.py` 所需的第三方库）
+
+### 修复
+- 修复 `workday_reminder.sh`：`exit 0` 与 `log_info` 拼在同一行导致的语法错误
+- 修复 `birthday_reminder.sh`：`check_today_birthday()` 函数末尾 `fi}` 粘连导致函数未正确闭合
+- 修复 `lunar_festivals.sh`：两行注释粘连导致注释块标题丢失
+- 修复 `special_days.sh`：移除重复加载 `weather_config.sh`
+- 修复 `update-tools/update_month_config.sh`：默认 JSON 路径由相对路径改为绝对路径
+
+### 变更
+- 全量替换硬编码路径：将所有脚本中 155 处 `/data/workspace` 硬编码路径替换为 `${PROJECT_DIR}` 变量
+- 所有主目录脚本（29个）统一添加路径初始化代码
+- 所有 `update-tools/` 子目录脚本（7个）统一使用 `../project_config.sh` 加载
+- 项目现在可以部署到任意目录，无需修改任何脚本，实现零配置路径自动适配
+
+---
+
+## [3.3] - 2026-02-13
+
+### 变更
+- 全面检查 36 个脚本，修复语法错误和日志规范问题
+- 验证所有脚本通过 `bash -n` 语法检查
+- 更新日志工具使用指南（v3.3）
+
+---
+
+## [3.2] - 2026-02-13
+
+### 新增
+- 完善日志系统（双重输出机制：控制台 + 文件）
+- 创建文档目录结构（`docs/`），拆分 README 为多个独立文档
+- 智能日志清理功能（自动删除无对应脚本的日志文件）
+- 动态早安数据添加机制（避免重复发送早安数据）
+- 统一早安数据源（`get_morning_data.sh`）
+- 自动清理旧标记文件（每天凌晨 00:05 清理前一天的标记文件）
+
+### 修复
+- 修复温度数据转义问题（`16\\/24℃` → `16/24℃`）
+- 修复春节假期配置不完整（添加 2 月 15 日）
+- 修复假期时长计算错误（按连续日期合并）
+
+### 变更
+- 优化 `workday_reminder.sh`：简化逻辑，工作日始终包含早安数据
+- 智能早安数据分配：工作日只有 `workday_reminder.sh` 包含早安数据；非工作日按优先级只有第一个执行的脚本包含早安数据
+- 使用标记文件机制防止重复发送
+
+---
+
+## [3.1] - 2026-02-12
+
+### 新增
+- 统一所有推送消息落款
+- 优化祝福语管理（JSON 格式）
+- 完善数据预获取机制
+- 添加双重预获取（00:00 + 07:55）
+
+### 变更
+- 统一祝福语存储格式
+- 优化缓存读取逻辑
+- 改进错误处理机制
+
+---
+
+## [3.0] - 2026-02-12
+
+### 新增
+- 添加农历生日支持（`lunar:MM-DD` 格式）
+- 增强年度更新功能
+- 优化节假日配置
+- 添加公司特别假政策
+
+### 变更
+- 农历日期自动转换
+- 年度数据自动更新
+- 祝福语随机选择
+
+---
+
+## [2.0] - 2026-01-01
+
+### 新增
+- 添加数据预获取功能
+- 集成聚合数据 API
+- 支持农历节日和 24 节气
+- 添加假期倒计时
+
+### 变更
+- 缓存机制优化
+- API 调用优化
+- 错误处理增强
+
+---
+
+## [1.0] - 2025-12-01
+
+### 新增
+- 基础工作日提醒（早安/午餐/下班）
+- 节假日祝福
+- 生日提醒
+- 周总结
+- 企业微信机器人集成

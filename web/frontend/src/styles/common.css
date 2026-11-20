@@ -1,0 +1,193 @@
+/* ===== 公共内容展示样式 ===== */
+/* 空状态、纯文本代码展示、弹性容器等可复用样式 */
+
+/* ── 空状态提示 ── */
+.empty-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  font-size: 14px;
+  flex: 1;
+}
+
+/* ── 纯文本/代码展示 ── */
+.plain-text {
+  flex: 1;
+  overflow: auto;
+  color: var(--log-code-color);
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  background: transparent;
+  border: none;
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+/* ── 弹性内容容器（flex 纵向填充 + 溢出隐藏） ── */
+.flex-fill-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── 等分弹性子项 ── */
+.flex-half {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── 代码 JSON 预览输出 ── */
+.code-output {
+  margin: 0;
+  padding: 12px 16px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── 行内筛选栏 ── */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── Markdown 渲染样式 ── */
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3),
+.markdown-body :deep(h4) {
+  font-weight: 600;
+  margin: 12px 0 6px;
+  color: var(--text-primary);
+}
+
+.markdown-body :deep(h1) { font-size: 18px; }
+.markdown-body :deep(h2) { font-size: 16px; }
+.markdown-body :deep(h3) { font-size: 15px; }
+
+.markdown-body :deep(p) {
+  margin: 6px 0;
+}
+
+.markdown-body :deep(strong) {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.markdown-body :deep(em) {
+  font-style: italic;
+}
+
+.markdown-body :deep(blockquote) {
+  border-left: 3px solid var(--accent-primary);
+  margin: 8px 0;
+  padding: 4px 12px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-radius: 0 4px 4px 0;
+}
+
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  padding-left: 20px;
+  margin: 6px 0;
+}
+
+.markdown-body :deep(li) {
+  margin: 3px 0;
+}
+
+.markdown-body :deep(hr) {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 12px 0;
+}
+
+.markdown-body :deep(code) {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 12px;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+}
+
+.markdown-body :deep(pre) {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+/* Markdown 表格 */
+.markdown-body :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 8px 0;
+  display: block;
+  overflow-x: auto;
+}
+
+.markdown-body :deep(table th),
+.markdown-body :deep(table td) {
+  border: 1px solid var(--border-color, #e0e0e0);
+  padding: 6px 12px;
+  min-width: 60px;
+}
+
+.markdown-body :deep(table th) {
+  background: var(--bg-secondary);
+  font-weight: 600;
+}
+
+.markdown-body :deep(table tr:nth-child(even)) {
+  background: var(--bg-secondary);
+}
+
+/* Markdown 链接 */
+.markdown-body :deep(a) {
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+.markdown-body :deep(a:hover) {
+  text-decoration: underline;
+}
+
+/* 站内路由链接：常显下划线，提示点了会跳到对应页面（同标签，不整页刷新） */
+.markdown-body :deep(a.md-link-internal) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Markdown 图片：限制最大宽度，避免撑破气泡 */
+.markdown-body :deep(img) {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 8px 0;
+  display: block;
+}
+
+/* Markdown 移动端适配 */
+@media (max-width: 768px) {
+  .markdown-body :deep(h1) { font-size: 16px; }
+  .markdown-body :deep(h2) { font-size: 15px; }
+  .markdown-body :deep(h3) { font-size: 14px; }
+}

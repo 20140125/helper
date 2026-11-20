@@ -1,0 +1,82 @@
+/* ===== 左右分栏面板通用布局 ===== */
+/* 适用于 cache、logs 等"左侧列表 + 右侧内容"的双栏页面 */
+
+/* 移动端选择器（桌面端隐藏） */
+.panel-mobile-select {
+  display: none;
+}
+
+/* 双栏网格布局 */
+.panel-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 20px;
+  height: calc(100vh - 240px);
+  min-height: 500px;
+}
+
+/* 左侧列表面板 */
+.panel-list {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel-list :deep(.card-body) {
+  overflow-y: auto;
+}
+
+/* 右侧内容面板：编辑器自适应 */
+.panel-main :deep(.file-content-wrap) {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 工具栏行内排列 */
+.panel-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.panel-toolbar-btn {
+  flex-shrink: 0;
+}
+
+/* 下拉框自定义选项 */
+.panel-select-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ===== 移动端适配 ===== */
+@media (max-width: 768px) {
+  .panel-mobile-select {
+    display: block;
+  }
+
+  .panel-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+  }
+
+  .panel-list {
+    display: none !important;
+  }
+
+  .panel-main {
+    height: calc(100vh - 240px);
+    min-height: 350px;
+  }
+
+  /* card-header 按钮：移动端隐藏文字仅显示图标 */
+  .panel-main :deep(.card-header .t-button) {
+    padding: 0 8px;
+  }
+
+  .panel-main :deep(.card-header .t-button .t-button__text) {
+    display: none;
+  }
+}

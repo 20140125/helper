@@ -1,0 +1,186 @@
+# Helper 智能提醒系统 CI/CD 配置
+# 流水线阶段：语法检查 → 脚本验证 → Web 构建 → 部署
+
+stages:
+  - lint
+  - test
+  - build
+  - deploy
+
+variables:
+  NODE_VERSION: "18"
+  PYTHON_VERSION: "3.9"
+
+# ─────────────────────────────────────────
+# Stage 1: lint — 语法检查
+# ─────────────────────────────────────────
+
+shell:lint:
+  stage: lint
+  image: koalaman/shellcheck-alpine:stable
+  script:
+    - echo "🔍 检查 Shell 脚本语法..."
+    - find scripts/ -name "*.sh" -not -path "scripts/.env*" | xargs shellcheck --severity=error
+  rules:
+    - changes:
+        - scripts/**/*.sh
+
+shell:syntax:
+  stage: lint
+  image: bash:5
+  script:
+    - echo "🔍 验证所有脚本 bash -n 语法..."
+    - |
+      FAILED=0
+      for f in $(find scripts/ -name "*.sh"); do
+        if ! bash -n "$f" 2>&1; then
+          echo "❌ 语法错误: $f"
+          FAILED=1
+        fi
+      done
+      if [ "$FAILED" -eq 1 ]; then
+        echo "❌ 存在语法错误，请修复后重新提交"
+        exit 1
+      fi
+      echo "✅ 所有脚本语法检查通过"
+  rules:
+    - changes:
+        - scripts/**/*.sh
+
+web:lint:
+  stage: lint
+  image: node:${NODE_VERSION}-alpine
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}-node
+    paths:
+      - web/node_modules/
+  before_script:
+    - cd web
+    - npm ci --prefer-offline
+  script:
+    - echo "🔍 检查 TypeScript/Vue 代码规范..."
+    - npm run lint
+  rules:
+    - changes:
+        - web/**/*
+
+# ─────────────────────────────────────────
+# Stage 2: test — 功能验证
+# ─────────────────────────────────────────
+
+shell:test:
+  stage: test
+  image: python:${PYTHON_VERSION}-slim
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq bash curl
+    - pip install lunar-python --quiet
+  script:
+    - echo "🧪 验证核心脚本可执行性..."
+    - |
+      # 检查关键脚本是否存在
+      REQUIRED_SCRIPTS=(
+        "scripts/project_config.sh"
+        "scripts/log_utils.sh"
+        "scripts/daemon.sh"
+        "scripts/reminder_daemon.sh"
+        "scripts/workday_reminder.sh"
+        "scripts/holiday_greetings.sh"
+        "scripts/birthday_reminder.sh"
+      )
+      for script in "${REQUIRED_SCRIPTS[@]}"; do
+        if [ ! -f "$script" ]; then
+          echo "❌ 缺少必要脚本: $script"
+          exit 1
+        fi
+        echo "✅ $script"
+      done
+    - echo "🧪 验证 Python 工具脚本..."
+    - python3 -c "import lunar; print('✅ lunar-python 可用')" 2>/dev/null || echo "⚠️ lunar-python 未安装"
+  rules:
+    - changes:
+        - scripts/**/*
+
+web:test:
+  stage: test
+  image: node:${NODE_VERSION}-alpine
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}-node
+    paths:
+      - web/node_modules/
+  before_script:
+    - cd web
+    - npm ci --prefer-offline
+  script:
+    - echo "🧪 运行 Web 单元测试..."
+    - npm run test --if-present
+  rules:
+    - changes:
+        - web/**/*
+
+# ─────────────────────────────────────────
+# Stage 3: build — 构建
+# ─────────────────────────────────────────
+
+web:build:
+  stage: build
+  image: node:${NODE_VERSION}-alpine
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}-node
+    paths:
+      - web/node_modules/
+      - web/frontend/node_modules/
+  before_script:
+    - cd web
+    - npm ci --prefer-offline
+    - cd frontend && npm ci --prefer-offline && cd ..
+  script:
+    - echo "🏗️ 构建前端资源..."
+    - cd frontend && npm run build
+    - echo "✅ 构建完成"
+  artifacts:
+    paths:
+      - web/frontend/dist/
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      changes:
+        - web/**/*
+
+# ─────────────────────────────────────────
+# Stage 4: deploy — 部署（仅 master 分支）
+# ─────────────────────────────────────────
+
+deploy:production:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client rsync
+    - eval $(ssh-agent -s)
+    - echo "$DEPLOY_SSH_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+  script:
+    - echo "🚀 部署到生产服务器..."
+    - |
+      rsync -avz --delete \
+        --exclude='.git' \
+        --exclude='scripts/.env' \
+        --exclude='.cache/' \
+        --exclude='web/node_modules/' \
+        --exclude='web/frontend/node_modules/' \
+        ./ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH"
+    - |
+      ssh "$DEPLOY_USER@$DEPLOY_HOST" "
+        cd $DEPLOY_PATH
+        cd web && npm ci --production
+        bash scripts/daemon.sh restart
+        echo '✅ 部署完成'
+      "
+  environment:
+    name: production
+    url: http://$DEPLOY_HOST:9527
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: manual
+  needs:
+    - web:build

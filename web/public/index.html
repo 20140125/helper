@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>智能提醒管理平台 - 管理后台</title>
+    <!-- 防止白屏闪烁：提前读取主题并设置背景色 -->
+    <script>
+      (function () {
+        const theme = localStorage.getItem('helper-theme') || 'dark';
+        const bgMap = {
+          dark: '#0d1117',
+          light: '#f5f7fa',
+        };
+        const bg = bgMap[theme] || '#0d1117';
+        document.documentElement.style.background = bg;
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+    <style>
+      html, body, #app {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        background: inherit;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-1795184318167.DWmHIRV2.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/chunk-1795184318167.DMKNJDHM.js">
+    <link rel="modulepreload" crossorigin href="/assets/chunk-1795184318167.BoLRumgy.js">
+    <link rel="modulepreload" crossorigin href="/assets/chunk-1795184318167.D6lqcPZ_.js">
+    <link rel="modulepreload" crossorigin href="/assets/chunk-1795184318167.3AD2oRLN.js">
+    <link rel="stylesheet" crossorigin href="/assets/tdesign-1795184318167.BFJO_lpC.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-1795184318167.CSp_joqL.css">
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>
