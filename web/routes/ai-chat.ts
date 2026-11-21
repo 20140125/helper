@@ -16,6 +16,7 @@ import {
   buildUserContent,
   getAvailableTools,
   buildSystemPrompt,
+  selectToolsByScenario,
   runAgentLoop,
   handleGenerativeModel,
   isGenerativeModel,
@@ -784,14 +785,20 @@ router.post('/send', async (req: Request, res: Response) => {
       ? availableTools.filter((t: { name: string }) => t.name === pinnedTool)
       : availableTools;
 
+  // 动态裁剪：pinned 场景用户已指定唯一工具，不再按语义裁剪；普通场景按本轮用户消息选工具包
+  const pinned = Boolean(pinnedSkill || pinnedTool);
+  const toolScope = pinned
+    ? { tools: finalTools, scenarios: ['pinned'], full: true }
+    : selectToolsByScenario(finalTools, conv.messages);
+  const scopedTools = toolScope.tools;
+
   // 长期记忆：取本用户热度最高的若干条注入 system prompt（内部会计一次命中）
   const memories = pickMemoryForPrompt(email);
   // md 技能索引：主会话按用户权限全量注入（含 action / mutation 类说明书）。
   // pinned 场景工具列表被裁到只剩一个，load_skill 已不在其中，此时不注入索引（否则模型会去调不存在的工具）
-  const pinned = Boolean(pinnedSkill || pinnedTool);
   const basePrompt = buildSystemPrompt(
     enable_tools,
-    finalTools.map((t: { name: string; }) => t.name),
+    scopedTools.map((t: { name: string; }) => t.name),
     memories,
     pinned ? [] : listSkillMetas(permissions),
   );
@@ -821,7 +828,8 @@ router.post('/send', async (req: Request, res: Response) => {
   writeSse(res, 'meta', {
     conversation_id: conv.id,
     title: conv.title,
-    available_tools: finalTools.map((t: { name: string; description: string }) => ({ name: t.name, description: t.description })),
+    available_tools: scopedTools.map((t: { name: string; description: string }) => ({ name: t.name, description: t.description })),
+    tool_scope: { scenarios: toolScope.scenarios, full: toolScope.full, count: scopedTools.length },
     pinned_skill: pinnedSkill,
   });
 
@@ -835,7 +843,7 @@ router.post('/send', async (req: Request, res: Response) => {
     const generator = runAgentLoop({
       messages: [systemPrompt, ...conv.messages],
       context: { userEmail: email, userPermissions: permissions },
-      tools: finalTools,
+      tools: scopedTools,
       enableTools: enable_tools,
       enablePlanning: enable_planning,
       model,

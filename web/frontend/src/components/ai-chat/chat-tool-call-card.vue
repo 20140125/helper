@@ -156,8 +156,7 @@ const imageUrl = computed((): string => extractToolImageUrl(props.tc.result));
   summary 文本：从单行截断改为最多 2 行，避免关键摘要（"找到 3 条规则"/"已推送至张三"
   /"已生成卡片 /skill-images/xxx.png"等）被截掉一半逼用户展开整张 JSON 才看得全。
   - line-clamp 是 webkit 私有，但所有现代浏览器（含 Firefox 90+）都已实现
-  - 仍保留 hover title 兜底（在模板上 v-if="tc.summary" 已有 :title 不必额外加，
-    但模板中此处未带 title——为稳妥起见在模板里追加 :title="tc.summary"，避免极端长 summary 被两行截断后用户无法看全）
+  - 模板已带 :title="tc.summary"，两行截断后仍可 hover 看全文
 */
 .tool-call__summary {
   flex: 1 1 auto;

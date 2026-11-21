@@ -107,6 +107,12 @@ export {
 export { buildSystemPrompt } from './system-prompt';
 
 export {
+  detectToolScenarios,
+  selectToolsByScenario,
+  type ToolScopeResult,
+} from './tool-scope';
+
+export {
   resolveSkillsDir,
   listSkillDocs,
   listSkillMetas,

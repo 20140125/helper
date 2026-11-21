@@ -47,12 +47,16 @@
         :t="t"
       />
 
-      <!-- 工具调用块（width: auto 跟随 body fit-content 自然贴齐正文气泡宽度） -->
+      <!-- 工具调用块：多个调用默认折叠为一行，避免连续工具卡铺满屏幕 -->
       <div v-if="m.tool_calls.length > 0" class="msg__tools">
+        <chat-tool-call-group
+          v-if="m.tool_calls.length > 1"
+          :tool-calls="m.tool_calls"
+          :t="t"
+        />
         <chat-tool-call-card
-          v-for="tc in m.tool_calls"
-          :key="tc.id"
-          :tc="tc"
+          v-else
+          :tc="m.tool_calls[0]"
           :t="t"
         />
       </div>
@@ -163,6 +167,7 @@ import { useRouter } from 'vue-router';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import ChatToolCallCard from './chat-tool-call-card.vue';
+import ChatToolCallGroup from './chat-tool-call-group.vue';
 import ChatPlanCard from './chat-plan-card.vue';
 import ChatReasoningCard from './chat-reasoning-card.vue';
 import ImagePreviewer from '@/components/common/image-previewer.vue';

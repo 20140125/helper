@@ -15,6 +15,14 @@ export interface ThemeStyleOption {
   themeIds: [ThemeId, ThemeId];
 }
 
+/** 自动亮暗切换时间配置 */
+export interface AutoThemeTimes {
+  /** 切到亮色时间（HH:mm） */
+  lightTime: string;
+  /** 切到暗色时间（HH:mm） */
+  darkTime: string;
+}
+
 /** 自定义主题颜色配置 */
 export interface CustomThemeColor {
   /** 主色调（accent-primary） */

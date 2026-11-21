@@ -18,7 +18,7 @@ export { webScriptExists };
  * @param callback - 状态结果回调
  */
 export const readLauncherStatus = (callback: (status: LauncherStatus) => void): void => {
-  exec(`lsof -ti:${WEB_PORT}`, (err, stdout) => {
+  exec(`lsof -nP -t -iTCP:${WEB_PORT} -sTCP:LISTEN`, (err, stdout) => {
     const pidStr = stdout.trim().split('\n')[0];
     const pidNum = parseInt(pidStr, 10);
     const running = !err && !isNaN(pidNum) && pidNum > 0;

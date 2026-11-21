@@ -33,9 +33,14 @@
           :current-style-id="themeStore.currentStyle"
           :current-theme-label="themeStore.currentThemeLabel"
           :current-theme-preview="themeStore.currentThemePreview"
+          :is-auto-theme="themeStore.autoMode"
+          :light-time="themeStore.autoTimes.lightTime"
+          :dark-time="themeStore.autoTimes.darkTime"
           @open-sidebar="openSidebar"
           @color-input="handleColorInput"
           @color-mode-toggle="handleColorModeToggle"
+          @auto-toggle="handleAutoModeToggle"
+          @auto-time-change="handleAutoTimeChange"
           @theme-change="handleThemeChange"
           @logout="authStore.logout"
           @lang-toggle="localeStore.toggle"
@@ -130,6 +135,8 @@ const {
   handleMenuChange,
   handleColorInput,
   handleColorModeToggle,
+  handleAutoModeToggle,
+  handleAutoTimeChange,
   handleThemeChange,
   handleTabNavigate,
   handleTabClose,

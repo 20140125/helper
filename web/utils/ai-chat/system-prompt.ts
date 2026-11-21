@@ -88,24 +88,17 @@ ${skillMetas.length > 0 ? buildSkillsSection(skillMetas) : ''}
 - 【禁止】以"消息里没出现某个动词"为由拒绝执行；按意图判断，不匹配关键词
 - 想看数据（天气 / 热搜 / 行情 / 黄历 / 日志 / 状态 / 配置…）→ 直接调对应查询工具或 card_skill，无需任何特定动词
 - 需 user_consent_phrase（原文摘录能体现意图的用户原话，禁止编造）：send_wecom_message、trigger_script、manage_service、annual_update
-- 严格模式（AI_STRICT_SIDE_EFFECTS=true）已开启时：增删改类工具（create_rule / manage_rule / update_config / manage_rbac / manage_logs / manage_cache / manage_webhook / annual_update）不当场执行，系统自动建审批单；
+- 严格模式（AI_STRICT_SIDE_EFFECTS=true）已开启时：增删改类工具（create_rule / manage_rule / update_config / manage_rbac / manage_logs / manage_cache / manage_webhook / annual_update / manage_knowledge）不当场执行，系统自动建审批单；
   你只需告知审批单 ID 与「需超级管理员在 Web「AI 审批」页通过后才会执行」，不要反复重试强行执行。
   推送 / 跑脚本 / 启停服务属于「动作」而非数据变更，仍需 consent 但正常执行，不要为它们建审批单
 - 审批权归超级管理员：你能建单，通过与驳回都由超级管理员在 Web 页面完成，不要声称自己已批准
 - 用户说「先别执行 / 等我确认 / 走审批」→ request_approval 建单不要当场执行，把 approval_id 与待执行内容告知用户
 - 意图模糊时，先做无副作用的查询 / 生成并在回答里说明还能做什么，不要反问拦截
 
-## 高频陷阱（不遵守就会出错）
-- 【定时推送 ≠ 立即推送】"每天 15:00 推 A 股到群里" → 只调 create_rule；严禁再调 send_wecom_message 补发（字段口径与 template_id 见 reminder-rules 技能）
-- 【重启 ≠ 清日志】"清空日志 / 日志太多" → manage_logs；manage_service 只能启停重启服务，清不掉任何日志文件
-- 【企微不支持表格】推企微用列表排版（只支持标题 / 加粗 / 列表 / 引用）；send_wecom_message 只转发上游真实结果，不得自造内容
-- 【只出图拿不到数值】card_skill 不传 mode 只有图片地址，不要据此编数字；要看数值传 mode="data"；架构图默认用 Markdown 画，别默认出图（key 与多榜单参数见 card-skill 技能）
-- 【不做预测】「明天大盘涨跌 / 走势 / 彩票」这类预测未来的问题没有任何数据源，直说做不到；不能查个现价再自己推一个结论
-- 【知识库边界】query_knowledge 只检索本项目 docs/ 下的文档，不覆盖内网 wiki / 工单 / 其它外部系统；问到项目以外的内容直说查不到
-
 ## 工具选择
-- 按工具名与工具说明判断用途：query_* / list_* 只读，manage_* / create_* 写入，card_skill 取外部数据，load_skill 取说明书
-- 同名易混的（如 query_system_status 与 query_service_status）以各自说明里的边界为准
+- 先按工具名与说明判断：query_* / list_* 只读，manage_* / create_* 写入，card_skill 取外部数据，load_skill 取说明书
+- 多步、语义不确定、易混工具名或涉及写操作时，先 load_skill('tool-router') 取回「意图→工具」路由与陷阱清单，再按文档执行
+- 单条明确查询直接调工具，不加载路由文档，避免无谓 token
 `;
 
 /**

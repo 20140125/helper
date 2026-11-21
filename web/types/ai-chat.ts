@@ -1,5 +1,6 @@
 import path from 'path';
 import { CACHE_DIR } from '@/utils/paths';
+import type { AiSkillEffect } from './ai-chat-skill';
 
 /** AI 会话存储目录（按用户邮箱分子目录） */
 export const AI_CONVERSATIONS_DIR = path.join(CACHE_DIR, 'ai-conversations');
@@ -245,6 +246,12 @@ export interface ToolContext {
    *   否则用户没看到任何回复，不知道单已建，只会反复重试造成重复审批单。
    */
   createdApprovalIds?: string[];
+  /**
+   * 本轮允许加载的技能副作用等级
+   * @description 主聊天不传表示全放开；webhook / 巡检 / 子 Agent 传 ['read']，
+   *   load_skill 会据此硬拦截 action / mutation 技能，避免只靠提示词过滤。
+   */
+  allowedSkillEffects?: AiSkillEffect[];
 }
 
 /** 工具执行结果 */
@@ -597,6 +604,7 @@ export const SIDE_EFFECT_TOOLS: string[] = [
   'manage_logs',
   'manage_cache',
   'manage_webhook',
+  'manage_knowledge',
 ];
 
 /**
@@ -615,6 +623,7 @@ export const MUTATION_TOOLS: string[] = [
   'manage_cache',
   'manage_webhook',
   'annual_update',
+  'manage_knowledge',
 ];
 
 /**

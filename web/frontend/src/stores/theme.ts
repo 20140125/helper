@@ -1,10 +1,16 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { ThemeId, ThemeStyle, CustomThemeColor } from '@/types/theme';
+import type { ThemeId, ThemeStyle, CustomThemeColor, AutoThemeTimes } from '@/types/theme';
 import { THEME_STYLES, getThemeStyles } from '@/constants/theme';
 
 const STORAGE_KEY = 'helper-theme';
 const STORAGE_CUSTOM_COLOR_KEY = 'helper-custom-color';
+const STORAGE_AUTO_MODE_KEY = 'helper-theme-auto-mode';
+const STORAGE_LIGHT_TIME_KEY = 'helper-theme-light-time';
+const STORAGE_DARK_TIME_KEY = 'helper-theme-dark-time';
+const AUTO_CHECK_INTERVAL_MS = 60 * 1000;
+const DEFAULT_LIGHT_TIME = '07:00';
+const DEFAULT_DARK_TIME = '19:00';
 
 /** 根据主色调 hex 计算 RGB 分量 */
 const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
@@ -51,6 +57,34 @@ const hslToHex = (h: number, s: number, l: number): string => {
     return Math.round(255 * color).toString(16).padStart(2, '0');
   };
   return `#${f(0)}${f(8)}${f(4)}`;
+};
+
+/**
+ * 解析 HH:mm 时间为当天分钟数
+ * @param {string} value - HH:mm 格式时间
+ * @returns {number | null} 分钟数，格式非法时返回 null
+ */
+const parseTimeToMinutes = (value: string): number | null => {
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return null;
+  const [hour, minute] = value.split(':').map(Number);
+  return hour * 60 + minute;
+};
+
+/**
+ * 判断当前时间是否落在亮色时段
+ * @param {Date} now - 当前时间
+ * @param {string} lightTime - 切到亮色的时间
+ * @param {string} darkTime - 切到暗色的时间
+ * @returns {boolean} true 表示应使用亮色主题
+ * @description 支持亮色时段跨零点（如亮 07:00、暗 23:00 为同日区间；亮 22:00、暗 06:00 为跨零点区间）
+ */
+const isLightPeriod = (now: Date, lightTime: string, darkTime: string): boolean => {
+  const current = now.getHours() * 60 + now.getMinutes();
+  const light = parseTimeToMinutes(lightTime) ?? 7 * 60;
+  const dark = parseTimeToMinutes(darkTime) ?? 19 * 60;
+  if (light === dark) return true;
+  if (light < dark) return current >= light && current < dark;
+  return current >= light || current < dark;
 };
 
 /**
@@ -234,6 +268,27 @@ export class ThemeStore {
     })(),
   );
 
+  /**
+   * 是否启用按时间自动切换亮暗主题
+   * @description 用户级设置，持久化存储在 localStorage
+   */
+  autoMode = ref<boolean>(localStorage.getItem(STORAGE_AUTO_MODE_KEY) === '1');
+
+  /**
+   * 自动切换时间配置
+   * @description lightTime 切到亮色，darkTime 切到暗色，均为 HH:mm 格式
+   */
+  autoTimes = ref<AutoThemeTimes>({
+    lightTime: localStorage.getItem(STORAGE_LIGHT_TIME_KEY) || DEFAULT_LIGHT_TIME,
+    darkTime: localStorage.getItem(STORAGE_DARK_TIME_KEY) || DEFAULT_DARK_TIME,
+  });
+
+  /** 自动切换定时器句柄 */
+  private autoTimer: number | null = null;
+
+  /** 上次自动切换计算出的亮暗状态，避免同一时段反复触发动画 */
+  private lastAutoLight: boolean | null = null;
+
   // ==============================
   // 计算属性（使用箭头函数+computed，便于 ...store 展开）
   // ==============================
@@ -375,13 +430,14 @@ export class ThemeStore {
   applyStyle = (styleId: ThemeStyle, origin?: { x: number; y: number }): void => {
     const style = THEME_STYLES.find((s) => s.id === styleId);
     if (!style) return;
-    const isLight = this.isCurrentLight;
+    const isLight = this.isCurrentLight.value;
     const targetId = isLight ? style.themeIds[1] : style.themeIds[0];
     this.applyTheme(targetId, origin);
   }
 
   /**
-   * 切换主题（带 View Transitions 过渡动画）   * @param {ThemeId} id - 目标主题ID
+   * 切换主题（带 View Transitions 过渡动画）
+   * @param {ThemeId} id - 目标主题ID
    * @param {{ x: number; y: number }} [origin] - 动画起始坐标（点击位置）
    * @returns {void}
    * @description 切换到指定主题，并持久化存储到 localStorage
@@ -449,6 +505,95 @@ export class ThemeStore {
   }
 
   /**
+   * 按当前风格应用指定的亮暗模式
+   * @param {boolean} isLight - true 使用亮色，false 使用暗色
+   * @param {{ x: number; y: number }} [origin] - 动画起始坐标
+   */
+  private applyAutoLight = (isLight: boolean, origin?: { x: number; y: number }): void => {
+    const style = this.currentStyle.value;
+    if (style === 'custom') {
+      this.applyCustomColor(this.customColor.value.accentPrimary, isLight, origin);
+      return;
+    }
+    const option = THEME_STYLES.find((s) => s.id === style);
+    if (!option) return;
+    this.applyTheme(isLight ? option.themeIds[1] : option.themeIds[0], origin);
+  };
+
+  /**
+   * 检查是否需要根据用户设置的时间切换亮暗主题
+   * @param {{ x: number; y: number }} [origin] - 动画起始坐标
+   */
+  private checkAutoTheme = (origin?: { x: number; y: number }): void => {
+    const isLight = isLightPeriod(
+      new Date(),
+      this.autoTimes.value.lightTime,
+      this.autoTimes.value.darkTime,
+    );
+    if (this.lastAutoLight === isLight) return;
+    this.lastAutoLight = isLight;
+    this.applyAutoLight(isLight, origin);
+  };
+
+  /**
+   * 停止自动主题定时器
+   */
+  stopAutoTheme = (): void => {
+    if (this.autoTimer === null) return;
+    window.clearInterval(this.autoTimer);
+    this.autoTimer = null;
+  };
+
+  /**
+   * 启动自动主题：立即检查一次，之后每分钟检查
+   * @param {{ x: number; y: number }} [origin] - 动画起始坐标
+   */
+  startAutoTheme = (origin?: { x: number; y: number }): void => {
+    this.stopAutoTheme();
+    this.checkAutoTheme(origin);
+    this.autoTimer = window.setInterval(() => this.checkAutoTheme(), AUTO_CHECK_INTERVAL_MS);
+  };
+
+  /**
+   * 开启/关闭自动主题
+   * @param {boolean} enabled - 是否开启
+   * @param {{ x: number; y: number }} [origin] - 动画起始坐标
+   */
+  setAutoMode = (enabled: boolean, origin?: { x: number; y: number }): void => {
+    this.autoMode.value = enabled;
+    localStorage.setItem(STORAGE_AUTO_MODE_KEY, enabled ? '1' : '0');
+    this.lastAutoLight = null;
+    if (enabled) {
+      this.startAutoTheme(origin);
+    } else {
+      this.stopAutoTheme();
+    }
+  };
+
+  /**
+   * 更新自动切换时间
+   * @param {string} lightTime - 切到亮色的时间（HH:mm）
+   * @param {string} darkTime - 切到暗色的时间（HH:mm）
+   * @description 非法时间回退到默认值；开启自动模式时立即按新时间重算
+   */
+  setAutoTimes = (lightTime: string, darkTime: string): void => {
+    const nextLight = parseTimeToMinutes(lightTime) === null ? DEFAULT_LIGHT_TIME : lightTime;
+    const nextDark = parseTimeToMinutes(darkTime) === null ? DEFAULT_DARK_TIME : darkTime;
+    this.autoTimes.value = { lightTime: nextLight, darkTime: nextDark };
+    localStorage.setItem(STORAGE_LIGHT_TIME_KEY, nextLight);
+    localStorage.setItem(STORAGE_DARK_TIME_KEY, nextDark);
+    this.lastAutoLight = null;
+    if (this.autoMode.value) this.startAutoTheme();
+  };
+
+  /**
+   * 释放自动主题定时器（应用卸载时调用）
+   */
+  dispose = (): void => {
+    this.stopAutoTheme();
+  };
+
+  /**
    * 初始化主题
    * @returns {void}
    * @description 页面加载时直接应用主题，不触发过渡动画
@@ -464,6 +609,8 @@ export class ThemeStore {
     if (id === 'custom') {
       this.applyCustomVars(this.customColor.value);
     }
+
+    if (this.autoMode.value) this.startAutoTheme();
   }
 }
 

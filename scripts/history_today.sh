@@ -71,10 +71,16 @@ _fetch_wikipedia_events() {
     log_info "🌐 调用维基百科历史事件 API: ${api_url}"
     local start_ts
     start_ts=$(now_ms)
-    body=$(curl -s --max-time 10 -H "User-Agent: MorningReminder/1.0" "${api_url}")
+    body=$(curl -fsS --max-time 10 -H "User-Agent: MorningReminder/1.0" "${api_url}")
     local curl_exit=$?
 
-    if [ $curl_exit -eq 0 ] && [ -n "$body" ]; then
+    local primary_ok=false
+    if [ $curl_exit -eq 0 ] && [ -n "$body" ] \
+        && printf '%s' "$body" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if isinstance(d.get("events"), list) and len(d["events"]) > 0 else 1)' 2>/dev/null; then
+        primary_ok=true
+    fi
+
+    if [ "$primary_ok" = true ]; then
         log_info "📥 API 响应已接收（bytes=${#body}）"
         log_duration "$start_ts" "维基百科历史事件 API 调用完成"
     else
@@ -87,7 +93,7 @@ _fetch_wikipedia_events() {
         # 统一归一化为 {"events":[{"year":..., "text":...}]}，下游解析无需区分来源。
         local fallback_url="https://byabbe.se/on-this-day/${month_padded}/${day_padded}/events.json"
         local fallback_body
-        fallback_body=$(curl -s --max-time 10 -H "User-Agent: MorningReminder/1.0" "${fallback_url}")
+        fallback_body=$(curl -fsS --max-time 10 -H "User-Agent: MorningReminder/1.0" "${fallback_url}")
         curl_exit=$?
         if [ $curl_exit -ne 0 ] || [ -z "$fallback_body" ]; then
             log_error "Byabbe 备用源也失败（curl_exit=${curl_exit}）"

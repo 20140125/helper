@@ -51,8 +51,24 @@ export const readLauncherPid = (): number | null =>
   readPidFile(LAUNCHER_PID_FILE, LEGACY_LAUNCHER_PID_FILE);
 
 /**
+ * 通过端口反查当前监听 9527 的进程 PID
+ * @param callback - PID 回调，未监听时返回 null
+ * @description PID 文件可能缺失或过期（例如手工 nohup 启动服务），端口监听才是服务是否可用的最终依据
+ */
+const readWebPortPid = (callback: (pid: number | null) => void): void => {
+  exec(`lsof -nP -t -iTCP:${WEB_PORT} -sTCP:LISTEN`, (err, stdout) => {
+    if (err) {
+      callback(null);
+      return;
+    }
+    const pid = parseInt(stdout.trim().split('\n')[0], 10);
+    callback(Number.isFinite(pid) && pid > 0 ? pid : null);
+  });
+};
+
+/**
  * 读取 Web 服务当前运行状态
- * @description 读取 web.pid / launcher.pid，并通过 kill -0 检查进程是否存活（异步）
+ * @description 优先读 PID 文件并通过 kill -0 检查；PID 缺失或进程已失效时，回退检查 9527 端口是否有进程监听
  * @param callback - 状态结果回调（避免调用方 await）
  */
 export const readWebServiceStatus = (callback: (status: WebServiceStatus) => void): void => {
@@ -60,14 +76,22 @@ export const readWebServiceStatus = (callback: (status: WebServiceStatus) => voi
   const webPid = readPidFile(PID_FILE, LEGACY_PID_FILE);
 
   if (webPid === null) {
-    callback({ running: false, pid: null, launcherPid });
+    readWebPortPid((portPid) => {
+      callback({ running: portPid !== null, pid: portPid, launcherPid });
+    });
     return;
   }
 
   // kill -0 不发送信号，只检查进程是否存在
   exec(`kill -0 ${webPid}`, (err) => {
-    const running = !err;
-    callback({ running, pid: running ? webPid : null, launcherPid });
+    if (!err) {
+      callback({ running: true, pid: webPid, launcherPid });
+      return;
+    }
+    // PID 文件存在但进程已退出，仍可能有其他方式拉起的服务在监听端口
+    readWebPortPid((portPid) => {
+      callback({ running: portPid !== null, pid: portPid, launcherPid });
+    });
   });
 };
 
@@ -104,7 +128,7 @@ const spawnWebService = (): number => {
 const waitForPortListening = (timeoutMs: number, callback: (running: boolean) => void): void => {
   const startedAt = Date.now();
   const check = (): void => {
-    exec(`lsof -ti:${WEB_PORT}`, (err, stdout) => {
+    exec(`lsof -nP -t -iTCP:${WEB_PORT} -sTCP:LISTEN`, (err, stdout) => {
       if (!err && stdout.trim()) {
         callback(true);
         return;

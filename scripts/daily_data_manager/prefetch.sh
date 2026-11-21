@@ -193,8 +193,13 @@ payload = {
     "inspirational_quote":inspirational,
 }
 
-with open(cache_file, 'w', encoding='utf-8') as f:
+tmp_file = cache_file + '.tmp'
+with open(tmp_file, 'w', encoding='utf-8') as f:
     json.dump(payload, f, ensure_ascii=False, indent=2)
+    f.flush()
+    import os
+    os.fsync(f.fileno())
+os.replace(tmp_file, cache_file)
 PYEOF
 
     if [ -f "$CACHE_FILE" ]; then

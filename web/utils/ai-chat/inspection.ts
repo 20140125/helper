@@ -143,7 +143,7 @@ export const runInspection = async (input: InspectionInput): Promise<InspectionR
   try {
     for await (const ev of runAgentLoop({
       messages,
-      context,
+      context: { ...context, allowedSkillEffects: ['read'] },
       tools,
       enableTools: true,
       enablePlanning: true,

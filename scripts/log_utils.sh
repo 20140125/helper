@@ -97,7 +97,10 @@ log_json() {
   local message="$2"
   local extra="${3:-{}}"
   
-  local timestamp=$(date -u '+%Y-%m-%dT%H:%M:%S.%3NZ' 2>/dev/null || date -u '+%Y-%m-%dT%H:%M:%SZ')
+  local ms
+  ms=$(now_ms)
+  local timestamp
+  timestamp=$(python3 -c 'import datetime,sys; ms=int(sys.argv[1]); print(datetime.datetime.fromtimestamp(ms/1000, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S") + f".{ms % 1000:03d}Z")' "$ms" 2>/dev/null || date -u '+%Y-%m-%dT%H:%M:%SZ')
   local caller=$(get_caller_info 4)  # 调整栈深度以跳过中间函数
   local hostname=$(hostname 2>/dev/null || echo "unknown")
   
@@ -265,6 +268,8 @@ log_duration() {
   # 兼容旧调用传入秒级/非法值；统一按毫秒计算耗时
   if [[ ! "$start_time" =~ ^[0-9]+$ ]]; then
     start_time=$(now_ms)
+  elif [ ${#start_time} -le 10 ]; then
+    start_time=$((start_time * 1000))
   fi
 
   # 计算耗时（毫秒）

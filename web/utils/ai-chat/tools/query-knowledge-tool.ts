@@ -14,7 +14,8 @@ export const queryKnowledgeTool: ToolImpl = {
   description:
     '检索本项目的本地知识库（docs/ 文档），回答「怎么用 / 怎么配置 / 怎么扩展」类问题。'
     + '凡涉及本项目自身用法、脚本说明、配置项含义、开发规范的提问，优先用它取权威文档，'
-    + '不要凭模型记忆作答。返回的是文档片段，需自行提炼成结论并注明出处。',
+    + '不要凭模型记忆作答。返回的是文档片段，需自行提炼成结论并注明出处。'
+    + '若要列文档/读正文/重建索引用 query_knowledge_docs；新建/编辑/删除用 manage_knowledge。',
   parameters: {
     type: 'object',
     properties: {

@@ -43,6 +43,10 @@ const BM25_B = 0.75;
 /** 单个片段的最大字符数 */
 const MAX_CHUNK_CHARS = 900;
 
+/** 文件名与标题在 BM25 中的重复次数（标题型查询需要更高权重） */
+const FILENAME_TOKEN_WEIGHT = 3;
+const TITLE_TOKEN_WEIGHT = 3;
+
 /**
  * 知识目录（相对项目根）
  * @returns {string[]} 绝对路径列表
@@ -92,6 +96,45 @@ const tokenize = (text: string): string[] => {
     if (seg.length === 1) tokens.push(seg);
   }
   return tokens;
+};
+
+/**
+ * 拆出片段的三个词元组：文件名 / 标题 / 正文
+ * @param {KnowledgeChunk} chunk - 知识片段
+ * @returns {{ fileName: string[]; title: string[]; body: string[] }} 未去重、未加权的词元组
+ */
+const splitIndexTokens = (chunk: KnowledgeChunk): { fileName: string[]; title: string[]; body: string[] } => ({
+  fileName: tokenize(path.basename(chunk.source, '.md')),
+  title: tokenize(chunk.title),
+  body: tokenize(chunk.text),
+});
+
+/**
+ * 构建参与 BM25 评分的词元：文件名 + 标题（加权）+ 正文
+ * @param {KnowledgeChunk} chunk - 知识片段
+ * @returns {string[]} 带权重的词元列表
+ * @description 标题行在切块时会被跳过，若不单独加入索引，按文档名/章节名提问会召回失败。
+ *   文件名与标题重复若干次以放大词频；IDF 另用未加权词元统计，避免重复污染 df。
+ */
+const getIndexTokens = (chunk: KnowledgeChunk): string[] => {
+  const { fileName, title, body } = splitIndexTokens(chunk);
+  const repeat = (tokens: string[], times: number): string[] =>
+    Array.from({ length: times }, () => tokens).flat();
+  return [
+    ...repeat(fileName, FILENAME_TOKEN_WEIGHT),
+    ...repeat(title, TITLE_TOKEN_WEIGHT),
+    ...body,
+  ];
+};
+
+/**
+ * 构建用于 IDF 统计的词元集合（不加权、按出现与否计）
+ * @param {KnowledgeChunk} chunk - 知识片段
+ * @returns {Set<string>} 去重后的词元集合
+ */
+const getIndexTokenSet = (chunk: KnowledgeChunk): Set<string> => {
+  const { fileName, title, body } = splitIndexTokens(chunk);
+  return new Set([...fileName, ...title, ...body]);
 };
 
 /**
@@ -190,11 +233,11 @@ export const buildKnowledgeIndex = (): KnowledgeChunk[] => {
   }
   cachedChunks = chunks;
   cachedAvgLen = chunks.length
-    ? chunks.reduce((sum, c) => sum + tokenize(c.text).length, 0) / chunks.length
+    ? chunks.reduce((sum, c) => sum + getIndexTokens(c).length, 0) / chunks.length
     : 0;
   cachedDf = new Map<string, number>();
   for (const chunk of chunks) {
-    for (const token of new Set(tokenize(chunk.text))) {
+    for (const token of getIndexTokenSet(chunk)) {
       cachedDf.set(token, (cachedDf.get(token) ?? 0) + 1);
     }
   }
@@ -217,7 +260,7 @@ export const searchKnowledge = (query: string, topK: number = 3): KnowledgeHit[]
   const hits: KnowledgeHit[] = [];
 
   for (const chunk of chunks) {
-    const tokens = tokenize(chunk.text);
+    const tokens = getIndexTokens(chunk);
     const tf = new Map<string, number>();
     for (const t of tokens) tf.set(t, (tf.get(t) ?? 0) + 1);
 

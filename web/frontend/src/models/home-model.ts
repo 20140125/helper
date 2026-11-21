@@ -5,7 +5,7 @@ import router from '@/router';
 import { useStatusStore } from '@/stores/status';
 import { useThemeStore } from '@/stores/theme';
 import type { MenuItem, MenuGroup } from '@/types/home';
-import type { ThemeStyle } from '@/types/theme';
+import type { AutoThemeTimes, ThemeStyle } from '@/types/theme';
 import { THEME_STYLES } from '@/constants/theme';
 import { BaseModel, Permission } from '@/models/base-model';
 import enConfig from 'tdesign-vue-next/es/locale/en_US';
@@ -347,6 +347,8 @@ export class HomeModel extends BaseModel {
    */
   handleColorModeToggle = (event?: MouseEvent): void => {
     const origin = event ? { x: event.clientX, y: event.clientY } : undefined;
+    // 手动切换亮暗时退出自动模式，避免定时器立刻覆盖用户选择
+    if (this.themeStore.autoMode) this.themeStore.setAutoMode(false);
     const theme = this.themeStore.currentTheme;
     if (theme === 'custom') {
       // 自定义主题切换 isLight 标志
@@ -364,6 +366,23 @@ export class HomeModel extends BaseModel {
         this.themeStore.applyTheme(targetId, origin);
       }
     }
+  };
+
+  /**
+   * 开启/关闭按时间自动切换主题
+   * @param {MouseEvent} [event] - 鼠标事件（用于 View Transitions 动画起始坐标）
+   */
+  handleAutoModeToggle = (event?: MouseEvent): void => {
+    const origin = event ? { x: event.clientX, y: event.clientY } : undefined;
+    this.themeStore.setAutoMode(!this.themeStore.autoMode, origin);
+  };
+
+  /**
+   * 更新自动切换时间
+   * @param {AutoThemeTimes} times - 亮色/暗色切换时间
+   */
+  handleAutoTimeChange = (times: AutoThemeTimes): void => {
+    this.themeStore.setAutoTimes(times.lightTime, times.darkTime);
   };
 
   /**
@@ -395,6 +414,7 @@ export class HomeModel extends BaseModel {
   beforeUnmount = (): void => {
     this.statusStore.stopPolling();
     this.stopResizeListener();
+    this.themeStore.dispose();
   };
 }
 

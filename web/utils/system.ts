@@ -38,13 +38,17 @@ export const getMemoryInfo = (): { total: number; used: number; free: number } =
  */
 export const getDiskInfo = (): { total: number; used: number; free: number } | null => {
   try {
-    const output = execSync('df -k / --output=size,used,avail 2>/dev/null | tail -1').toString().trim();
+    // 使用 POSIX -P 输出，Linux/macOS 字段一致：
+    // Filesystem 1024-blocks Used Available Capacity Mounted on
+    const output = execSync('df -Pk / 2>/dev/null | tail -1').toString().trim();
     const parts = output.split(/\s+/);
-    if (parts.length >= 3) {
-      const total = parseInt(parts[0], 10) * 1024;
-      const used = parseInt(parts[1], 10) * 1024;
-      const free = parseInt(parts[2], 10) * 1024;
-      return { total, used, free };
+    if (parts.length >= 5) {
+      const total = Number(parts[1]) * 1024;
+      const used = Number(parts[2]) * 1024;
+      const free = Number(parts[3]) * 1024;
+      if ([total, used, free].every((n) => Number.isFinite(n) && n >= 0) && total > 0) {
+        return { total, used, free };
+      }
     }
   } catch {
     // ignore

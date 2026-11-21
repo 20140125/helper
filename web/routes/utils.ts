@@ -245,6 +245,8 @@ export {
   buildUserContent,
   getAvailableTools,
   buildSystemPrompt,
+  detectToolScenarios,
+  selectToolsByScenario,
   runAgentLoop,
   handleGenerativeModel,
   isGenerativeModel,

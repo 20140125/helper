@@ -147,37 +147,6 @@ export class KnowledgeModel extends BaseModel {
   }
 
   /**
-   * 文档编辑表单字段
-   * @returns {ComputedRef<AutoFormField[]>} 表单字段配置
-   * @description 编辑态下文档名作为业务主键不可变
-   */
-  get docFormFields(): ComputedRef<AutoFormField[]> {
-    return computed(() => {
-      const { t } = this.localeStore;
-      const nameField: AutoFormField = {
-        name: 'name',
-        label: t.knowledgeBase.fieldName,
-        type: 'input',
-        placeholder: t.knowledgeBase.fieldNamePlaceholder,
-        help: t.knowledgeBase.fieldNameHelp,
-        disabled: Boolean(this.editingDoc.value),
-        maxlength: 80,
-        rules: [{ required: true, message: t.common.required }],
-      };
-      const contentField: AutoFormField = {
-        name: 'content',
-        label: t.knowledgeBase.fieldContent,
-        type: 'textarea',
-        placeholder: t.knowledgeBase.fieldContentPlaceholder,
-        help: t.knowledgeBase.fieldContentHelp,
-        autosize: { minRows: 14, maxRows: 28 },
-        rules: [{ required: true, message: t.common.required }],
-      };
-      return [nameField, contentField];
-    });
-  }
-
-  /**
    * 索引目录抽屉表单模式
    * @returns {ComputedRef<FormMode>} 固定为 Edit，仅复用表单外观
    */
@@ -399,7 +368,7 @@ export class KnowledgeModel extends BaseModel {
     }
     this.searching.value = true;
     try {
-      const res = await this.service.search(query);
+      const res = await this.service.search(query, 10);
       this.searchHits.value = res.data.hits;
       this.searchPerformed.value = true;
     } catch {
@@ -453,7 +422,6 @@ export const useKnowledgeModel = () => {
     ...model,
     docColumns: model.docColumns,
     docFormMode: model.docFormMode,
-    docFormFields: model.docFormFields,
     dirsFormMode: model.dirsFormMode,
     dirsFormFields: model.dirsFormFields,
   };

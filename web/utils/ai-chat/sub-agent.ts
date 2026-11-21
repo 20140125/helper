@@ -89,7 +89,7 @@ export const runSubAgent = async (input: SubAgentInput): Promise<SubAgentResult>
 
   for await (const ev of runAgentLoop({
     messages,
-    context: input.context,
+    context: { ...input.context, allowedSkillEffects: ['read'] },
     tools,
     enableTools: tools.length > 0,
     enablePlanning: false,

@@ -34,11 +34,14 @@ export const loadSkillTool: ToolImpl = {
   },
   invoke: async (args, ctx: ToolContext): Promise<ToolResult> => {
     const permissions = ctx.userPermissions ?? [];
+    const allowedEffects = ctx.allowedSkillEffects ?? [];
+    const isEffectAllowed = (effect: string): boolean =>
+      allowedEffects.length === 0 || allowedEffects.includes(effect as never);
 
-    // 清单模式：只列该用户有权加载的技能
+    // 清单模式：只列该用户有权、且本轮场景允许加载的技能
     const rawName = typeof args.name === 'string' ? args.name.trim() : '';
     if (!rawName) {
-      const metas = listSkillMetas(permissions);
+      const metas = listSkillMetas(permissions).filter((m) => isEffectAllowed(m.effect));
       if (metas.length === 0) {
         return { ok: true, data: { skills: [], total: 0 }, summary: '当前没有可用的 md 技能' };
       }
@@ -53,11 +56,14 @@ export const loadSkillTool: ToolImpl = {
     }
 
     const doc = findSkillDoc(rawName);
-    if (!doc) {
-      const available = listSkillMetas(permissions).map((m) => m.name).join('、');
+    const available = listSkillMetas(permissions)
+      .filter((m) => isEffectAllowed(m.effect))
+      .map((m) => m.name)
+      .join('、');
+    if (!doc || !isEffectAllowed(doc.effect)) {
       return {
         ok: false,
-        data: `未找到技能 "${rawName}"${available ? `。可用：${available}` : '（当前没有可用技能）'}`,
+        data: `未找到可加载的技能 "${rawName}"${available ? `。当前可用：${available}` : '（当前没有可用技能）'}`,
       };
     }
     if (doc.permissions.length > 0 && !doc.permissions.some((p) => permissions.includes(p))) {

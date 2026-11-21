@@ -90,7 +90,7 @@ export const querySystemStatusTool: ToolImpl = {
           total: toGbText(disk.total),
           used: toGbText(disk.used),
           free: toGbText(disk.free),
-          used_percent: `${Math.round((disk.used / disk.total) * 100)}%`,
+          used_percent: disk.total > 0 ? `${Math.round((disk.used / disk.total) * 100)}%` : '未知',
         }
         : null,
       system_uptime: toDurationText(uptime),

@@ -22,18 +22,17 @@
         />
       </div>
 
-      <!-- 编辑区：使用项目内置的 Markdown 编辑器（file-content md 模式） -->
+      <!-- 编辑区：复用通用 Markdown 编辑预览组件，预览优先使用后端渲染结果 -->
       <div class="edit-panel">
-        <div class="editor-wrap markdown-editor-wrap">
-          <file-content
-            :ref="editorRef"
-            :t="t"
-            filename="template.md"
-            :content="content"
-            :empty-content-text="t.templates.editorPlaceholder"
-            @change="content = $event"
-          />
-        </div>
+        <markdown-editor
+          v-model="content"
+          :ref="editorRef"
+          :t="t"
+          filename="template.md"
+          :empty-content-text="t.templates.editorPlaceholder"
+          :preview-html="previewHtml"
+          editor-height="500px"
+        />
       </div>
     </div>
   </card-panel>
@@ -42,11 +41,11 @@
 <script setup lang="ts">
 import AutoForm from '@/components/auto-form/index.vue';
 import CardPanel from '@/components/common/card-panel.vue';
-import FileContent from '@/components/common/file-content.vue';
+import MarkdownEditor from '@/components/common/markdown-editor.vue';
 import type { Locale } from '@/locales/zh';
 import type { AutoFormField } from '@/types/auto-form';
 
-defineProps<{
+withDefaults(defineProps<{
   /** i18n 翻译函数（由父组件通过 LocaleStore.t 传入，响应式） */
   t: Locale;
   /** 卡片标题 */
@@ -57,7 +56,12 @@ defineProps<{
   selectorFields: AutoFormField[];
   /** 设置编辑器 ref 的回调 */
   editorRef?: (el: unknown) => void;
-}>();
+  /** 后端 preview 接口渲染后的 HTML，传入后编辑卡片的预览页优先使用 */
+  previewHtml?: string;
+}>(), {
+  /** 默认不传后端预览 HTML，由通用组件本地渲染 */
+  previewHtml: '',
+});
 const emit = defineEmits<{
   /** 保存模板 */
   (e: 'save'): void;
@@ -97,36 +101,12 @@ const handleSave = () => {
   flex-shrink: 0;
 }
 
-/* 编辑区 */
+/* 编辑区：高度由通用 Markdown 编辑器决定，不再强制拉伸 */
 .edit-panel {
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-}
-
-/* 编辑器 */
-.editor-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* Markdown 编辑器容器：统一边框与圆角，保持与原 textarea 相似的视觉风格 */
-.markdown-editor-wrap {
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--bg-primary);
-  overflow: hidden;
-}
-
-.markdown-editor-wrap :deep(.cm-content) {
-  font-size: 14px;
-  line-height: 1.7;
 }
 
 /* ── 移动端适配（≤768px） ── */
@@ -149,16 +129,6 @@ const handleSave = () => {
   /* 编辑器区域设置固定最小高度，避免太矮 */
   .edit-panel {
     min-height: 200px;
-  }
-
-  .markdown-editor-wrap {
-    min-height: 200px;
-  }
-
-  /* 编辑器字号适配小屏 */
-  .markdown-editor-wrap :deep(.cm-content) {
-    font-size: 13px;
-    line-height: 1.6;
   }
 }
 </style>

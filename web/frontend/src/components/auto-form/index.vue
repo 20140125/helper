@@ -145,7 +145,8 @@
     :scroll-to-first-error="scrollToFirstError"
     :prevent-submit-default="preventSubmitDefault"
     validate-on-rule-change
-    :class="['auto-form', `auto-form--${layout}`]"
+    :class="['auto-form', `auto-form--${layout}`, `auto-form--label-${labelAlign}`]"
+    :style="{ '--auto-form-label-width': labelWidth }"
   >
     <template v-for="field in visibleFields" :key="field.name">
       <!-- #field-[name] 插槽：替换整个 form-item（含 label 和 content） -->
@@ -792,7 +793,7 @@ const props = withDefaults(defineProps<{
   size?: 'small' | 'medium' | 'large';
   /** 是否禁用整个表单 */
   disabled?: boolean;
-  /** 表单标签宽度，未指定时按语言回退（中文 120px / 英文 200px，移动端自动切换为 'auto'） */
+  /** 表单标签宽度，默认内容自适应（label 与控件间距由 CSS gap 统一控制），移动端自动切换为 'auto' */
   labelWidth?: string;
   /** 表单标签对齐方式，默认 'left'（移动端自动切换为 'top'） */
   labelAlign?: 'left' | 'right' | 'top';
@@ -884,11 +885,8 @@ const labelAlign = computed(() => {
   if (isMobile.value) return 'top';
   return props.labelAlign ?? 'left';
 });
-/** 标签宽度：优先使用 props，移动端自动设为 auto；未指定时按语言回退（中文 150px / 英文 200px） */
-const labelWidth = computed(() => {
-  if (isMobile.value) return 'auto';
-  return props.labelWidth ?? localeStore.formLabelWidth;
-});
+/** 标签宽度：统一固定值（不区分中英文），保证各字段控件左边缘对齐；移动端 label 置顶，回退 auto */
+const labelWidth = computed(() => (isMobile.value ? 'auto' : props.labelWidth ?? '200px'));
 
 /**  */
 const colon = computed(() => props.colon !== false);
@@ -1238,6 +1236,54 @@ defineExpose({ validate, clearValidate });
   row-gap: 28px !important;
 }
 
+/* 左侧/右侧 label 布局：label 与控件首行对齐，间距用 gap */
+/* 注意：不能用 align-items:center —— 带 #help 说明文字时 controls 变高，label 会被顶到中间而错位 */
+.auto-form:not(.auto-form--label-top) :deep(.t-form-item),
+.auto-form:not(.auto-form--label-top) :deep(.t-form__item) {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+/* vertical 布局：label 用统一宽度，保证各字段输入框左边缘对齐 */
+.auto-form--vertical:not(.auto-form--label-top) :deep(.t-form__label),
+.auto-form--vertical:not(.auto-form--label-top) :deep(.t-form-item__label) {
+  flex: 0 0 var(--auto-form-label-width) !important;
+  width: var(--auto-form-label-width) !important;
+}
+
+/* inline 布局：label 按内容自适应，避免短 label 后空出一大片 */
+.auto-form--inline:not(.auto-form--label-top) :deep(.t-form__label),
+.auto-form--inline:not(.auto-form--label-top) :deep(.t-form-item__label) {
+  flex: 0 0 auto !important;
+  width: auto !important;
+}
+
+.auto-form:not(.auto-form--label-top) :deep(.t-form__label),
+.auto-form:not(.auto-form--label-top) :deep(.t-form-item__label) {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  min-width: 0 !important;
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 40px;
+  line-height: 40px !important;
+  white-space: nowrap;
+}
+
+.auto-form:not(.auto-form--label-top) :deep(.t-form__controls) {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 0 !important;
+}
+
+/* 控件首行高度固定为表单项尺寸，保证 label 与 input/select 视觉居中对齐 */
+.auto-form:not(.auto-form--label-top) :deep(.t-form__controls-content) {
+  min-height: 40px;
+}
+
 .auto-form-group {
   display: flex;
   align-items: center;
@@ -1252,6 +1298,7 @@ defineExpose({ validate, clearValidate });
   /* 标签 top 对齐时减少底部间距 */
   :deep(.t-form__label) {
     padding-bottom: 6px !important;
+    line-height: 40px !important;
   }
 
   /* group 在移动端允许换行，避免子字段过窄 */
@@ -1360,6 +1407,7 @@ defineExpose({ validate, clearValidate });
 /* label 字体大小，跟随 size 变化 */
 :deep(.t-form__label) {
   font-size: 16px;
+  line-height: 40px;
 }
 
 

@@ -117,7 +117,7 @@ export const handleIncomingMessage = async (
   try {
     for await (const ev of runAgentLoop({
       messages,
-      context,
+      context: { ...context, allowedSkillEffects: allowSideEffects ? undefined : ['read'] },
       tools,
       enableTools: true,
       enablePlanning: false,

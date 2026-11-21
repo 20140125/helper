@@ -25,7 +25,9 @@ read_cached_data() {
     fi
 
     # 检查缓存是否过期（超过24小时）
-    local cache_age=$(($(date +%s) - $(stat -c %Y "$CACHE_FILE" 2>/dev/null || echo 0)))
+    local mtime
+    mtime=$(stat -c %Y "$CACHE_FILE" 2>/dev/null || stat -f %m "$CACHE_FILE" 2>/dev/null || echo 0)
+    local cache_age=$(($(date +%s) - mtime))
     if [ $cache_age -gt 86400 ]; then
         echo "CACHE_EXPIRED"
         return 1

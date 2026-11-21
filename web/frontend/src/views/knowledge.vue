@@ -5,34 +5,36 @@
     :subtitle="t.knowledgeBase.subtitle"
   >
     <template #actions>
-      <t-button
-        v-if="canEdit()"
-        variant="outline"
-        size="large"
-        @click="openDirsDrawer"
-      >
-        <template #icon><t-icon name="folder-setting" /></template>
-        {{ t.knowledgeBase.dirsConfigBtn }}
-      </t-button>
-      <t-button
-        v-if="canEdit()"
-        variant="outline"
-        size="large"
-        :loading="pageLoading"
-        @click="handleReindex"
-      >
-        <template #icon><t-icon name="refresh" /></template>
-        {{ t.knowledgeBase.rebuildIndexBtn }}
-      </t-button>
-      <t-button
-        v-if="canEdit()"
-        theme="primary"
-        size="large"
-        @click="openCreateDoc"
-      >
-        <template #icon><t-icon name="add" /></template>
-        {{ t.knowledgeBase.createDocBtn }}
-      </t-button>
+      <div class="flex flex-wrap items-center gap-2">
+        <t-button
+          v-if="canEdit()"
+          variant="outline"
+          size="large"
+          @click="openDirsDrawer"
+        >
+          <template #icon><t-icon name="folder-setting" /></template>
+          {{ t.knowledgeBase.dirsConfigBtn }}
+        </t-button>
+        <t-button
+          v-if="canEdit()"
+          variant="outline"
+          size="large"
+          :loading="pageLoading"
+          @click="handleReindex"
+        >
+          <template #icon><t-icon name="refresh" /></template>
+          {{ t.knowledgeBase.rebuildIndexBtn }}
+        </t-button>
+        <t-button
+          v-if="canEdit()"
+          theme="primary"
+          size="large"
+          @click="openCreateDoc"
+        >
+          <template #icon><t-icon name="add" /></template>
+          {{ t.knowledgeBase.createDocBtn }}
+        </t-button>
+      </div>
     </template>
 
     <card-panel
@@ -78,7 +80,7 @@
                 size="small"
                 @click="importDoc(row)"
               >
-                <template #icon><t-icon name="download" /></template>
+                <template #icon><t-icon name="upload" /></template>
                 {{ t.knowledgeBase.importBtn }}
               </t-button>
             </template>
@@ -174,7 +176,12 @@
       @confirm="submitDocForm"
       @close="closeDocDrawer"
     >
-      <auto-form v-model="docFormData" :fields="docFormFields" />
+      <knowledge-doc-editor
+        v-model:name="docFormData.name"
+        v-model:content="docFormData.content"
+        :t="t"
+        :name-disabled="Boolean(editingDoc)"
+      />
     </form-drawer>
 
     <form-drawer
@@ -198,6 +205,7 @@ import PageLayout from '@/components/common/page-layout.vue';
 import CardPanel from '@/components/common/card-panel.vue';
 import FormDrawer from '@/components/common/form-drawer.vue';
 import AutoForm from '@/components/auto-form/index.vue';
+import KnowledgeDocEditor from '@/components/knowledge/knowledge-doc-editor.vue';
 
 const {
   t,
@@ -211,7 +219,6 @@ const {
   editingDoc,
   docFormData,
   docFormMode,
-  docFormFields,
   dirsDrawerVisible,
   dirsFormData,
   dirsFormMode,

@@ -27,7 +27,8 @@ list_logs() {
         filename="${log_file#${LOG_DIR}/}"
         size=$(du -h "$log_file" | cut -f1)
         lines=$(wc -l < "$log_file")
-        modified=$(stat -c %y "$log_file" | cut -d'.' -f1)
+        modified=$(stat -c %y "$log_file" 2>/dev/null || stat -f '%Sm' -t '%Y-%m-%d %H:%M:%S' "$log_file" 2>/dev/null)
+        modified=${modified%%.*}
         
         echo -e "${GREEN}📄 $filename${NC}"
         echo "   大小: $size"

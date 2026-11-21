@@ -58,6 +58,7 @@ export const formatSize = (bytes: number): string => {
  * @returns {string} 格式化后的占用字符串
  */
 export const formatBytesUsage = (used: number, total: number): string => {
+  if (!Number.isFinite(used) || !Number.isFinite(total) || total <= 0) return '未知';
   const toGB = (bytes: number): string => (bytes / 1024 / 1024 / 1024).toFixed(1);
   const percent = Math.round((used / total) * 100);
   return `${toGB(used)} GB / ${toGB(total)} GB (${percent}%)`;

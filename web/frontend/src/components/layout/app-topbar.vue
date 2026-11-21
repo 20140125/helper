@@ -83,12 +83,44 @@
                 />
               </label>
             </template>
+
+            <div v-if="isAutoTheme" class="theme-menu-auto">
+              <div class="auto-title">{{ t.topbar.autoThemeTimeTitle }}</div>
+              <label class="auto-time-row">
+                <span>{{ t.topbar.lightMode }}</span>
+                <input
+                  type="time"
+                  class="auto-time-input"
+                  :value="lightTime"
+                  @change="handleLightTimeChange"
+                >
+              </label>
+              <label class="auto-time-row">
+                <span>{{ t.topbar.darkMode }}</span>
+                <input
+                  type="time"
+                  class="auto-time-input"
+                  :value="darkTime"
+                  @change="handleDarkTimeChange"
+                >
+              </label>
+            </div>
           </div>
         </transition>
       </teleport>
 
       <!-- 亮/暗模式切换 -->
       <div class="theme-mode-toggle">
+        <t-button
+          variant="text"
+          class="theme-mode-btn app-mode-btn"
+          :class="{ 'app-mode-btn--active': isAutoTheme }"
+          :title="t.topbar.autoTheme"
+          :aria-label="t.topbar.autoTheme"
+          @click="emit('auto-toggle', $event)"
+        >
+          <template #icon><t-icon name="time" size="14px" /></template>
+        </t-button>
         <t-button
           variant="text"
           class="theme-mode-btn app-mode-btn"
@@ -147,9 +179,9 @@ import type { ThemeStyle } from '@/types/theme';
 
 const statusStore = useStatusStore();
 
-defineProps<{
-  /** i18n 翻译函数 - topbar 部分（由父组件通过 LocaleStore.t 传入，响应式） */
-  t: Locale
+const props = defineProps<{
+  /** i18n 完整文案对象（由父组件通过 LocaleStore.t 传入，响应式） */
+  t: Locale;
   /** 是否为移动端状态（控制背饰、面包屑、主题文案是否隐藏等） */
   isMobile: boolean;
   /** 当前页面标题（渲染面包屑末端） */
@@ -166,10 +198,16 @@ defineProps<{
   currentThemeLabel: string;
   /** 当前主题预览色（圆点颜色，高亮按钮上） */
   currentThemePreview: string;
+  /** 是否启用按时间自动切换亮暗主题 */
+  isAutoTheme: boolean;
+  /** 自动切到亮色的时间（HH:mm） */
+  lightTime: string;
+  /** 自动切到暗色的时间（HH:mm） */
+  darkTime: string;
 }>();
 
-// 主题风格列表：由父组件传入（已在父组件处理响应式）
-const themeStyles = getThemeStyles();
+// 主题风格列表：getThemeStyles 内部读取当前语言，用 computed 保证切换语言后菜单标签同步更新
+const themeStyles = computed(() => getThemeStyles());
 
 const colorPickerRef = ref<HTMLInputElement | null>(null);
 const themeSelectorRef = ref<HTMLDivElement | null>(null);
@@ -237,6 +275,10 @@ const emit = defineEmits<{
   (e: 'color-input', event: Event): void;
   /** 切换亮/暗色模式 */
   (e: 'color-mode-toggle', event: MouseEvent): void;
+  /** 开启/关闭按时间自动切换主题 */
+  (e: 'auto-toggle', event: MouseEvent): void;
+  /** 修改自动切换时间 */
+  (e: 'auto-time-change', times: { lightTime: string; darkTime: string }): void;
   /** 选择主题风格，参数为主题 id */
   (e: 'theme-change', id: ThemeStyle): void;
   /** 退出登录 */
@@ -244,6 +286,24 @@ const emit = defineEmits<{
   /** 切换语言 */
   (e: 'lang-toggle'): void;
 }>();
+
+/**
+ * 处理亮色时间变更
+ * @param {Event} event - input 变更事件
+ */
+const handleLightTimeChange = (event: Event): void => {
+  const value = (event.target as HTMLInputElement).value;
+  emit('auto-time-change', { lightTime: value, darkTime: props.darkTime });
+};
+
+/**
+ * 处理暗色时间变更
+ * @param {Event} event - input 变更事件
+ */
+const handleDarkTimeChange = (event: Event): void => {
+  const value = (event.target as HTMLInputElement).value;
+  emit('auto-time-change', { lightTime: props.lightTime, darkTime: value });
+};
 
 defineExpose({ colorPickerRef });
 </script>
@@ -366,6 +426,39 @@ defineExpose({ colorPickerRef });
 .theme-menu-check {
   color: var(--accent-primary);
   flex-shrink: 0;
+}
+
+/* 自动主题时间设置 */
+.theme-menu-auto {
+  padding: 8px 10px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border-color);
+}
+
+.auto-title {
+  margin-bottom: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.auto-time-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.auto-time-input {
+  width: 108px;
+  padding: 3px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
 }
 
 /* 自定义主题项：整行可点击打开颜色选择器 */
