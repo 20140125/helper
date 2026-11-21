@@ -28,7 +28,7 @@ SVG_FILE="/tmp/github_trending_card.svg"
 
 fetch_data() {
     local week_ago
-    week_ago=$(date -d '-7 day' +%Y-%m-%d)
+    week_ago=$(pc_date_shift -7 '%Y-%m-%d')
     local url="https://api.github.com/search/repositories?q=created:>${week_ago}&sort=stars&order=desc&per_page=15"
     
     # 日内缓存：GitHub 搜索按天即可，顺带规避未鉴权搜索接口的限流

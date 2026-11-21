@@ -22,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../project_config.sh"
 source "${PROJECT_DIR}/holiday_config.sh"
 
-tomorrow=$(TZ=Asia/Shanghai date -d "+1 day" +%Y-%m-%d 2>/dev/null || TZ=Asia/Shanghai date -v+1d +%Y-%m-%d 2>/dev/null)
+tomorrow=$(pc_date_shift 1 '%Y-%m-%d' 'Asia/Shanghai')
 
 set +u
 if is_workday "$tomorrow"; then

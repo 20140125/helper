@@ -14,7 +14,7 @@ calc_days_until() {
     local target_date="$1"
     local today_epoch="$2"
     local target_epoch
-    target_epoch=$(TZ=Asia/Shanghai date -d "$target_date" +%s 2>/dev/null)
+    target_epoch=$(pc_date_to_epoch "$target_date" 'Asia/Shanghai')
     if [ -z "$target_epoch" ]; then echo "?"; return; fi
     local diff=$(( (target_epoch - today_epoch) / 86400 ))
     if [ "$diff" -lt 0 ]; then echo "已过"; else echo "${diff}天"; fi
@@ -84,10 +84,10 @@ calculate_holidays() {
 
         # 格式化日期范围
         local start_m start_d end_m end_d date_range
-        start_m=$(TZ=Asia/Shanghai date -d "$start_date" +%-m 2>/dev/null)
-        start_d=$(TZ=Asia/Shanghai date -d "$start_date" +%-d 2>/dev/null)
-        end_m=$(TZ=Asia/Shanghai date -d "$end_date" +%-m 2>/dev/null)
-        end_d=$(TZ=Asia/Shanghai date -d "$end_date" +%-d 2>/dev/null)
+        start_m=$(pc_date_format "$start_date" '%-m')
+        start_d=$(pc_date_format "$start_date" '%-d')
+        end_m=$(pc_date_format "$end_date" '%-m')
+        end_d=$(pc_date_format "$end_date" '%-d')
         if [ "$start_date" = "$end_date" ]; then
             date_range="${start_m}月${start_d}日"
         elif [ "$start_m" = "$end_m" ]; then

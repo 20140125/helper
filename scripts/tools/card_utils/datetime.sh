@@ -26,17 +26,14 @@ get_datetime_str() {
   TZ="$tz" date +"%Y年%m月%d日 %H:%M"
 }
 
-# 获取中文星期（参数: 可选 date 偏移，如 "+1 day"，默认今天）
+# 获取中文星期（参数: 可选相对今天的天数偏移，如 1/-1，默认今天）
 get_dow_cn() {
   local tz="${CARD_TIMEZONE:-Asia/Shanghai}"
-  local offset="${1:-}"
+  local offset="${1:-0}"
+  local target_date
+  target_date=$(pc_date_shift "$offset" '%Y-%m-%d' "$tz")
   local dow_num
-  if [ -n "$offset" ]; then
-    dow_num=$(TZ="$tz" date -d "$offset" +%u 2>/dev/null \
-              || TZ="$tz" date -v"${offset// /}" +%u 2>/dev/null)
-  else
-    dow_num=$(TZ="$tz" date +%u)
-  fi
+  dow_num=$(pc_date_weekday "$target_date" "$tz")
   case "$dow_num" in
     1) echo "周一" ;; 2) echo "周二" ;; 3) echo "周三" ;;
     4) echo "周四" ;; 5) echo "周五" ;; 6) echo "周六" ;;

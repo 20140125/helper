@@ -65,8 +65,8 @@ source "${PROJECT_DIR}/template_utils.sh" 2>/dev/null
 
 TODAY=$(date '+%Y-%m-%d')
 TODAY_MD=$(date '+%m-%d')
-TOMORROW=$(date -d "+1 day" '+%Y-%m-%d' 2>/dev/null || date -v+1d '+%Y-%m-%d')
-TOMORROW_MD=$(date -d "+1 day" '+%m-%d' 2>/dev/null || date -v+1d '+%m-%d')
+TOMORROW=$(pc_date_shift 1 '%Y-%m-%d')
+TOMORROW_MD=$(pc_date_shift 1 '%m-%d')
 CURRENT_YEAR=$(date '+%Y')
 
 # ======================================

@@ -166,8 +166,8 @@ send_card_image() {
 
   # 计算 base64（去除换行）+ md5（企微图片消息协议要求）
   local img_base64 img_md5
-  img_base64=$(base64 -w 0 "$img" 2>/dev/null || base64 "$img" | tr -d '\n')
-  img_md5=$(md5sum "$img" 2>/dev/null | awk '{print $1}')
+  img_base64=$(pc_base64 "$img")
+  img_md5=$(pc_md5 "$img")
   if [ -z "$img_base64" ] || [ -z "$img_md5" ]; then
     $_log_error "[企微图片] base64/md5 计算失败"
     return 1

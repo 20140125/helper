@@ -44,3 +44,9 @@ else
 fi
 
 export PROJECT_DIR ROOT_DIR CACHE_DIR ENV_FILE
+
+# 跨平台兼容层：统一 GNU/Linux、BSD/macOS、Windows(Git Bash/WSL) 的命令差异
+# 提供 pc_date_* / pc_file_* / pc_md5 / pc_base64 等函数
+if [ -f "${PROJECT_DIR}/platform_compat.sh" ]; then
+    source "${PROJECT_DIR}/platform_compat.sh"
+fi

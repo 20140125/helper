@@ -54,7 +54,7 @@ _check_special_day() {
     fi
     
     # 检查明天（提前提醒）
-    local tomorrow=$(date -d '+1 day' '+%m-%d')
+    local tomorrow=$(pc_date_shift 1 '%m-%d')
     if [ -n "${SPECIAL_DAYS[$tomorrow]}" ]; then
         local day_name="${SPECIAL_DAYS[$tomorrow]}"
         log_info "📅 明天是: $day_name（提前提醒）"

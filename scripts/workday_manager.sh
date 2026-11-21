@@ -63,9 +63,9 @@ source "${PROJECT_DIR}/template_utils.sh" 2>/dev/null
 # ======================================
 
 current_date=$(date '+%Y-%m-%d')
-tomorrow=$(date -d "+1 day" '+%Y-%m-%d')
+tomorrow=$(pc_date_add_days "$current_date" 1)
 day_of_week=$(date '+%u')  # 1-7 (周一到周日)
-tomorrow_week=$(date -d "+1 day" '+%u')
+tomorrow_week=$(pc_date_weekday "$tomorrow")
 WEEK_DAY=$(date '+%A' | sed 's/Monday/周一/;s/Tuesday/周二/;s/Wednesday/周三/;s/Thursday/周四/;s/Friday/周五/;s/Saturday/周六/;s/Sunday/周日/')
 
 # ======================================

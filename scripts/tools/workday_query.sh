@@ -47,7 +47,7 @@ info_of() {
     fi
 
     local dow
-    dow=$(date -d "$d" '+%u' 2>/dev/null || echo 1)
+    dow=$(pc_date_weekday "$d")
     local idx=$((dow - 1))
 
     local is_holiday=false is_adjust=false is_work=false
@@ -69,7 +69,7 @@ info_of() {
 printf '{"days":['
 i=0
 while [ "$i" -lt "$DAYS" ]; do
-    cur=$(date -d "${TARGET_DATE} +${i} days" '+%Y-%m-%d' 2>/dev/null || echo "$TARGET_DATE")
+    cur=$(pc_date_add_days "$TARGET_DATE" "$i")
     if [ "$i" -gt 0 ]; then printf ','; fi
     info_of "$cur"
     i=$((i + 1))

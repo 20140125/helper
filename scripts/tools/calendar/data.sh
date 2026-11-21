@@ -38,7 +38,7 @@ get_workday_info() {
     set +u
     if is_workday "$today"; then
         set -u; echo "工作日"
-    elif is_holiday "$today"; then
+    elif is_holiday "$today" >/dev/null; then
         set -u; echo "假期"
     else
         set -u; echo "休息日"

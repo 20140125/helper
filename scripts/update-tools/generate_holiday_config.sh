@@ -345,9 +345,16 @@ PYEOF
         echo "" >> "$temp_file"
         
         # 将新数据追加到配置文件末尾
-        # 先移除配置文件末尾的空行，确保格式整洁
-        sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$config_file"
-        
+        # 先移除配置文件末尾的空行，确保格式整洁（用 python 避免 GNU/BSD sed -i 差异）
+        python3 - "$config_file" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, 'r', encoding='utf-8') as f:
+    content = f.read()
+with open(path, 'w', encoding='utf-8') as f:
+    f.write(content.rstrip('\n') + '\n')
+PYEOF
+
         cat "$temp_file" >> "$config_file"
         chmod +x "$config_file"
         rm -f "$temp_file"

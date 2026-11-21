@@ -54,8 +54,8 @@ current_date=$(date '+%Y-%m-%d')
 # 返回：输出天数差（正数表示未来，负数表示过去）
 days_until() {
     local target_date="$1"
-    local current_epoch=$(date -d "$current_date" '+%s')
-    local target_epoch=$(date -d "$target_date" '+%s')
+    local current_epoch=$(pc_date_to_epoch "$current_date")
+    local target_epoch=$(pc_date_to_epoch "$target_date")
     echo $(( (target_epoch - current_epoch) / 86400 ))
 }
 
@@ -114,14 +114,14 @@ get_holidays() {
                     holiday_names=("$h_name")
                 else
                     # 计算日期差
-                    local last_epoch=$(date -d "$last_date" '+%s')
-                    local curr_epoch=$(date -d "$h_date" '+%s')
+                    local last_epoch=$(pc_date_to_epoch "$last_date")
+                    local curr_epoch=$(pc_date_to_epoch "$h_date")
                     local days_diff=$(( (curr_epoch - last_epoch) / 86400 ))
                     
                     if [ "$days_diff" -le 3 ]; then
                         # 连续假期（允许间隔1-2天，因为可能有周末）
                         holiday_end="$h_date"
-                        holiday_days=$(( (curr_epoch - $(date -d "$holiday_start" '+%s')) / 86400 + 1 ))
+                        holiday_days=$(( (curr_epoch - $(pc_date_to_epoch "$holiday_start")) / 86400 + 1 ))
                         # 添加新的假期名称（去重）
                         if [[ ! " ${holiday_names[@]} " =~ " ${h_name} " ]]; then
                             holiday_names+=("$h_name")
@@ -207,9 +207,9 @@ main() {
         
         # 节假日中间天提醒（不含第一天和最后一天）
         # 注意：假期第一天的祝福由 festival_greetings.sh holiday 负责，此处不重复发送
-        current_epoch=$(date -d "$current_date" '+%s')
-        start_epoch=$(date -d "$holiday_start" '+%s')
-        end_epoch=$(date -d "$holiday_end" '+%s')
+        current_epoch=$(pc_date_to_epoch "$current_date")
+        start_epoch=$(pc_date_to_epoch "$holiday_start")
+        end_epoch=$(pc_date_to_epoch "$holiday_end")
         if [ "$current_epoch" -gt "$start_epoch" ] && [ "$current_epoch" -lt "$end_epoch" ]; then
             days_passed=$(( (current_epoch - start_epoch) / 86400 ))
             days_left=$(( (end_epoch - current_epoch) / 86400 ))

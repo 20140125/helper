@@ -38,7 +38,17 @@ _check_tomorrow_adjust() {
     local tips
     tips=$(_get_advance_reminder_message)
     local adjustment_date
-    adjustment_date=$(date -d "$tomorrow" '+%Y年%m月%d日（%A）' | sed 's/Monday/周一/;s/Tuesday/周二/;s/Wednesday/周三/;s/Thursday/周四/;s/Friday/周五/;s/Saturday/周六/;s/Sunday/周日/')
+    local week_cn
+    case "$(pc_date_weekday "$tomorrow")" in
+        1) week_cn="周一" ;;
+        2) week_cn="周二" ;;
+        3) week_cn="周三" ;;
+        4) week_cn="周四" ;;
+        5) week_cn="周五" ;;
+        6) week_cn="周六" ;;
+        7) week_cn="周日" ;;
+    esac
+    adjustment_date="$(pc_date_format "$tomorrow" '%Y年%m月%d日')（${week_cn}）"
 
     local msg
     msg=$(get_message "adjustment" "$MESSAGE_STYLE" \

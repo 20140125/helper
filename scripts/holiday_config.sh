@@ -34,6 +34,22 @@
 # ======================================
 
 # ======================================
+# 跨平台日期工具：委托给 platform_compat.sh（由 project_config.sh 加载）
+# 若调用方未加载 project_config.sh，此处直接补加载，保证本文件独立可用
+# ======================================
+if ! declare -F pc_date_weekday >/dev/null 2>&1; then
+    source "${PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}/platform_compat.sh"
+fi
+
+get_weekday_num() {
+    pc_date_weekday "$1"
+}
+
+date_add_days() {
+    pc_date_add_days "$1" "$2"
+}
+
+# ======================================
 # 函数名称: is_holiday
 # 功能描述: 判断指定日期是否为法定节假日或放假日
 # 参数说明:
@@ -51,12 +67,13 @@
 # ======================================
 is_holiday() {
     local check_date="${1:-$(date '+%Y-%m-%d')}"
-    local year=$(echo "$check_date" | cut -d'-' -f1)
+    local year="${check_date%%-*}"
     local var_name="HOLIDAYS_${year}"
-    
-    # 使用间接引用检查数组元素
-    eval "local h_info=\"\${${var_name}[\$check_date]}\""
-    [ -n "$h_info" ] && [[ "$h_info" =~ \|2$ ]]
+    local h_info
+
+    # 使用间接引用检查数组元素（避免 echo|cut 子进程，防止输出污染数据通道）
+    eval "h_info=\"\${${var_name}[\$check_date]}\""
+    [ -n "$h_info" ] && [ "${h_info##*|}" = "2" ]
 }
 
 # ======================================
@@ -77,12 +94,13 @@ is_holiday() {
 # ======================================
 is_adjust_workday() {
     local check_date="${1:-$(date '+%Y-%m-%d')}"
-    local year=$(echo "$check_date" | cut -d'-' -f1)
+    local year="${check_date%%-*}"
     local var_name="HOLIDAYS_${year}"
+    local h_info
 
-    # 使用间接引用检查数组元素
-    eval "local h_info=\"\${${var_name}[\$check_date]}\""
-    if [ -n "$h_info" ] && [[ "$h_info" =~ \|3$ ]]; then
+    # 使用间接引用检查数组元素（避免 echo|cut 子进程，防止输出污染数据通道）
+    eval "h_info=\"\${${var_name}[\$check_date]}\""
+    if [ -n "$h_info" ] && [ "${h_info##*|}" = "3" ]; then
         # 输出节日名称（去掉 |3 后缀），供调用方通过命令替换捕获
         echo "${h_info%|3}"
         return 0
@@ -116,7 +134,8 @@ is_workday() {
     # 注意：is_adjust_workday 命中时会向 stdout 输出节日名，这里只关心返回码，必须静默
     is_adjust_workday "$check_date" >/dev/null && return 0
     is_holiday "$check_date" >/dev/null && return 1
-    local day=$(date -d "$check_date" '+%u' 2>/dev/null || echo "1")
+    local day
+    day=$(get_weekday_num "$check_date") || return 1
     [ "$day" -le 5 ]
 }
 
@@ -128,14 +147,14 @@ is_workday() {
 remaining_workdays_this_week() {
     local base_date="${1:-$(TZ=Asia/Shanghai date '+%Y-%m-%d')}"
     local dow
-    dow=$(date -d "$base_date" '+%u' 2>/dev/null || echo "1")
+    dow=$(get_weekday_num "$base_date") || return 1
     local count=0
     local i
     local _old_u=${-//[^u]/}
     set +u
     for i in $(seq 1 $((7 - dow))); do
         local check_date
-        check_date=$(date -d "$base_date +${i} days" '+%Y-%m-%d')
+        check_date=$(date_add_days "$base_date" "$i") || continue
         if is_workday "$check_date"; then
             count=$((count + 1))
         fi

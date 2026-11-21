@@ -43,7 +43,7 @@ should_trigger() {
         countdown)
             # 格式 YYYY-MM-DD，距离目标日期 ≤7 天时触发
             local target_ts
-            target_ts=$(date -d "$condition" '+%s' 2>/dev/null)
+            target_ts=$(pc_date_to_epoch "$condition")
             if [ -z "$target_ts" ]; then
                 log_error "  countdown 日期格式错误: $condition"
                 return 1

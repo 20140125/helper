@@ -35,10 +35,10 @@
 # 获取本周一的日期（周一当天调用也能正确返回当天，避免 GNU date 'last monday' 在周一返回上周一的问题）
 # 返回：本周一的 YYYY-MM-DD
 get_this_monday() {
-    local dow
-    dow=$(date '+%u')  # 1=周一 ... 7=周日
-    date -d "-$((dow - 1)) days" '+%Y-%m-%d' 2>/dev/null \
-        || date -v-$((dow - 1))d '+%Y-%m-%d'
+    local today
+    today=$(date '+%Y-%m-%d')
+    local dow=$(pc_date_weekday "$today")  # 1=周一 ... 7=周日
+    pc_date_add_days "$today" "-$((dow - 1))"
 }
 
 # 获取下周一的日期（基于本周一 + 7 天，任意日调用都正确）
@@ -46,8 +46,7 @@ get_this_monday() {
 get_next_monday() {
     local this_monday
     this_monday=$(get_this_monday)
-    date -d "$this_monday +7 days" '+%Y-%m-%d' 2>/dev/null \
-        || date -v+7d -j -f "%Y-%m-%d" "$this_monday" '+%Y-%m-%d'
+    pc_date_add_days "$this_monday" 7
 }
 
 # 检查是否为放假周
@@ -59,10 +58,8 @@ check_holiday_week() {
 
     # 检查周一到周五是否全部是放假日
     for i in {0..4}; do
-        local check_date
-        check_date=$(date -d "$this_monday +$i days" '+%Y-%m-%d' 2>/dev/null \
-            || date -v+${i}d -j -f "%Y-%m-%d" "$this_monday" '+%Y-%m-%d')
-        if ! is_holiday "$check_date"; then
+        local check_date=$(pc_date_add_days "$this_monday" "$i")
+        if ! is_holiday "$check_date" >/dev/null; then
             # 发现工作日，不是放假周
             return 1
         fi
@@ -81,12 +78,10 @@ calculate_workdays() {
 
     # 统计完整的一周（7天）
     for i in {0..6}; do
-        local check_date
-        check_date=$(date -d "$start_date +$i days" '+%Y-%m-%d' 2>/dev/null \
-            || date -v+${i}d -j -f "%Y-%m-%d" "$start_date" '+%Y-%m-%d')
+        local check_date=$(pc_date_add_days "$start_date" "$i")
 
-        # 使用 holiday_config.sh 的函数检查节假日
-        if is_holiday "$check_date"; then
+        # 使用 holiday_config.sh 的函数检查节假日（只关心返回码，静默 stdout 避免污染数据通道）
+        if is_holiday "$check_date" >/dev/null; then
             continue
         fi
 
@@ -97,9 +92,7 @@ calculate_workdays() {
         fi
 
         # 正常工作日（周一到周五）
-        local day_of_week
-        day_of_week=$(date -d "$check_date" '+%u' 2>/dev/null \
-            || date -j -f "%Y-%m-%d" "$check_date" '+%u')
+        local day_of_week=$(pc_date_weekday "$check_date")
         if [ "$day_of_week" -ge 1 ] && [ "$day_of_week" -le 5 ]; then
             count=$((count + 1))
         fi
@@ -113,8 +106,7 @@ calculate_workdays() {
 get_week_start() {
     local this_monday
     this_monday=$(get_this_monday)
-    date -d "$this_monday" '+%m月%d日' 2>/dev/null \
-        || date -j -f "%Y-%m-%d" "$this_monday" '+%m月%d日'
+    pc_date_format "$this_monday" '%m月%d日'
 }
 
 # 统计周期结束（今天）
@@ -148,11 +140,9 @@ get_next_week_preview() {
     local has_holiday=false
 
     for i in {0..6}; do
-        local check_date
-        check_date=$(date -d "$next_monday +$i days" '+%Y-%m-%d' 2>/dev/null \
-            || date -v+${i}d -j -f "%Y-%m-%d" "$next_monday" '+%Y-%m-%d')
+        local check_date=$(pc_date_add_days "$next_monday" "$i")
 
-        if is_holiday "$check_date"; then
+        if is_holiday "$check_date" >/dev/null; then
             has_holiday=true
             holiday_count=$((holiday_count + 1))
 
@@ -189,9 +179,8 @@ get_next_monday_reminder() {
     local next_monday
     next_monday=$(get_next_monday)
     local next_monday_display
-    next_monday_display=$(date -d "$next_monday" '+%m月%d日' 2>/dev/null \
-        || date -j -f "%Y-%m-%d" "$next_monday" '+%m月%d日')
-    if is_holiday "$next_monday"; then
+    next_monday_display=$(pc_date_format "$next_monday" '%m月%d日')
+    if is_holiday "$next_monday" >/dev/null; then
         echo "🎉 下周一（${next_monday_display}）是放假日，好好享受假期！"
     else
         echo "下周一（${next_monday_display}）早上8:00，我们继续！"

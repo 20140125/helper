@@ -25,7 +25,7 @@ _check_is_workday() {
         IS_WORKDAY=true
         WORKDAY_NOTE="(调休补班日)"
     elif [ "$CURRENT_DAY" -ge 1 ] && [ "$CURRENT_DAY" -le 5 ]; then
-        if is_holiday "$current_date"; then
+        if is_holiday "$current_date" >/dev/null; then
             return 1
         fi
         IS_WORKDAY=true
