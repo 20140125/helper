@@ -67,6 +67,9 @@ SOURCE sql/ai/29_ai_approvals.sql;
 SOURCE sql/ai/30_ai_model_configs.sql;
 SOURCE sql/ai/31_ai_inspection_state.sql;
 
+-- ──────────────── 系统环境配置 ────────────────
+SOURCE sql/config/32_env_config.sql;
+
 -- ──────────────── 补充缓存数据（其它 SQL 文件未覆盖的 .cache/ 数据） ────────────────
 SOURCE sql/cache_data.sql;
 
