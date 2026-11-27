@@ -36,6 +36,11 @@ export const LOG_FILES: Record<string, string> = {
   [ACCESS_LOG_BACKUP_KEY]: 'scripts/web_access.log.1',
   reminder: 'scripts/reminder.log',
   tools: 'scripts/tools/tools.log',
+  fetch_real_weather: 'scripts/fetch_real_weather.log',
+  fetch_real_almanac: 'scripts/fetch_real_almanac.log',
+  fetch_real_horoscope: 'scripts/fetch_real_horoscope.log',
+  history_today: 'scripts/history_today.log',
+  annual_scheduler: 'scripts/annual_scheduler.log',
 };
 
 /**
@@ -64,5 +69,10 @@ export const LOG_LABELS: Record<string, string> = {
   access_log_backup: '接口访问日志（历史）',
   reminder: 'AI 提醒日志',
   tools: '技能图谱日志',
+  fetch_real_weather: '实时天气抓取',
+  fetch_real_almanac: '实时黄历抓取',
+  fetch_real_horoscope: '实时星座抓取',
+  history_today: '历史上的今天',
+  annual_scheduler: '年度调度器',
 };
 

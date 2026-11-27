@@ -41,6 +41,11 @@ export const LOG_LABELS: Record<string, string> = {
   access_log_backup: '接口访问日志（历史）',
   reminder: 'AI提醒日志',
   tools: '技能图谱日志',
+  fetch_real_weather: '实时天气抓取',
+  fetch_real_almanac: '实时黄历抓取',
+  fetch_real_horoscope: '实时星座抓取',
+  history_today: '历史上的今天',
+  annual_scheduler: '年度调度器',
 };
 
 /**

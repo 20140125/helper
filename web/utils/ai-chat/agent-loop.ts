@@ -361,12 +361,24 @@ const executeToolCallOnce = async (
 
   const parsedArgs = safeParseArgs(tc.function.arguments);
 
+  // create_rule 的 preview=true 只解析展示、不写盘，严格模式下不能当写操作拦截，
+  // 否则用户看不到解析结果，也就无从确认。
+  const isRulePreview = tc.function.name === 'create_rule'
+    && (parsedArgs.preview === true || parsedArgs.preview === 'true');
+
   // 严格模式：增删改类工具不当场执行，先建审批单等超级管理员拍板。
   // 推送/跑脚本/启停服务属于「动作」，不占用审批队列，仍受 consent 与权限码约束。
   // 审批通过后走 executeApproval → tool.invoke，不经过本函数，因此不会二次建单。
-  if (isStrictSideEffects() && MUTATION_TOOLS.includes(tc.function.name)) {
+  if (isStrictSideEffects() && MUTATION_TOOLS.includes(tc.function.name) && !isRulePreview) {
+    // 审批单只留业务字段：preview_token 是一次性短时效凭证，审批可能隔很久才发生，
+    // 带着它执行会因过期而失败；预览一致性在用户确认那一刻已经校验过。
+    const approvalArgs = { ...parsedArgs };
+    if (tc.function.name === 'create_rule') {
+      delete approvalArgs.preview;
+      delete approvalArgs.preview_token;
+    }
     // 防重：同工具 + 同参数的待审批单已存在时直接复用（用户没看到回复就重试是重复单的主要来源）
-    const argsJson = JSON.stringify(parsedArgs);
+    const argsJson = JSON.stringify(approvalArgs);
     const duplicate = listApprovals().find(
       (a) => a.status === 'pending' && a.tool === tc.function.name && JSON.stringify(a.args ?? {}) === argsJson,
     );
@@ -403,7 +415,7 @@ const executeToolCallOnce = async (
       user: context.userEmail,
       conversationId: context.conversationId ?? '',
       tool: tc.function.name,
-      args: parsedArgs,
+      args: approvalArgs,
       reason: rawReason || `严格模式：${tc.function.name} 需人工审批`,
     });
     // 登记到本轮上下文：若本轮 LLM 回复失败（限流/中止），失败出口会把这些单统一作废
@@ -831,11 +843,12 @@ export async function* runAgentLoop(input: RunAgentLoopInput): AsyncGenerator<Ag
   } catch (err) {
     draft.error = (err as Error).message;
     yield { type: 'error', message: draft.error };
-    input.context.createdApprovalIds?.length
-      && cancelPendingApprovals(
+    if (input.context.createdApprovalIds?.length) {
+      cancelPendingApprovals(
         input.context.createdApprovalIds,
         `本轮 AI 回复异常中断（${draft.error}），审批单已自动作废，请重新发起`,
       );
+    }
   } finally {
     yield { type: 'run_trace', trace: finalizeTrace(draft) };
   }

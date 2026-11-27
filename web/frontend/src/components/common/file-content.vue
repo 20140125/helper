@@ -123,6 +123,8 @@ const editorContainer = ref<HTMLElement | null>(null);
 const plainContentRef = ref<HTMLElement | null>(null);
 const jsonError = ref('');
 let editorView: EditorView | null = null;
+/** 当前编辑器对应的文件名：文件名变化时必须重建（语法模式可能不同） */
+let editorFilename = '';
 
 const isLightTheme = () => {
   const theme = document.documentElement.getAttribute('data-theme') || 'dark';
@@ -228,6 +230,7 @@ const initEditor = (text: string) => {
     editorView = null;
   }
   if (!editorContainer.value) return;
+  editorFilename = props.filename;
 
   const light = isLightTheme();
   const state = EditorState.create({
@@ -286,6 +289,9 @@ watch(
   async ([newFilename, , newLoading]) => {
     if (!newFilename || newLoading) return;
     if (isEditorMode.value) {
+      // 用户输入回写导致的 content 变化：编辑器里已是同一份文本，跳过重建以免光标回跳
+      if (editorView && editorFilename === props.filename
+        && editorView.state.doc.toString() === props.content) return;
       await nextTick();
       initEditor(props.content);
     }

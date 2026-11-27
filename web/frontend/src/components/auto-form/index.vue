@@ -119,6 +119,7 @@
   | cascader          | t-cascader        | 级联选择                      |
   | tree-select       | t-tree-select     | 树形选择                      |
   | upload            | auto-upload       | 文件/图片上传                  |
+  | markdown          | markdown-editor   | Markdown 源码编辑 + 渲染预览   |
   | group             | 横向分组          | 多个子字段排列在同一行        |
 
   ## 联动能力
@@ -455,6 +456,17 @@
           @blur="(val: string) => handleChange(field, val)"
         />
 
+        <!-- markdown：Markdown 编辑器（源码编辑 / 渲染预览） -->
+        <markdown-editor
+          v-else-if="field.type === 'markdown'"
+          :model-value="getStringValue(field.name)"
+          :t="localeStore.t"
+          :filename="`${field.name}.md`"
+          :editor-height="field.markdownHeight ?? '260px'"
+          :readonly="resolveDisabled(field) || field.readonly === true"
+          @update:model-value="(val: string) => handleChange(field, val)"
+        />
+
         <!-- select：单选下拉 -->
         <t-select
           v-else-if="field.type === 'select'"
@@ -767,6 +779,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import AutoUpload from './auto-upload.vue';
 import AutoMapPicker from './auto-map-picker.vue';
+import MarkdownEditor from '@/components/common/markdown-editor.vue';
 import { useLocaleStore } from '@/stores/locale';
 import { resolveI18nString, deepResolveI18n } from '@/utils/field-enhancer';
 import type { AutoFormField, AutoFormFieldType, AutoFormGroupChild, AutoFormOption, AutoFormRule, AutoFormTreeNode, AutoFormUploadFile } from '@/types/auto-form';

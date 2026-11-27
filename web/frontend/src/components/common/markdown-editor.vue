@@ -26,6 +26,7 @@
         :filename="filename"
         :content="content"
         :empty-content-text="emptyContentText"
+        :readonly="readonly"
         @change="handleContentChange"
       />
     </div>
@@ -71,6 +72,10 @@ const props = withDefaults(defineProps<{
   previewHtml?: string;
   /** 编辑区与预览区高度 */
   editorHeight?: string;
+  /** 首次打开时的面板（查看场景传 preview，直接看渲染结果） */
+  defaultTab?: EditorTab;
+  /** 是否只读（查看场景为 true，只允许切换源码/预览） */
+  readonly?: boolean;
 }>(), {
   /** 默认虚拟文件名 */
   filename: 'document.md',
@@ -82,6 +87,10 @@ const props = withDefaults(defineProps<{
   previewHtml: '',
   /** 默认编辑区高度 */
   editorHeight: '360px',
+  /** 默认打开编辑面板 */
+  defaultTab: 'edit',
+  /** 默认可编辑 */
+  readonly: false,
 });
 
 /** Markdown 正文（v-model，Vue 3.4+ defineModel 语法糖） */
@@ -92,8 +101,8 @@ const emit = defineEmits<{
   (e: 'change', value: string): void;
 }>();
 
-/** 当前显示的面板 */
-const activeTab = ref<EditorTab>('edit');
+/** 当前显示的面板（首次打开时由 defaultTab 决定） */
+const activeTab = ref<EditorTab>(props.defaultTab);
 /** 内层 CodeMirror 编辑器实例，用于对外暴露 getContent / resetEditor */
 const editorRef = ref<FileContentInstance | undefined>(undefined);
 

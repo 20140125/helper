@@ -11,13 +11,13 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
-    "baseUrl": "./",
+    // paths resolve relative to this file; baseUrl is deprecated in TS 6 and removed in TS 7
     "paths": {
-      "@/types/*": ["types/*"],
-      "@/utils/*": ["utils/*"],
-      "@/routes/*": ["routes/*"]
-    }  },
+      "@/types/*": ["./types/*"],
+      "@/utils/*": ["./utils/*"],
+      "@/routes/*": ["./routes/*"]
+    }
+  },
   "ts-node": {
     "transpileOnly": true,
     "files": true,

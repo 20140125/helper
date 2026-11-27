@@ -102,20 +102,23 @@ router.post('/verify-code', (req: Request, res: Response) => {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '验证码错误');
   }
 
-  codeStore.delete(targetEmail);
-
-  // 记录用户登录信息到 JSON 文件
-  recordUserLogin(targetEmail);
-
-  // 签发 JWT Token
-  const token = signJwt(targetEmail);
-  const isAdmin = isAdminEmail(targetEmail);
-
-  const permissions = getUserPermissionsByEmail(targetEmail, isAdmin);
-  const roleId = getUserRoleId(targetEmail, isAdmin);
-  // 同步下发 Cookie，让浏览器地址栏直访接口也能识别登录态
-  setAuthCookie(res, token);
-  return returnResponse(res, ErrorCode.SUCCESS, { token, isAdmin, permissions, roleId }, '登录成功');
+  // 先完成登录记录与权限读取，全部成功后才消费验证码：
+  // 任何一步失败都保留验证码，用户可直接重试，不会被误报「验证码不存在」
+  try {
+    recordUserLogin(targetEmail);
+    const token = signJwt(targetEmail);
+    const isAdmin = isAdminEmail(targetEmail);
+    const permissions = getUserPermissionsByEmail(targetEmail, isAdmin);
+    const roleId = getUserRoleId(targetEmail, isAdmin);
+    codeStore.delete(targetEmail);
+    // 同步下发 Cookie，让浏览器地址栏直访接口也能识别登录态
+    setAuthCookie(res, token);
+    return returnResponse(res, ErrorCode.SUCCESS, { token, isAdmin, permissions, roleId }, '登录成功');
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : '未知错误';
+    console.error('[auth] 登录流程失败:', message);
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, `登录失败，请重试：${message}`);
+  }
 });
 
 // ==============================

@@ -21,6 +21,7 @@ export type AutoFormFieldType =
   | 'tree-select'      // 树形选择
   | 'upload'           // 文件/图片上传
   | 'map-picker'       // 高德地图选点（值格式「地名|经度,纬度」，未配置 JS Key 时降级为文本输入）
+  | 'markdown'         // Markdown 编辑器（CodeMirror 源码 + 渲染预览双模式）
   | 'group';           // 横向分组（多个子字段排列在同一行）
 
 
@@ -205,8 +206,8 @@ export interface AutoFormRule {
 export interface AutoFormGroupChild {
   /** 字段名，对应 modelValue 对象的 key */
   name: string;
-  /** 字段类型（不支持 group / textarea） */
-  type: Exclude<AutoFormFieldType, 'group' | 'textarea'>;
+  /** 字段类型（不支持 group / textarea / markdown） */
+  type: Exclude<AutoFormFieldType, 'group' | 'textarea' | 'markdown'>;
   /** 占位提示文本；范围选择器（date-range-picker / time-range-picker）可传 [开始, 结束] 数组分别配置 */
   placeholder?: string | [string, string];
   /** 下拉选项，支持静态数组或动态函数 */
@@ -288,6 +289,8 @@ export interface AutoFormField {
   filterable?: boolean;
   /** textarea 自动高度配置 */
   autosize?: { minRows?: number; maxRows?: number };
+  /** Markdown 编辑器高度（type 为 markdown 时有效，默认 260px） */
+  markdownHeight?: string;
   /** 日期选择器格式（date-picker / date-range-picker 有效），默认 'YYYY-MM-DD' */
   dateFormat?: string;
   /** 禁用特定日期的函数（date-picker / date-range-picker 有效） */
