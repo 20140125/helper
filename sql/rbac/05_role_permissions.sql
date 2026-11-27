@@ -14,25 +14,17 @@ CREATE TABLE `hp_role_permissions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色-权限关联表';
 
 -- 通过子查询插入，自动解析 role_key → role_id、permission code → permission_id
--- super_admin (role_id=1): 全部 61 项权限
+-- 权限数量以 .cache/rbac.json 为准：super_admin 68 / admin 63 / viewer 34
+-- 数据以 .cache/rbac.json → roles.permissions 为准（自动同步）
 INSERT INTO `hp_role_permissions` (`role_id`, `permission_id`)
-SELECT r.id, p.id
-FROM `hp_roles` r
-CROSS JOIN `hp_permissions` p
-WHERE r.role_key = 'super_admin';
+SELECT r.id, p.id FROM `hp_roles` r, `hp_permissions` p
+WHERE r.role_key = 'super_admin' AND p.code IN ('ai-models:view', 'ai-models:edit', 'dashboard:view', 'daemon:view', 'daemon:edit', 'web-service:view', 'web-service:edit', 'config:view', 'config:edit', 'webhook:view', 'webhook:edit', 'rules:view', 'rules:edit', 'trigger:view', 'trigger:workday:view', 'trigger:workday:edit', 'trigger:birthday:view', 'trigger:birthday:edit', 'trigger:weekly:view', 'trigger:weekly:edit', 'trigger:monthly:view', 'trigger:monthly:edit', 'trigger:prefetch:view', 'trigger:prefetch:edit', 'trigger:festival:view', 'trigger:festival:edit', 'trigger:holiday-countdown:view', 'trigger:holiday-countdown:edit', 'trigger:clear-logs:view', 'trigger:clear-logs:edit', 'trigger:custom-rules:view', 'trigger:custom-rules:edit', 'trigger:annual-update:view', 'trigger:annual-update:edit', 'logs:view', 'logs:edit', 'cache:view', 'cache:edit', 'playground:view', 'playground:edit', 'templates:view', 'templates:edit', 'upload:edit', 'rbac:roles:view', 'rbac:roles:edit', 'rbac:users:view', 'rbac:users:edit', 'rbac:permissions:view', 'rbac:permissions:edit', 'rbac:requests:view', 'rbac:requests:edit', 'api-management:view', 'api-management:edit', 'api-category:view', 'api-category:edit', 'greetings:view', 'greetings:edit', 'reminder-quotes:view', 'reminder-quotes:edit', 'skill-map:view', 'skill-map:edit', 'ai-chat:view', 'ai-web-search:view', 'ai-approvals:view', 'ai-approvals:edit', 'project:view', 'knowledge-base:view', 'knowledge-base:edit');
 
--- admin (role_id=2): 全部 61 项权限
 INSERT INTO `hp_role_permissions` (`role_id`, `permission_id`)
-SELECT r.id, p.id
-FROM `hp_roles` r
-CROSS JOIN `hp_permissions` p
-WHERE r.role_key = 'admin';
+SELECT r.id, p.id FROM `hp_roles` r, `hp_permissions` p
+WHERE r.role_key = 'admin' AND p.code IN ('dashboard:view', 'daemon:view', 'web-service:view', 'config:view', 'config:edit', 'webhook:view', 'webhook:edit', 'rules:view', 'rules:edit', 'trigger:view', 'trigger:workday:view', 'trigger:workday:edit', 'trigger:birthday:view', 'trigger:birthday:edit', 'trigger:weekly:view', 'trigger:weekly:edit', 'trigger:monthly:view', 'trigger:monthly:edit', 'trigger:prefetch:view', 'trigger:prefetch:edit', 'trigger:festival:view', 'trigger:festival:edit', 'trigger:holiday-countdown:view', 'trigger:holiday-countdown:edit', 'trigger:clear-logs:view', 'trigger:clear-logs:edit', 'trigger:custom-rules:view', 'trigger:custom-rules:edit', 'trigger:annual-update:view', 'trigger:annual-update:edit', 'logs:view', 'logs:edit', 'cache:view', 'cache:edit', 'playground:view', 'playground:edit', 'templates:view', 'templates:edit', 'upload:edit', 'rbac:roles:view', 'rbac:roles:edit', 'rbac:users:view', 'rbac:users:edit', 'rbac:permissions:view', 'rbac:permissions:edit', 'rbac:requests:view', 'rbac:requests:edit', 'api-management:view', 'api-management:edit', 'api-category:view', 'api-category:edit', 'greetings:view', 'greetings:edit', 'reminder-quotes:view', 'reminder-quotes:edit', 'skill-map:view', 'skill-map:edit', 'ai-chat:view', 'ai-web-search:view', 'ai-approvals:view', 'project:view', 'knowledge-base:view', 'knowledge-base:edit');
 
--- viewer (role_id=3): 仅 view 类权限（32 项），但排除 ai-web-search:view（联网搜索属于敏感能力，仅管理员可用）
 INSERT INTO `hp_role_permissions` (`role_id`, `permission_id`)
-SELECT r.id, p.id
-FROM `hp_roles` r
-CROSS JOIN `hp_permissions` p
-WHERE r.role_key = 'viewer'
-  AND p.code LIKE '%:view'
-  AND p.code <> 'ai-web-search:view';
+SELECT r.id, p.id FROM `hp_roles` r, `hp_permissions` p
+WHERE r.role_key = 'viewer' AND p.code IN ('dashboard:view', 'config:view', 'rules:view', 'web-service:view', 'trigger:view', 'trigger:workday:view', 'trigger:birthday:view', 'trigger:weekly:view', 'trigger:monthly:view', 'trigger:prefetch:view', 'trigger:festival:view', 'trigger:holiday-countdown:view', 'trigger:clear-logs:view', 'trigger:custom-rules:view', 'trigger:annual-update:view', 'logs:view', 'cache:view', 'playground:view', 'templates:view', 'rbac:roles:view', 'rbac:users:view', 'rbac:permissions:view', 'rbac:requests:view', 'api-management:view', 'api-category:view', 'daemon:view', 'webhook:view', 'skill-map:view', 'reminder-quotes:view', 'greetings:view', 'ai-chat:view', 'ai-approvals:view', 'project:view', 'knowledge-base:view');
+

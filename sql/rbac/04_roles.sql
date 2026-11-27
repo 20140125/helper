@@ -14,7 +14,8 @@ CREATE TABLE `hp_roles` (
   UNIQUE KEY `uk_role_key` (`role_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='RBAC 角色表';
 
+-- 数据以 .cache/rbac.json → roles 为准（自动同步）
 INSERT INTO `hp_roles` (`role_key`, `name`, `description`, `builtin`, `created_at`, `updated_at`) VALUES
-('super_admin', '超级管理员', '拥有系统全部权限，可管理角色和用户', 1, '2026-03-27 16:05:00', '2026-03-27 16:05:00'),
-('admin',       '管理员',     '拥有系统全部功能权限',              1, '2026-03-27 16:05:00', '2026-03-27 16:20:45'),
-('viewer',      '只读用户',   '可查看所有页面，但不能执行任何操作',  1, '2026-03-27 16:05:00', '2026-03-27 16:26:14');
+  ('super_admin', '超级管理员', '拥有系统全部权限，可管理角色和用户', 1, '2026-03-27 16:05:00', '2026-03-27 16:05:00') ,
+  ('admin', '管理员', '拥有系统全部功能权限', 1, '2026-03-27 16:05:00', '2026-03-27 16:05:00') ,
+  ('viewer', '只读用户', '可查看所有页面，但不能执行任何操作', 1, '2026-03-27 16:05:00', '2026-03-27 16:05:00');

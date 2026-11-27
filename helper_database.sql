@@ -58,6 +58,18 @@ SOURCE sql/api_management/22_api_items.sql;
 SOURCE sql/skill_map/23_skill_categories.sql;
 SOURCE sql/skill_map/24_skills.sql;
 
+-- ──────────────── 贾维斯（AI）运行时数据 ────────────────
+SOURCE sql/ai/25_ai_conversations.sql;
+SOURCE sql/ai/26_ai_messages.sql;
+SOURCE sql/ai/27_ai_run_traces.sql;
+SOURCE sql/ai/28_ai_memory_items.sql;
+SOURCE sql/ai/29_ai_approvals.sql;
+SOURCE sql/ai/30_ai_model_configs.sql;
+SOURCE sql/ai/31_ai_inspection_state.sql;
+
+-- ──────────────── 补充缓存数据（其它 SQL 文件未覆盖的 .cache/ 数据） ────────────────
+SOURCE sql/cache_data.sql;
+
 -- ──────────────── 视图（必须在所有表之后） ────────────────
 SOURCE sql/99_views.sql;
 
