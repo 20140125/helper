@@ -563,5 +563,22 @@
     "label": "维护知识库管理",
     "description": "新增/编辑/删除知识文档，重建索引与调整索引目录",
     "type": "edit"
+  },
+  {
+    "code": "database:view",
+    "group_id": "database",
+    "group_name": "数据库管理",
+    "label": "查看数据库管理",
+    "description": "查看连接状态、库表结构与数据预览，执行只读 SQL（仅超级管理员）",
+    "type": "view",
+    "route": "/database"
+  },
+  {
+    "code": "database:edit",
+    "group_id": "database",
+    "group_name": "数据库管理",
+    "label": "管理数据库管理",
+    "description": "执行写 SQL 并用建表脚本重建数据库（仅超级管理员）",
+    "type": "edit"
   }
 ]

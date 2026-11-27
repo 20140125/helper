@@ -217,6 +217,16 @@ export const PAGE_REGISTRY: PageEntry[] = [
     coveredByTools: ['card_skill'],
   },
   {
+    path: '/database',
+    name: 'database',
+    label: '数据库管理',
+    group: 'operations',
+    inMenu: true,
+    permissions: ['database:view'],
+    desc: '查看 MySQL 连接状态、库表结构与数据预览，执行 SQL，并用 helper_database.sql 重建全库（仅超级管理员）',
+    coveredByTools: [],
+  },
+  {
     path: '/auto-form-playground',
     name: 'auto-form-playground',
     label: '表单配置器',

@@ -53,6 +53,7 @@ import reminderQuotesRouter from '@/routes/reminder-quotes';
 import skillMapRouter from '@/routes/skill-map';
 import aiChatRouter, { aiWebhookRouter } from '@/routes/ai-chat';
 import knowledgeRouter from '@/routes/knowledge';
+import databaseRouter from '@/routes/database';
 import amapRouter from '@/routes/amap';
 import { TOOLS_IMAGES_DIR, TOOLS_IMAGES_URL_PREFIX, pruneTraceFiles } from '@/routes/utils';
 import { startInspectionScheduler } from '@/utils/ai-chat';
@@ -313,6 +314,14 @@ app.use('/api/knowledge', ...withPermission(knowledgeRouter, {
   read: Permission.KNOWLEDGE_BASE_VIEW,
   write: Permission.KNOWLEDGE_BASE_EDIT,
   readPaths: ['/search'],
+}));
+
+// 数据库管理：页面与 API 均限超级管理员（可执行任意 SQL、初始化会重建全表）
+// /query 是只读 SQL 查询，按 view 权限放行；/execute 与 /init 按 edit 权限校验
+app.use('/api/database', requireSuperAdmin, ...withPermission(databaseRouter, {
+  read: Permission.DATABASE_VIEW,
+  write: Permission.DATABASE_EDIT,
+  readPaths: ['/query'],
 }));
 
 // 高德静态地图代理（给贾维斯 / 前端出图；Key 只留在服务端）

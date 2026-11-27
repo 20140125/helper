@@ -116,6 +116,10 @@ export enum Permission {
   // ── 联网搜索 ──
   AI_WEB_SEARCH_VIEW = 'ai-web-search:view',
 
+  // ── 数据库管理（仅超级管理员）──
+  DATABASE_VIEW = 'database:view',
+  DATABASE_EDIT = 'database:edit',
+
   // ── 知识库管理 ──
   KNOWLEDGE_BASE_VIEW = 'knowledge-base:view',
   KNOWLEDGE_BASE_EDIT = 'knowledge-base:edit',

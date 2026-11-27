@@ -98,6 +98,7 @@ export default defineConfig({
             '@codemirror/autocomplete',
             '@codemirror/commands',
             '@codemirror/lang-json',
+            '@codemirror/lang-sql',
             '@codemirror/language',
             '@codemirror/state',
             '@codemirror/theme-one-dark',

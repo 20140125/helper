@@ -139,6 +139,7 @@ web/
 |------|------|------|
 | `/logs` | 运行日志 | 查看/清空所有脚本日志 |
 | `/cache` | 缓存文件 | 查看/编辑 `.cache/` 下的 JSON 文件 |
+| `/database` | 数据库管理 | 连接状态、库表结构与数据预览、SQL 控制台、建表脚本查看与初始化（仅超级管理员） |
 
 ### 开发工具
 | 路径 | 页面 | 功能 |
@@ -199,6 +200,7 @@ web/
 | `/api/rbac/users` | 用户角色分配 | `RBAC_USERS_VIEW` / `RBAC_USERS_EDIT` |
 | `/api/rbac/permissions` | 权限元数据 | `RBAC_PERMISSIONS_VIEW` / `RBAC_PERMISSIONS_EDIT` |
 | `/api/permission-apply` | 权限申请 / 审批 | 路由内细粒度判权 |
+| `/api/database` | 数据库状态、库表结构/数据、SQL 执行、建表脚本初始化 | `DATABASE_VIEW` / `DATABASE_EDIT`（仅超级管理员） |
 
 静态资源：
 

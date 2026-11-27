@@ -85,4 +85,6 @@ INSERT INTO `hp_permissions` (`enum_key`, `code`, `group_id`, `group_name`, `lab
   ('AI_APPROVALS_EDIT', 'ai-approvals:edit', 'ai-approvals', 'AI 审批', '审批 AI 操作', '通过或驳回审批单；通过会以审批人身份立即执行该操作，最终仍需超级管理员身份') ,
   ('PROJECT_VIEW', 'project:view', 'project', '项目结构', '查看项目结构', '查看项目目录结构与源码文件内容（只读）') ,
   ('KNOWLEDGE_BASE_VIEW', 'knowledge-base:view', 'knowledge-base', '知识库管理', '查看知识库管理', '查看知识库管理页面与检索测试') ,
-  ('KNOWLEDGE_BASE_EDIT', 'knowledge-base:edit', 'knowledge-base', '知识库管理', '维护知识库管理', '新增/编辑/删除知识文档，重建索引与调整索引目录');
+  ('KNOWLEDGE_BASE_EDIT', 'knowledge-base:edit', 'knowledge-base', '知识库管理', '维护知识库管理', '新增/编辑/删除知识文档，重建索引与调整索引目录') ,
+  ('DATABASE_VIEW', 'database:view', 'database', '数据库管理', '查看数据库管理', '查看连接状态、库表结构与数据预览，执行只读 SQL（仅超级管理员）') ,
+  ('DATABASE_EDIT', 'database:edit', 'database', '数据库管理', '管理数据库管理', '执行写 SQL 并用建表脚本重建数据库（仅超级管理员）');

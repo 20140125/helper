@@ -115,6 +115,7 @@ bash scripts/start_web.sh status    # 查看状态
 | 自定义规则 | 规则 CRUD 与测试 |
 | AI 审批 | 贾维斯增删改审批单：通过执行 / 驳回（仅超级管理员） |
 | 缓存文件 | 查看/编辑 JSON 缓存 |
+| 数据库管理 | MySQL 连接状态、库表结构与数据预览、SQL 执行、建表脚本初始化（仅超级管理员） |
 
 ---
 
@@ -166,6 +167,8 @@ helper/
 │   ├── ...                    # 独立提醒 & 工具脚本
 │   └── start_web.sh           # Web 服务管理
 ├── web/                       # Web 管理界面（详见 web/README.md）
+├── helper_database.sql        # 数据库初始化入口（SOURCE 聚合器）
+├── sql/                       # 模块化建表 SQL（按业务模块分目录）
 ├── docs/                      # 文档（14 章教程 + 1 篇使用说明，共 25 个文件）
 └── .cache/                    # JSON 数据缓存
 ```

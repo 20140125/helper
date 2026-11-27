@@ -189,6 +189,12 @@ export enum Permission {
   /** 维护知识库（新增/编辑/删除文档、重建索引、调整索引目录） */
   KNOWLEDGE_BASE_EDIT = 'knowledge-base:edit',
 
+  // ── 数据库管理（仅超级管理员）──
+  /** 查看数据库（连接状态、库表结构、数据预览、只读 SQL 查询） */
+  DATABASE_VIEW = 'database:view',
+  /** 管理数据库（执行写 SQL、重建建表脚本） */
+  DATABASE_EDIT = 'database:edit',
+
   // ── 项目结构 ──
   /** 查看项目目录结构（query_project_map）与源码文件内容（read_project_file，只读） */
   PROJECT_VIEW = 'project:view',

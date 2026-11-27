@@ -7,6 +7,16 @@
 
 ---
 
+## [Unreleased]
+
+### 新增
+- Web 新增「数据库管理」页（仅超级管理员）：连接状态、库表结构与数据预览、只读 SQL 查询与写 SQL 执行、查看 `sql/` 建表脚本、按 `helper_database.sql` 初始化数据库
+- 新增 `/api/database/*` 接口与 `database:view` / `database:edit` 权限码；权限元数据、RBAC、接口分类/条目及建表 SQL 镜像同步
+- 后端引入 `mysql2` 连接池；`web/.env.example` 补充 `DB_*` 配置段
+- 新增 `hp_run_logs` 运行日志表（`sql/logs/33_run_logs.sql`）：统一收录脚本、Web、接口访问、AI 等运行日志，并接入 `helper_database.sql` 初始化入口
+
+---
+
 ## [3.8] - 2026-04-21
 
 ### 新增

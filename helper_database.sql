@@ -70,6 +70,9 @@ SOURCE sql/ai/31_ai_inspection_state.sql;
 -- ──────────────── 系统环境配置 ────────────────
 SOURCE sql/config/32_env_config.sql;
 
+-- ──────────────── 项目运行日志 ────────────────
+SOURCE sql/logs/33_run_logs.sql;
+
 -- ──────────────── 补充缓存数据（其它 SQL 文件未覆盖的 .cache/ 数据） ────────────────
 SOURCE sql/cache_data.sql;
 

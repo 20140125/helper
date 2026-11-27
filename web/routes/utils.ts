@@ -278,6 +278,28 @@ export {
   resetKnowledgeIndex,
 } from '@/utils/ai-chat';
 
+// 数据库管理（连接池、库表浏览、SQL 执行、建表脚本初始化）
+export {
+  getDatabaseStatus,
+  listTables,
+  describeTable,
+  previewTableRows,
+  runReadOnlyQuery,
+  runWriteQuery,
+  listSqlScripts,
+  readSqlScript,
+  expandInitScript,
+  initializeDatabase,
+} from '@/utils/database';
+export type {
+  DatabaseStatus,
+  DatabaseTable,
+  DatabaseTableSchema,
+  DatabaseScriptFile,
+  SqlExecution,
+  DatabaseInitResult,
+} from '@/types/database';
+
 export {
   normalizeDocName,
   isUserDocPath,

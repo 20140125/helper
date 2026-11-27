@@ -1,0 +1,99 @@
+<template>
+  <card-panel :title="t.database.scriptsTitle" icon="folder" icon-theme="secondary">
+    <template #title-extra>
+      <span class="text-xs" style="color: var(--text-muted);">
+        {{ t.database.scriptsCount(scripts.length) }}
+      </span>
+    </template>
+
+    <div class="db-scripts">
+      <div class="db-scripts-list custom-scrollbar-sm">
+        <div v-if="scripts.length === 0" class="empty-tip">{{ t.database.noScripts }}</div>
+        <side-list-item
+          v-for="script in scripts"
+          :key="script.path"
+          :active="selectedScript === script.path"
+          icon="file-code"
+          :title="script.path"
+          :meta="metaText(script)"
+          @click="emit('select', script.path)"
+        />
+      </div>
+      <div class="db-scripts-content">
+        <div class="db-sub-title">{{ t.database.scriptPreviewTitle }}</div>
+        <sql-editor
+          v-if="selectedScript"
+          :content="content"
+          :readonly="true"
+          min-height="320px"
+          max-height="320px"
+        />
+        <div v-else class="empty-tip">{{ t.database.scriptSelectHint }}</div>
+      </div>
+    </div>
+  </card-panel>
+</template>
+
+<script setup lang="ts">
+import CardPanel from '@/components/common/card-panel.vue';
+import SideListItem from '@/components/common/side-list-item.vue';
+import SqlEditor from '@/components/common/sql-editor.vue';
+import { formatBytes } from '@/utils/database';
+import type { Locale } from '@/locales/zh';
+import type { DatabaseScriptFile } from '@/types/database';
+
+const props = defineProps<{
+  /** i18n 文案集合 */
+  t: Locale;
+  /** 建表脚本清单 */
+  scripts: DatabaseScriptFile[];
+  /** 当前查看的脚本路径 */
+  selectedScript: string;
+  /** 当前查看的脚本正文 */
+  content: string;
+}>();
+
+const emit = defineEmits<{
+  /** 选中一个 SQL 脚本 */
+  (e: 'select', path: string): void;
+}>();
+
+const metaText = (script: DatabaseScriptFile): string => {
+  const moduleName = script.module === 'entry'
+    ? props.t.database.scriptEntry
+    : script.module;
+  return `${moduleName} · ${formatBytes(script.size)}`;
+};
+</script>
+
+<style scoped>
+@import "@/styles/common.css";
+@import "@/styles/scrollbar.css";
+
+.db-scripts {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.db-scripts-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.db-scripts-content {
+  min-width: 0;
+}
+
+.db-sub-title {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .db-scripts {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

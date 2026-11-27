@@ -1186,5 +1186,104 @@
     "enabled": true,
     "created_at": "2026-11-21 00:48:45",
     "updated_at": "2026-11-21 00:48:45"
+  },
+  {
+    "item_key": "api_database_status",
+    "category_id": "cat_database",
+    "name": "连接状态",
+    "method": "GET",
+    "path": "/api/database/status",
+    "description": "探测 MySQL 连接配置、连通性与版本信息",
+    "enabled": true,
+    "created_at": "2026-11-28 00:37:16",
+    "updated_at": "2026-11-28 00:37:16"
+  },
+  {
+    "item_key": "api_database_tables",
+    "category_id": "cat_database",
+    "name": "库表清单",
+    "method": "GET",
+    "path": "/api/database/tables",
+    "description": "列出当前库的表与视图及其行数、引擎、注释",
+    "enabled": true,
+    "created_at": "2026-11-28 00:37:16",
+    "updated_at": "2026-11-28 00:37:16"
+  },
+  {
+    "item_key": "api_database_table_schema",
+    "category_id": "cat_database",
+    "name": "表结构",
+    "method": "GET",
+    "path": "/api/database/tables/:name",
+    "description": "读取字段、索引与建表语句",
+    "enabled": true,
+    "created_at": "2026-11-28 00:37:16",
+    "updated_at": "2026-11-28 00:37:16"
+  },
+  {
+    "item_key": "api_database_table_rows",
+    "category_id": "cat_database",
+    "name": "数据预览",
+    "method": "GET",
+    "path": "/api/database/tables/:name/rows",
+    "description": "按 LIMIT/OFFSET 分页预览表数据",
+    "enabled": true,
+    "created_at": "2026-11-28 00:37:16",
+    "updated_at": "2026-11-28 00:37:16"
+  },
+  {
+    "item_key": "api_database_scripts",
+    "category_id": "cat_database",
+    "name": "建表脚本清单",
+    "method": "GET",
+    "path": "/api/database/scripts",
+    "description": "列出 helper_database.sql 与 sql/ 下的脚本",
+    "enabled": true,
+    "created_at": "2026-11-28 00:37:16",
+    "updated_at": "2026-11-28 00:37:16"
+  },
+  {
+    "item_key": "api_database_script",
+    "category_id": "cat_database",
+    "name": "读取建表脚本",
+    "method": "GET",
+    "path": "/api/database/script",
+    "description": "读取白名单内单个 SQL 脚本正文",
+    "enabled": true,
+    "created_at": "2026-11-28 00:37:16",
+    "updated_at": "2026-11-28 00:37:16"
+  },
+  {
+    "item_key": "api_database_query",
+    "category_id": "cat_database",
+    "name": "只读查询",
+    "method": "POST",
+    "path": "/api/database/query",
+    "description": "执行 SELECT/SHOW/DESCRIBE/EXPLAIN/WITH 查询",
+    "enabled": true,
+    "created_at": "2026-11-28 00:37:16",
+    "updated_at": "2026-11-28 00:37:16"
+  },
+  {
+    "item_key": "api_database_execute",
+    "category_id": "cat_database",
+    "name": "执行 SQL",
+    "method": "POST",
+    "path": "/api/database/execute",
+    "description": "执行单条 DDL/DML，仅超级管理员可用",
+    "enabled": true,
+    "created_at": "2026-11-28 00:37:16",
+    "updated_at": "2026-11-28 00:37:16"
+  },
+  {
+    "item_key": "api_database_init",
+    "category_id": "cat_database",
+    "name": "初始化数据库",
+    "method": "POST",
+    "path": "/api/database/init",
+    "description": "按 helper_database.sql 重建全库，需输入库名二次确认",
+    "enabled": true,
+    "created_at": "2026-11-28 00:37:16",
+    "updated_at": "2026-11-28 00:37:16"
   }
 ]

@@ -19,6 +19,7 @@ import PermissionRequests from '@/views/permission-requests.vue';
 import AiCost from '@/views/ai-cost.vue';
 import AiModels from '@/views/ai-models.vue';
 import Knowledge from '@/views/knowledge.vue';
+import Database from '@/views/database.vue';
 import Forbidden from '@/views/forbidden.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useStatusStore } from '@/stores/status';
@@ -159,6 +160,19 @@ const router = createRouter({
       } satisfies RouteMeta,
     },
     // ---- 系统运维 ----
+    {
+      path: '/database',
+      name: 'database',
+      component: Database,
+      meta: {
+        label: 'menu.database',
+        icon: 'server',
+        inMenu: true,
+        menuGroup: 'operations',
+        permissions: [Permission.DATABASE_VIEW],
+        superAdminOnly: true,
+      } satisfies RouteMeta,
+    },
     {
       path: '/cache',
       name: 'cache',
