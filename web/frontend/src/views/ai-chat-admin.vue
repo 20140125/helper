@@ -40,6 +40,13 @@
         <t-button theme="primary" variant="outline" @click="onFilterChange">
           {{ t.common.search }}
         </t-button>
+        <t-checkbox
+          :checked="!onlyWithMessages"
+          class="ai-admin-empty-toggle"
+          @change="(checked: unknown) => handleOnlyWithMessagesChange(Boolean(checked))"
+        >
+          {{ t.aiChatAdmin.includeEmptyRuns }}
+        </t-checkbox>
       </div>
 
       <t-table
@@ -88,6 +95,8 @@
         :detail="detail"
         :loading="detailLoading"
         :tool-stats="toolStats"
+        :message-scope="messageScope"
+        @change-scope="switchMessageScope"
       />
     </t-drawer>
   </page-layout>
@@ -115,6 +124,8 @@ const {
   detail,
   detailLoading,
   toolStats,
+  messageScope,
+  onlyWithMessages,
   pageLoading,
   load,
   onFilterChange,
@@ -122,14 +133,18 @@ const {
   onRowClick,
   openDetail,
   closeDetail,
+  switchMessageScope,
   handleScopeChange,
   handleDaysChange,
+  handleOnlyWithMessagesChange,
   statusTheme,
   statusText,
 } = useAiChatAdminModel();
 </script>
 
 <style scoped>
+@import '@/styles/common.css';
+
 .ai-admin-total {
   font-size: 12px;
   color: var(--text-muted);
@@ -143,6 +158,10 @@ const {
   width: 260px;
   flex: 0 0 260px;
   min-width: 180px;
+}
+
+.ai-admin-empty-toggle {
+  white-space: nowrap;
 }
 
 .ai-admin-pagination {

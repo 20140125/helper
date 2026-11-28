@@ -11,6 +11,7 @@ import './styles/ai-chat-skin.css';
 import './styles/app-background.css';
 import { useLocaleStore } from './stores/locale';
 import { useAppBackgroundStore } from './stores/app-background';
+import { useNavigationStore } from './stores/navigation';
 
 const app = createApp(App);
 
@@ -20,6 +21,8 @@ app.use(pinia);
 void useLocaleStore(pinia).loadFromDatabase();
 // 启动时读取系统背景图（公开接口，失败时静默使用默认主题）
 void useAppBackgroundStore(pinia).load();
+// 启动时读取侧边栏菜单与页面注册表（失败时 home-model 回退到路由派生菜单）
+void useNavigationStore(pinia).load();
 app.use(router);
 app.use(TDesign);
 app.mount('#app');

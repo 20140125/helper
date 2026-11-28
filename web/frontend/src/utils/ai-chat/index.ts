@@ -66,9 +66,10 @@ export {
   pickImageFiles,
 } from './image-attachment';
 
-// 皮肤配置：规范化预设/用户配置与局部 CSS 变量构建
+// 皮肤配置：规范化预设/用户配置、图片本体解码与局部 CSS 变量构建
 export {
   normalizeAiChatSkinPresets,
   normalizeAiChatSkinSettings,
   buildAiChatSkinStyle,
+  toAiChatSkinBlob,
 } from './skin';

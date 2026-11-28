@@ -23,17 +23,20 @@ export class AiChatAdminService extends BaseService {
     if (params.keyword) query.set('keyword', params.keyword);
     if (params.page) query.set('page', String(params.page));
     if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    query.set('onlyWithMessages', String(params.onlyWithMessages ?? true));
     return this.get<AiChatAdminRunsResponse>(`/ai-chat-admin/runs?${query.toString()}`);
   };
 
   /**
    * 获取单次运行详情
    * @param {string} runId - 运行 ID
+   * @param {string} [messageScope='run'] - run=仅本次运行消息，conversation=完整会话消息
    * @returns {Promise<AiChatAdminDetailResponse>} 逐轮用量、工具调用明细与会话消息
-   * @description 详情接口才返回 steps 明文与消息正文，避免列表请求传输大 JSON。
+   * @description 详情接口才返回 steps 明文与消息正文；默认只回传本次运行消息，避免重复展示历史。
    */
-  fetchRunDetail = async (runId: string): Promise<AiChatAdminDetailResponse> => {
-    return this.get<AiChatAdminDetailResponse>(`/ai-chat-admin/runs/${encodeURIComponent(runId)}`);
+  fetchRunDetail = async (runId: string, messageScope: string = 'run'): Promise<AiChatAdminDetailResponse> => {
+    const query = new URLSearchParams({ messageScope });
+    return this.get<AiChatAdminDetailResponse>(`/ai-chat-admin/runs/${encodeURIComponent(runId)}?${query.toString()}`);
   };
 }
 

@@ -24,6 +24,8 @@ export {
   replaceMessages,
 } from './conversation-store';
 
+export { readConversationPage } from './conversation-page';
+
 export { runAgentLoop, type AgentEvent, type RunAgentLoopInput } from './agent-loop';
 
 export {

@@ -302,7 +302,14 @@ export interface ConversationsListResponse {
 
 export interface ConversationResponse {
   code: number;
-  data: { conversation: ChatConversation };
+  data: {
+    /** 会话（messages 为当前页，按时间升序） */
+    conversation: ChatConversation;
+    /** 是否还有更早的消息可向上翻 */
+    has_more?: boolean;
+    /** 下一页游标（本次返回的最早消息 seq） */
+    next_before?: number | null;
+  };
   message: string;
 }
 

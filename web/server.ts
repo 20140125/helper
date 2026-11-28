@@ -22,14 +22,18 @@ import {
   returnResponse, 
   ErrorCode,
   requireSuperAdmin,
+  handleAppBackgroundImage,
 } from '@/routes/utils';
 import { Permission } from '@/types/permission';
 import { AI_CHAT_SEND_BODY_LIMIT } from '@/types/ai-chat';
 import { AI_CHAT_SKIN_BODY_LIMIT } from '@/types/ai-chat-skin';
+import { APP_BACKGROUND_BODY_LIMIT } from '@/types/app-background';
 import { ensureRbacSchema } from '@/utils/rbac/db';
 import { ensureEnvConfigSeed } from '@/utils/env-config';
 import { ensureAiChatSkinSchema } from '@/utils/ai-chat/skin-store';
 import { ensureUserAppearanceSchema } from '@/utils/user-appearance';
+import { ensureNavigationSchema } from '@/utils/navigation';
+import { ensureAppBackgroundSchema } from '@/utils/app-background';
 import { initKnowledgeDocs } from '@/utils/knowledge';
 
 setupTimestampLogger();
@@ -38,6 +42,7 @@ import bootstrapRouter from '@/routes/bootstrap';
 import configRouter from '@/routes/config';
 import appBackgroundRouter from '@/routes/app-background';
 import userAppearanceRouter from '@/routes/user-appearance';
+import navigationRouter from '@/routes/navigation';
 import aiModelConfigsRouter from '@/routes/ai-model-configs';
 import logsRouter from '@/routes/logs';
 import daemonRouter from '@/routes/daemon';
@@ -107,9 +112,13 @@ app.use(cors());
 app.use('/api/ai-chat/send', express.json({ limit: AI_CHAT_SEND_BODY_LIMIT }));
 // 皮肤配置里带背景图本体（data URL，最大约 7MB），同样要在全局 100kb 上限之前放宽
 app.use('/api/ai-chat/skin', express.json({ limit: AI_CHAT_SKIN_BODY_LIMIT }));
+// 系统背景保存接口同样携带图片本体 data URL，必须在全局 parser 之前放宽
+app.use('/api/app-background', express.json({ limit: APP_BACKGROUND_BODY_LIMIT }));
 app.use(express.json());
 
-// uploads 目录始终提供静态文件访问（开发/生产均需要）
+// 库内系统背景图：动态输出 /uploads/appbg-<md5>，必须挂在静态目录之前
+app.get('/uploads/appbg-:hash', handleAppBackgroundImage);
+// uploads 目录始终提供静态文件访问（旧版背景文件保留，供迁移与兼容兜底）
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // 技能地图生成的卡片图片（web/public/skill-images/）
@@ -180,6 +189,12 @@ app.use('/api', async (req, res, next) => {
     return next();
   }
 
+  // 侧边栏导航数据：登录页与首屏都要用，只放行精确 GET；
+  // 写操作仍需 JWT 与 CONFIG_EDIT 校验
+  if (req.method === 'GET' && req.path === '/navigation') {
+    return next();
+  }
+
   // 获取 token
   const token = getAuthToken(req);
 
@@ -240,6 +255,11 @@ app.use('/api/app-background', ...withPermission(appBackgroundRouter, {
 
 // 按用户外观偏好：全局 JWT 已保证登录态，读写按 req.userEmail 隔离，不额外要求权限码
 app.use('/api/user-appearance', userAppearanceRouter);
+
+// 侧边栏导航与页面注册表：GET 按当前用户权限裁剪，写操作需 CONFIG_EDIT
+app.use('/api/navigation', ...withPermission(navigationRouter, {
+  write: Permission.CONFIG_EDIT,
+}));
 
 // 自定义 AI 模型配置：权限收拢到超级管理员
 // requireSuperAdmin 做身份兜底；withPermission 用专属权限码做 RBAC 校验
@@ -538,7 +558,19 @@ void (async (): Promise<void> => {
   } catch (err) {
     console.warn('[DB] 外观偏好表结构初始化失败，遮挡层将使用默认不透明度：', (err as Error).message);
   }
-  // 知识库文档：按 content_hash 增量同步后加载数据库快照；异常不再降级读本地文件
+  // 系统背景图：幂等建表，并把旧版 /uploads 背景文件一次性迁移入库
+  try {
+    await ensureAppBackgroundSchema();
+  } catch (err) {
+    console.warn('[DB] 系统背景表初始化/旧图迁移失败，背景将回退默认主题：', (err as Error).message);
+  }
+  // 侧边栏导航与页面注册表：幂等建表（初始种子由 41 号 SQL 播种）
+  try {
+    await ensureNavigationSchema();
+  } catch (err) {
+    console.warn('[DB] 导航表结构初始化失败，菜单将回退到路由派生：', (err as Error).message);
+  }
+  // 知识库文档：真源为 hp_knowledge_docs，启动全量加载数据库快照；异常不再降级读本地文件
   try {
     const knowledgeDocCount = await initKnowledgeDocs();
     console.log(`📚 知识库文档已加载 ${knowledgeDocCount} 篇`);

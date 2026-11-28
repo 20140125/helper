@@ -196,4 +196,6 @@ export class ExampleModel extends BaseModel { }
 2. `cd web && npm run i18n:sql`：从库导出 `sql/i18n/35_i18n_messages.sql` 种子与 `frontend/src/types/locale.ts` 静态 `Locale` 接口。
 3. 前端用 `useLocaleStore().t.xxx`；`locale.ts` 是生成文件，不要手改。
 
+**修改已有文案一律在 `/i18n-messages` 中英对照编辑**：管理页按 key 把 zh / en 并排展示，一次保存写两条（`PUT /api/i18n/pairs/:keyPath`），缺失的语言会自动补齐，不要只改一种语言。插值函数条目只读。旧的 `PUT /api/i18n/messages/:id` 单条接口保留兼容，但页面不再暴露单语言编辑入口。
+
 种子 SQL 由脚本按 200 行分批生成，新增 key 会让后续批次边界产生少量行移位，属正常生成结果。现有库补 key 用 `npm run i18n:sql -- --apply`（幂等 UPSERT，不覆盖管理页编辑过的文案）。

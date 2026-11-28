@@ -196,6 +196,27 @@ export class AiChatModel extends BaseModel {
   autoFollow: Ref<boolean> = ref(true);
 
   /**
+   * 是否还有更早的历史消息
+   * @type {Ref<boolean>}
+   * @description 由会话分页接口的 has_more 维护；为 true 时顶部显示加载入口
+   */
+  historyHasMore: Ref<boolean> = ref(false);
+
+  /**
+   * 下一页历史消息游标
+   * @type {Ref<number | null>}
+   * @description 本次返回的最早消息 seq，作为下次请求的 before；null 表示已翻到第一条
+   */
+  historyNextBefore: Ref<number | null> = ref(null);
+
+  /**
+   * 是否正在加载更早消息
+   * @type {Ref<boolean>}
+   * @description 防止滚动到顶部时重复触发同一页请求
+   */
+  historyLoading: Ref<boolean> = ref(false);
+
+  /**
    * 已处于「已复制」反馈态的消息 id 集合
    * @type {Ref<Set<string>>}
    * @description 通过 Set 维护可同时多条复制反馈；每个 id 在复制成功 1.5s 后自动移除
@@ -233,6 +254,9 @@ export class AiChatModel extends BaseModel {
    * @type {number}
    */
   private static readonly BOTTOM_THRESHOLD: number = 32;
+
+  /** 距顶部多少像素以内触发「加载更早消息」 */
+  private static readonly HISTORY_LOAD_THRESHOLD: number = 48;
 
   /**
    * 「已复制」反馈态保留时长（毫秒）
@@ -337,6 +361,13 @@ export class AiChatModel extends BaseModel {
     if (!el) return;
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
     this.autoFollow.value = distance <= AiChatModel.BOTTOM_THRESHOLD;
+    // 用户主动上滚到顶部且还有历史时自动加载更早消息；内容不足一屏或正在贴底跟随时不触发
+    if (!this.autoFollow.value
+      && el.scrollHeight > el.clientHeight
+      && el.scrollTop <= AiChatModel.HISTORY_LOAD_THRESHOLD
+      && this.historyHasMore.value) {
+      void this.loadMoreHistory();
+    }
   };
 
   /**
@@ -489,9 +520,46 @@ export class AiChatModel extends BaseModel {
       const conv: ChatConversation = res.data.conversation;
       this.currentConversationId.value = conv.id;
       this.uiMessages.value = this.convertToUiMessages(conv.messages);
+      this.historyHasMore.value = Boolean(res.data.has_more);
+      this.historyNextBefore.value = res.data.next_before ?? null;
       void this.scrollToBottom();
     } catch {
       MessagePlugin.error(this.localeStore.t.aiChat.loadConversationFailed);
+    }
+  };
+
+  /**
+   * 向上翻页加载更早的回话
+   * @returns {Promise<void>}
+   * @description 前插到当前消息列表后用 scrollHeight 差值补偿 scrollTop，避免加载后视图跳动；
+   *   只在用户上滚（autoFollow=false）时由滚动监听或顶部按钮触发。
+   */
+  loadMoreHistory = async (): Promise<void> => {
+    if (this.historyLoading.value || !this.historyHasMore.value
+      || this.historyNextBefore.value === null || !this.currentConversationId.value) return;
+    const el = this.scrollContainer.value;
+    const previousHeight = el?.scrollHeight ?? 0;
+    const previousTop = el?.scrollTop ?? 0;
+    this.historyLoading.value = true;
+    try {
+      const res = await this.service.fetchConversation(
+        this.currentConversationId.value,
+        this.historyNextBefore.value,
+      );
+      const older = this.convertToUiMessages(res.data.conversation.messages);
+      if (older.length > 0) {
+        this.uiMessages.value = [...older, ...this.uiMessages.value];
+      }
+      this.historyHasMore.value = Boolean(res.data.has_more);
+      this.historyNextBefore.value = res.data.next_before ?? null;
+      await nextTick();
+      if (el) {
+        el.scrollTop = el.scrollHeight - previousHeight + previousTop;
+      }
+    } catch {
+      MessagePlugin.error(this.localeStore.t.aiChat.loadHistoryFailed);
+    } finally {
+      this.historyLoading.value = false;
     }
   };
 
@@ -517,6 +585,8 @@ export class AiChatModel extends BaseModel {
       const conv = res.data.conversation;
       this.currentConversationId.value = conv.id;
       this.uiMessages.value = [];
+      this.historyHasMore.value = false;
+      this.historyNextBefore.value = null;
       await this.loadConversations();
     } catch {
       MessagePlugin.error(this.localeStore.t.aiChat.createConversationFailed);
@@ -536,6 +606,8 @@ export class AiChatModel extends BaseModel {
       if (id === this.currentConversationId.value) {
         this.currentConversationId.value = '';
         this.uiMessages.value = [];
+        this.historyHasMore.value = false;
+        this.historyNextBefore.value = null;
       }
       await this.loadConversations();
     } catch {
@@ -855,6 +927,9 @@ export class AiChatModel extends BaseModel {
       const conv: ChatConversation = res.data.conversation;
       this.currentConversationId.value = conv.id;
       this.uiMessages.value = this.convertToUiMessages(conv.messages);
+      // fork 接口直接返回分支会话的全部消息，不需要再向上翻页
+      this.historyHasMore.value = false;
+      this.historyNextBefore.value = null;
       MessagePlugin.success(this.localeStore.t.aiChat.forkSuccess);
       await this.loadConversations();
       void this.scrollToBottom();

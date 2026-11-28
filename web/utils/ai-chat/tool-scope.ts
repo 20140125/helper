@@ -11,12 +11,13 @@ export interface ToolScopeResult {
   full: boolean;
 }
 
-/** 所有场景都保留的基础工具：说明书、委派、审批、页面链接 */
+/** 所有场景都保留的基础工具：说明书、委派、审批、页面链接、当前用户身份 */
 const ALWAYS_TOOL_NAMES: string[] = [
   'load_skill',
   'delegate_task',
   'request_approval',
   'query_pages',
+  'query_current_user',
 ];
 
 /** 各场景工具包，尽量按 web/skills/* 的 tools 声明分组并补充易混工具 */

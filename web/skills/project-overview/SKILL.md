@@ -79,6 +79,7 @@ reminder_daemon.sh（按 schedule_config 到点）
 - **数据库是唯一真源**，业务数据按缓存键存放在 MySQL，`.cache/` 缓存文件已删除；Web 与 shell 分别经 `cache-store.ts` / `cache_db.sh` 读写
 - 卡片渲染链路：脚本取数 → SVG → `rsvg-convert` → PNG（缺 `rsvg-convert` 会出不了图）
 - 脚本里发消息统一走 `send_wecom_message`，不要各写各的 curl
+- 页面清单真源是 `hp_nav_items`（侧边栏菜单 + 贾维斯入口导航），新增页面要在 `/navigation-admin` 登记；前端路由 meta 只管权限校验与兜底标签
 - 改前端源码（含 CSS）后，9527 生产模式需 `cd web/frontend && npm run build` 重建 `web/public/`；5173 开发模式自动热更新
 - 改 `docs/` / `knowledge/` 后重跑 `npm run knowledge:sql`（同步现有库加 `--apply`）；新增 i18n 文案后重跑 `npm run i18n:sql`
 

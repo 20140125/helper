@@ -93,3 +93,61 @@ export interface UpdateI18nMessageResponse {
   /** 提示信息 */
   message: string;
 }
+
+/** 中英对照的一条文案（同一 key 的 zh / en 合并成一行） */
+export interface I18nPair {
+  /** 键路径 */
+  keyPath: string;
+  /** 一级命名空间 */
+  namespace: string;
+  /** 中文文案 */
+  zh: string;
+  /** 英文文案 */
+  en: string;
+  /** 是否含插值函数（只读） */
+  hasFunction: boolean;
+  /** 出现顺序 */
+  sortOrder: number;
+}
+
+/** 中英对照列表结果 */
+export interface I18nPairList {
+  /** 当前页记录 */
+  items: I18nPair[];
+  /** 过滤后的总条数（按 key 去重） */
+  total: number;
+  /** 可用命名空间 */
+  namespaces: string[];
+}
+
+/** 中英对照列表查询参数 */
+export interface I18nPairQuery {
+  /** 命名空间 */
+  namespace?: string;
+  /** 键路径 / 中文 / 英文关键字 */
+  keyword?: string;
+  /** 每页条数 */
+  limit?: number;
+  /** 偏移量 */
+  offset?: number;
+}
+
+/** 中英对照列表响应 */
+export interface I18nPairsResponse {
+  /** 业务状态码 */
+  code: number;
+  /** 响应数据 */
+  data: { result: I18nPairList };
+  /** 提示信息 */
+  message: string;
+}
+
+/** 一次保存中英文两条文案的响应 */
+export interface UpdateI18nPairResponse {
+  /** 业务状态码 */
+  code: number;
+  /** 响应数据 */
+  data: { keyPath: string };
+  /** 提示信息 */
+  message: string;
+}

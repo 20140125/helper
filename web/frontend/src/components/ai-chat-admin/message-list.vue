@@ -1,9 +1,9 @@
 <template>
   <div class="message-list">
-    <div v-if="messages.length === 0" class="message-empty">{{ t.aiChatAdmin.messagesEmpty }}</div>
+    <div v-if="visibleMessages.length === 0" class="message-empty">{{ t.aiChatAdmin.messagesEmpty }}</div>
 
     <div
-      v-for="message in messages"
+      v-for="message in visibleMessages"
       :key="message.seq"
       :class="['message-card', inRun(message) ? 'is-in-run' : '']"
     >
@@ -12,27 +12,40 @@
         <t-tag :theme="roleTheme(message.role)" variant="light" size="small">
           {{ roleLabel(message.role) }}
         </t-tag>
-        <span v-if="message.name" class="message-tool-name">{{ message.name }}</span>
+        <span v-if="message.name || extractToolResultName(message.content)" class="message-tool-name">
+          {{ message.name || extractToolResultName(message.content) }}
+        </span>
         <span class="message-time">{{ formatAiTime(message.created_at) }}</span>
         <span v-if="message.total_tokens > 0" class="message-tokens">
           {{ t.aiChatAdmin.messageTokens(formatAiTokens(message.total_tokens)) }}
         </span>
-        <t-tag v-if="inRun(message)" theme="primary" variant="light" size="small">
+        <t-tag v-if="inRun(message) && !allInRun" theme="primary" variant="light" size="small">
           {{ t.aiChatAdmin.messageInRun }}
         </t-tag>
       </div>
 
       <details v-if="message.tool_calls" class="message-detail">
         <summary>{{ t.aiChatAdmin.messageToolCalls }}</summary>
-        <pre class="code-block">{{ prettifyAiText(message.tool_calls) }}</pre>
+        <pre class="code-output message-code">{{ prettifyAiText(message.tool_calls) }}</pre>
       </details>
-      <pre v-if="message.content" class="code-block message-content">{{ prettifyAiText(message.content) }}</pre>
+      <details v-if="isLongAiText(message.content)" class="message-content-block" open>
+        <summary>{{ t.aiChatAdmin.messageContent }}</summary>
+        <pre class="code-output message-content">{{ prettifyAiText(message.content) }}</pre>
+      </details>
+      <pre v-else-if="message.content" class="code-output message-content">{{ prettifyAiText(message.content) }}</pre>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { formatAiTime, formatAiTokens, prettifyAiText } from '@/utils/ai-chat-admin';
+import { computed } from 'vue';
+import {
+  formatAiTime,
+  formatAiTokens,
+  prettifyAiText,
+  extractToolResultName,
+  isLongAiText,
+} from '@/utils/ai-chat-admin';
 import type { Locale } from '@/types/locale';
 import type { AiChatAdminMessage } from '@/types/ai-chat-admin';
 
@@ -56,6 +69,22 @@ const inRun = (message: AiChatAdminMessage): boolean => {
   if (!message.created_at) return false;
   return message.created_at >= props.runStart - 1000 && message.created_at <= props.runEnd + 1000;
 };
+
+/**
+ * 需要展示的消息
+ * @description 工具调用轮的 assistant 消息正文为空，历史数据又没落 tool_calls，
+ *   这类空壳消息会渲染成一叠重复卡片；正文、工具调用、工具名、token 全空时直接隐藏。
+ */
+const visibleMessages = computed<AiChatAdminMessage[]>(() => props.messages.filter((message) =>
+  Boolean(message.content.trim())
+  || Boolean(message.tool_calls)
+  || Boolean(message.name)
+  || message.total_tokens > 0
+));
+
+/** 可见消息是否都属于本次运行：是则不再逐条打「本次运行」标签 */
+const allInRun = computed<boolean>(() => visibleMessages.value.length > 0
+  && visibleMessages.value.every((message) => inRun(message)));
 
 /**
  * 角色标签主题
@@ -86,6 +115,8 @@ const roleLabel = (role: string): string => {
 </script>
 
 <style scoped>
+@import '@/styles/common.css';
+
 .message-empty {
   padding: 24px 0;
   text-align: center;
@@ -133,12 +164,25 @@ const roleLabel = (role: string): string => {
   color: var(--text-secondary);
 }
 
-.message-detail summary {
+.message-detail summary,
+.message-content-block > summary {
   cursor: pointer;
 }
 
+.message-content-block > summary {
+  margin-top: 8px;
+  color: var(--text-secondary);
+}
+
+.message-code,
 .message-content {
-  max-height: 320px;
+  max-height: 360px;
+  overflow: auto;
+  border-radius: 4px;
+  background: var(--bg-primary);
+}
+
+.message-content {
   margin-top: 8px;
 }
 </style>

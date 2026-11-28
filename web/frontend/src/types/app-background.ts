@@ -29,6 +29,16 @@ export interface AppBackgroundUploadResponse {
   message: string;
 }
 
+/** 保存背景响应（返回库内图片的站内短地址） */
+export interface AppBackgroundSaveResponse {
+  /** 业务状态码 */
+  code: number;
+  /** 响应数据 */
+  data: { url: string };
+  /** 提示信息 */
+  message: string;
+}
+
 /** 设置 / 清除背景响应 */
 export interface AppBackgroundMutationResponse {
   /** 业务状态码 */

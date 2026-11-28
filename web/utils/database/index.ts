@@ -53,6 +53,8 @@ export {
   readAllI18nTranslations,
   listI18nMessages,
   updateI18nMessage,
+  listI18nPairs,
+  updateI18nPair,
 } from './i18n';
 export {
   listCacheAdminTables,

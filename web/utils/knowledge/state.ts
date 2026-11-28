@@ -1,6 +1,6 @@
 // ==============================
 // 知识库运行时状态（数据库快照）
-// @description 启动时按 content_hash 把系统文档增量回灌并加载内存快照；数据库异常直接向上返回
+// @description 启动时从 hp_knowledge_docs 全量加载内存快照；数据库异常直接向上返回
 // ==============================
 import {
   KNOWLEDGE_USER_DIR,
@@ -8,13 +8,9 @@ import {
   type KnowledgeDocEntry,
   type KnowledgeDocRecord,
 } from '@/types/knowledge';
-import {
-  ensureKnowledgeDocSchema,
-  listKnowledgeDocRows,
-  upsertKnowledgeDocRows,
-} from '@/utils/database';
+import { ensureKnowledgeDocSchema, listKnowledgeDocRows } from '@/utils/database';
 import { readKnowledgeDirs } from './dirs';
-import { normalizeKnowledgeDocPath, scanKnowledgeFileDocs } from './files';
+import { normalizeKnowledgeDocPath } from './files';
 
 /** 从数据库加载的知识文档快照 */
 let snapshot: KnowledgeDocRecord[] = [];
@@ -43,23 +39,14 @@ const toKnowledgeDoc = (row: KnowledgeDocRecord): KnowledgeDoc => ({
 });
 
 /**
- * 初始化知识库：建表 → 按文件增量同步 → 加载数据库快照
+ * 初始化知识库：建表 → 加载数据库快照
  * @returns {Promise<number>} 载入的文档数；数据库不可用时错误直接向上抛出
- * @description 系统文档按 content_hash 差异回灌，用户文档只在库中缺失时补种，
- *   不会覆盖管理页 / 贾维斯编辑过的用户文档正文
+ * @description 文档真源是 hp_knowledge_docs，项目根不再保留 Markdown 镜像，
+ *   因此不再扫描文件回灌；全新库由 sql/knowledge/38_knowledge_docs.sql 导入种子
  */
 export const initKnowledgeDocs = async (): Promise<number> => {
   await ensureKnowledgeDocSchema();
-  const existing = await listKnowledgeDocRows();
-  const existingByPath = new Map(existing.map((row) => [row.doc_path, row]));
-  const files = scanKnowledgeFileDocs((await readKnowledgeDirs()).dirs);
-  const stale = files.filter((seed) => {
-    const current = existingByPath.get(seed.doc_path);
-    if (!current) return true;
-    return seed.is_system === 1 && current.content_hash !== seed.content_hash;
-  });
-  if (stale.length > 0) await upsertKnowledgeDocRows(stale);
-  snapshot = stale.length > 0 ? await listKnowledgeDocRows() : existing;
+  snapshot = await listKnowledgeDocRows();
   return snapshot.length;
 };
 

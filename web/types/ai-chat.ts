@@ -53,8 +53,15 @@ export type ChatContentPart =
   | { type: 'text'; text: string }
   | { type: 'image_url'; image_url: { url: string } };
 
-/** 单会话最大保留消息数（超出滑动窗口截断） */
-export const MAX_MESSAGES_PER_CONVERSATION = 50;
+/**
+ * 单次请求发给 LLM 的最大上下文消息数
+ * @description 会话持久化保留全部历史，支持向上翻到第一条；
+ *   只在 /send 构造模型输入时取最近 N 条，避免历史无限增长撑爆 token。
+ */
+export const LLM_CONTEXT_MESSAGE_LIMIT = 50;
+
+/** 聊天抽屉每次向上翻页加载的历史消息条数 */
+export const CHAT_HISTORY_PAGE_SIZE = 30;
 
 /** 单次响应最大 token 数 */
 export const DEFAULT_MAX_TOKENS = 4096;
@@ -202,6 +209,16 @@ export interface ChatConversation {
   created_at: number;
   /** 更新时间戳（ms） */
   updated_at: number;
+}
+
+/** 会话消息分页结果（向上翻历史用） */
+export interface ChatConversationPage {
+  /** 当前页会话（messages 为本页消息，按 seq 升序） */
+  conversation: ChatConversation;
+  /** 是否还有更早的消息 */
+  has_more: boolean;
+  /** 下一页游标：本次返回的最早消息 seq，作为下次请求的 before */
+  next_before: number | null;
 }
 
 /** 会话摘要（列表用） */

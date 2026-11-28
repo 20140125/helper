@@ -58,6 +58,24 @@
               @select-conversation="selectConversation"
             />
 
+            <!-- 向上翻页：还有历史时显示加载入口，滚动到顶部也会自动加载 -->
+            <div v-if="uiMessages.length > 0" class="ai-chat-history-bar">
+              <t-button
+                v-if="historyHasMore && !historyLoading"
+                variant="text"
+                size="small"
+                @click="loadMoreHistory"
+              >
+                {{ t.aiChat.loadEarlier }}
+              </t-button>
+              <span v-else-if="historyLoading" class="ai-chat-history-hint">
+                {{ t.aiChat.loadingHistory }}
+              </span>
+              <span v-else-if="!historyHasMore" class="ai-chat-history-hint">
+                {{ t.aiChat.noMoreHistory }}
+              </span>
+            </div>
+
             <!--
               消息列表：使用模板循环 + 时间分组分隔条
               -----------------------------------------------------------------
@@ -191,6 +209,9 @@ const {
   copyMessageById,
   isCopied,
   autoFollow,
+  historyHasMore,
+  historyLoading,
+  loadMoreHistory,
   scrollToBottom,
   openDrawer,
   closeDrawer,
@@ -319,6 +340,19 @@ onBeforeUnmount(() => {
   justify-content: center;
   margin: 16px 0 8px;
   user-select: none;
+}
+
+.ai-chat-history-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 4px 0;
+}
+
+.ai-chat-history-hint {
+  font-size: 11px;
+  color: var(--text-muted, #999);
 }
 
 .ai-chat-time-separator > span {

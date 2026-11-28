@@ -1,6 +1,5 @@
 import {
   AI_CONVERSATIONS_PREFIX,
-  MAX_MESSAGES_PER_CONVERSATION,
   type ChatConversation,
   type ChatConversationSummary,
   type ChatMessage,
@@ -37,7 +36,7 @@ const userPrefix = (userEmail: string): string =>
  * @returns {boolean} 合法返回 true
  * @description 会话 ID 可能来自请求参数，拒绝路径穿越字符后再拼键
  */
-const isSafeConversationId = (conversationId: string): boolean =>
+export const isSafeConversationId = (conversationId: string): boolean =>
   Boolean(conversationId)
   && !conversationId.includes('..')
   && !conversationId.includes('/')
@@ -94,12 +93,10 @@ export const readConversation = async (
  * 写入（覆盖）会话
  * @param {ChatConversation} conv - 会话对象
  * @returns {Promise<void>}
- * @description 滑动窗口：超出最大消息数时保留最近 N 条
+ * @description 保留全部历史消息，不再做 50 条滑动窗口裁剪，否则更早的回话会被物理删除、
+ *   无法向上翻到第一条；发给 LLM 的上下文窗口由 /send 单独裁剪。
  */
 export const writeConversation = async (conv: ChatConversation): Promise<void> => {
-  if (conv.messages.length > MAX_MESSAGES_PER_CONVERSATION) {
-    conv.messages = conv.messages.slice(-MAX_MESSAGES_PER_CONVERSATION);
-  }
   await writeCacheJson(conversationKey(conv.user, conv.id), conv);
 };
 

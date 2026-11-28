@@ -126,10 +126,12 @@ export { getOsRelease, getMemoryInfo, getDiskInfo, getSystemUptime, readDaemonPi
 export { handleFileUpload, handleSkinBackgroundUpload } from '@/utils/upload';
 export {
   handleAppBackgroundUpload,
+  handleAppBackgroundImage,
   readAppBackground,
   saveAppBackground,
   clearAppBackground,
   isSafeAppBackgroundUrl,
+  ensureAppBackgroundSchema,
 } from '@/utils/app-background';
 export {
   normalizeSurfaceOpacity,
@@ -259,6 +261,7 @@ export type {
 export {
   listConversations,
   readConversation,
+  readConversationPage,
   createConversation,
   deleteConversation,
   writeConversation,
@@ -340,6 +343,8 @@ export {
   readAllI18nTranslations,
   listI18nMessages,
   updateI18nMessage,
+  listI18nPairs,
+  updateI18nPair,
 } from '@/utils/database';
 export type {
   I18nLang,
@@ -348,6 +353,9 @@ export type {
   I18nMessage,
   I18nMessageList,
   I18nMessageQuery,
+  I18nPair,
+  I18nPairList,
+  I18nPairQuery,
   I18nValueType,
 } from '@/types/i18n';
 
@@ -411,3 +419,17 @@ export type {
   AiChatAdminMessage,
   AiChatAdminRunDetail,
 } from '@/types/ai-chat-admin';
+
+// 侧边栏导航与页面注册表（数据库唯一真源）
+export {
+  listNavigation,
+  filterNavigationForUser,
+  normalizeNavGroup,
+  normalizeNavItem,
+  saveNavGroup,
+  saveNavItem,
+  deleteNavGroup,
+  deleteNavItem,
+  ensureNavigationSchema,
+} from '@/utils/navigation';
+export type { NavGroup, NavItem, NavData } from '@/types/navigation';

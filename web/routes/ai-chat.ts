@@ -5,6 +5,7 @@ import {
   ErrorCode,
   listConversations,
   readConversation,
+  readConversationPage,
   createConversation,
   deleteConversation,
   writeConversation,
@@ -56,6 +57,8 @@ import {
   DEFAULT_IMAGE_QUESTION,
   MAX_IMAGE_DATA_URL_CHARS,
   MAX_IMAGES_PER_MESSAGE,
+  LLM_CONTEXT_MESSAGE_LIMIT,
+  CHAT_HISTORY_PAGE_SIZE,
 } from '@/types/ai-chat';
 import type {
   AgentRunTrace,
@@ -157,19 +160,31 @@ router.get('/conversations', async (req: Request, res: Response) => {
 // ──────────────────────────
 
 /**
- * 获取指定会话的完整消息列表
- * @route GET /conversations/:id
+ * 分页获取会话消息（聊天抽屉向上翻历史）
+ * @route GET /conversations/:id?before=<seq>&limit=30
+ * @description 不传 before 返回最近一页；has_more / next_before 供前端继续向上加载。
+ *   页边界会对齐到 user 消息，避免拆散同一轮的 assistant + tool 结果。
  */
 router.get('/conversations/:id', async (req: Request, res: Response) => {
   const { email } = getUser(req);
   if (!email) {
     return returnResponse(res, ErrorCode.UNAUTHORIZED, {}, '未识别到用户身份');
   }
-  const conv = await readConversation(email, req.params.id);
-  if (!conv) {
+  const rawBefore = Number(req.query.before);
+  const before = Number.isFinite(rawBefore) && rawBefore >= 0 ? Math.floor(rawBefore) : null;
+  const rawLimit = Number(req.query.limit);
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0
+    ? Math.min(100, Math.max(1, Math.floor(rawLimit)))
+    : CHAT_HISTORY_PAGE_SIZE;
+  const page = await readConversationPage(email, req.params.id, before, limit);
+  if (!page) {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, '会话不存在');
   }
-  return returnResponse(res, ErrorCode.SUCCESS, { conversation: conv } as Record<string, unknown>, '');
+  return returnResponse(res, ErrorCode.SUCCESS, {
+    conversation: page.conversation,
+    has_more: page.has_more,
+    next_before: page.next_before,
+  }, '');
 });
 
 // ──────────────────────────
@@ -853,9 +868,11 @@ router.post('/send', async (req: Request, res: Response) => {
   }
 
   // 6) 跑 Agent Loop，按事件转发到 SSE
+  //    落库保留全部历史，但只把最近 N 条上下文发给 LLM，避免历史无限增长撑爆 token
+  const contextMessages = conv.messages.slice(-LLM_CONTEXT_MESSAGE_LIMIT);
   try {
     const generator = runAgentLoop({
-      messages: [systemPrompt, ...conv.messages],
+      messages: [systemPrompt, ...contextMessages],
       context: { userEmail: email, userPermissions: permissions },
       tools: scopedTools,
       enableTools: enable_tools,
@@ -866,9 +883,12 @@ router.post('/send', async (req: Request, res: Response) => {
     });
     const { finalMessages, trace } = await pumpAgentEventsToSse(res, generator);
 
-    // 7) 落库：把 system 之外的最终消息列表写回会话（去掉 system prompt）
+    // 7) 落库：finalMessages = [system, ...contextMessages, ...本轮新增]
+    //    只把本轮新增追加到完整历史后面，避免用裁剪后的上下文覆盖掉更早的回话
     if (finalMessages) {
-      await replaceMessages(email, conv.id, finalMessages.filter((m) => m.role !== 'system'));
+      const persisted = finalMessages.filter((m) => m.role !== 'system');
+      const newMessages = persisted.slice(contextMessages.length);
+      await replaceMessages(email, conv.id, [...conv.messages, ...newMessages]);
     }
     // 8) Trace 落盘：成本 / 延迟 / 工具失败率的可观测数据源（失败不影响响应）
     if (trace) {

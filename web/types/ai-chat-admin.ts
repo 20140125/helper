@@ -52,6 +52,8 @@ export interface AiChatAdminRunQuery {
   page: number;
   /** 每页条数 */
   pageSize: number;
+  /** 是否只返回有落盘回话的运行（默认 true；false 时包含无回话的中断/空跑） */
+  onlyWithMessages?: boolean;
 }
 
 /** 运行列表分页结果 */

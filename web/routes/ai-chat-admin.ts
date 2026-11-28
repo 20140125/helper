@@ -44,9 +44,10 @@ const clampInt = (raw: unknown, fallback: number, min: number, max: number): num
 
 /**
  * 分页查询 AI 运行列表
- * @route GET /runs?days=30&scope=me|all&keyword=&page=1&pageSize=15
+ * @route GET /runs?days=30&scope=me|all&keyword=&page=1&pageSize=15&onlyWithMessages=true
  * @description scope=all 仅管理员生效，普通用户静默降级为 me，避免探测他人回话；
- *   列表不含 steps 明细，点开行时再走详情接口。
+ *   onlyWithMessages 默认 true，只返回有落盘回话的运行（中断/空跑点开没有内容），
+ *   传 false 可查看全部用于排障；列表不含 steps 明细，点开行时再走详情接口。
  */
 router.get('/runs', async (req: Request, res: Response) => {
   const { email, permissions } = getUser(req);
@@ -58,6 +59,7 @@ router.get('/runs', async (req: Request, res: Response) => {
   const keyword = typeof req.query.keyword === 'string' ? req.query.keyword.trim().slice(0, 100) : '';
   const page = clampInt(req.query.page, 1, 1, 10000);
   const pageSize = clampInt(req.query.pageSize, 15, 1, 100);
+  const onlyWithMessages = req.query.onlyWithMessages !== 'false';
   const to = Date.now();
 
   try {
@@ -68,6 +70,7 @@ router.get('/runs', async (req: Request, res: Response) => {
       keyword,
       page,
       pageSize,
+      onlyWithMessages,
     });
     return returnResponse(res, ErrorCode.SUCCESS, {
       items: result.items,
@@ -76,6 +79,7 @@ router.get('/runs', async (req: Request, res: Response) => {
       pageSize: result.pageSize,
       scope,
       days,
+      onlyWithMessages,
     }, '');
   } catch (err) {
     return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, `运行列表查询失败：${(err as Error).message}`);
@@ -97,7 +101,12 @@ router.get('/runs/:runId', async (req: Request, res: Response) => {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '运行 ID 无效');
   }
   try {
-    const detail = await getAiChatAdminRunDetail(runId, canSeeAll(permissions) ? undefined : email);
+    const messageScope = req.query.messageScope === 'conversation' ? 'conversation' : 'run';
+    const detail = await getAiChatAdminRunDetail(
+      runId,
+      canSeeAll(permissions) ? undefined : email,
+      messageScope,
+    );
     if (!detail) {
       return returnResponse(res, ErrorCode.NOT_FOUND, {}, '运行记录不存在');
     }

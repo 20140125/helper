@@ -2,8 +2,11 @@ import { BaseService } from './base-service';
 import type {
   I18nMessageQuery,
   I18nMessagesResponse,
+  I18nPairQuery,
+  I18nPairsResponse,
   I18nTranslationsResponse,
   UpdateI18nMessageResponse,
+  UpdateI18nPairResponse,
 } from '@/types/i18n';
 
 /**
@@ -61,6 +64,25 @@ export class I18nService extends BaseService {
   updateMessage = async (id: number, value: string): Promise<UpdateI18nMessageResponse> => {
     return this.put<UpdateI18nMessageResponse>(`/i18n/messages/${id}`, { value });
   };
+
+  /**
+   * 分页读取中英对照文案
+   * @param {I18nPairQuery} query - 命名空间、关键字与分页参数
+   * @returns {Promise<I18nPairsResponse>} 按 key 配对后的列表响应
+   * @description 中英文放在同一行，避免只改一种语言
+   */
+  fetchPairs = (query: I18nPairQuery): Promise<I18nPairsResponse> =>
+    this.get<I18nPairsResponse>('/i18n/pairs', { params: query });
+
+  /**
+   * 一次保存同一 key 的中英文两条文案
+   * @param {string} keyPath - 键路径
+   * @param {string} zh - 中文文案
+   * @param {string} en - 英文文案
+   * @returns {Promise<UpdateI18nPairResponse>} 保存结果
+   */
+  savePair = (keyPath: string, zh: string, en: string): Promise<UpdateI18nPairResponse> =>
+    this.put<UpdateI18nPairResponse>(`/i18n/pairs/${encodeURIComponent(keyPath)}`, { zh, en });
 }
 
 // ==============================

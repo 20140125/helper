@@ -91,10 +91,10 @@ const fileInput = ref<HTMLInputElement | null>(null);
 
 /**
  * 当前自定义背景图的缩略预览
- * @description backgroundUrl 是图片本体 data URL，已由服务端与前端工具函数双重校验
+ * @description 使用 Store 生成的短 Blob 地址，避免把 MB 级 data URL 拼进 CSS 被浏览器丢弃
  */
 const previewStyle = computed(() => ({
-  backgroundImage: `url("${skin.settings.backgroundUrl}")`,
+  backgroundImage: skin.backgroundObjectUrl ? `url("${skin.backgroundObjectUrl}")` : 'none',
 }));
 
 /**

@@ -119,7 +119,7 @@ export class PermissionRequestsModel extends BaseModel {
   columns: ComputedRef<Array<Record<string, unknown>>> = computed(() => {
     const t = this.localeStore.t;
     return [
-      { colKey: 'applicant', title: t.permissionRequests.colApplicant, width: 200 },
+      { colKey: 'applicant', title: t.permissionRequests.colApplicant, width: 210 },
       { colKey: 'fromPath', title: t.permissionRequests.colPage, minWidth: 160 },
       { colKey: 'reason', title: t.permissionRequests.colReason, minWidth: 140, ellipsis: true },
       { colKey: 'status', title: t.permissionRequests.colStatus, width: 100 },

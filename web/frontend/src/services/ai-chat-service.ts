@@ -85,17 +85,29 @@ export class AiChatService extends BaseService {
   };
 
   /**
-   * 获取指定会话详情
+   * 获取指定会话详情（支持向上翻页）
    * @param {string} id - 会话 ID
-   * @returns {Promise<ConversationResponse>} 会话详情响应
-   * @description 包含完整的消息列表（不含 system prompt）
+   * @param {number | null} [before] - 游标：加载 seq 小于该值的更早消息；不传则取最近一页
+   * @param {number} [limit] - 每页条数
+   * @returns {Promise<ConversationResponse>} 会话详情与下一页游标
+   * @description 消息列表不含 system prompt；has_more / next_before 供聊天抽屉向上滚动加载历史。
    * @example
    * const service = new AiChatService();
    * const result = await service.fetchConversation('conv_xxx');
    * console.log('消息数：', result.data.conversation.messages.length);
    */
-  fetchConversation = async (id: string): Promise<ConversationResponse> => {
-    return this.get<ConversationResponse>(`/ai-chat/conversations/${encodeURIComponent(id)}`);
+  fetchConversation = async (
+    id: string,
+    before?: number | null,
+    limit?: number,
+  ): Promise<ConversationResponse> => {
+    const query = new URLSearchParams();
+    if (before !== undefined && before !== null) query.set('before', String(before));
+    if (limit) query.set('limit', String(limit));
+    const suffix = query.toString();
+    return this.get<ConversationResponse>(
+      `/ai-chat/conversations/${encodeURIComponent(id)}${suffix ? `?${suffix}` : ''}`,
+    );
   };
 
   /**

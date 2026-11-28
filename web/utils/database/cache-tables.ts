@@ -666,6 +666,26 @@ export const deleteTableKey = async (key: string): Promise<void> => {
     );
     return;
   }
+  // 会话是「一行 hp_ai_conversations + N 行 hp_ai_messages」：
+  // 通用业务键的「写空 JSON」删除只会 UPSERT 出一条 0 条消息的空壳，列表与数据库仍能看到它。
+  // 这里真正删除两表记录，并按缓存键里的用户隔离，避免误删他人会话。
+  if (isConversationKey(key)) {
+    const id = key.slice(key.lastIndexOf('/') + 1, -5);
+    const user = key.slice('ai-conversations/'.length, key.lastIndexOf('/'));
+    const conn = await getPool().getConnection();
+    try {
+      await conn.beginTransaction();
+      await conn.execute('DELETE FROM hp_ai_messages WHERE conversation_id = ?', [id]);
+      await conn.execute('DELETE FROM hp_ai_conversations WHERE id = ? AND `user` = ?', [id, user]);
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+    return;
+  }
   if (!hasBusinessTable(key)) {
     await ensureCacheTables();
     await getPool().execute(`DELETE FROM \`${OTHER_TABLE}\` WHERE asset_key = ?`, [key]);

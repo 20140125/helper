@@ -6,7 +6,6 @@ import type { ToolImpl, ToolResult } from '@/types/ai-chat';
 /** 允许读取的目录（相对项目根），白名单之外一律拒绝 */
 const ALLOWED_DIRS = [
   'scripts',
-  'docs',
   'sql',
   'web/utils',
   'web/routes',

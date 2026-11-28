@@ -13,6 +13,12 @@ export const AI_CHAT_ADMIN_DAYS_VALUES: readonly number[] = [7, 14, 30, 60, 90];
 /** 拥有任一权限即可查看全量数据（与后端 ADMIN_LIKE_PERMISSIONS 保持一致） */
 export const AI_CHAT_ADMIN_PERMISSIONS: string[] = ['rbac:view', 'rbac:edit'];
 
+/** 回话内容范围：仅本次运行 */
+export const AI_CHAT_ADMIN_MESSAGE_SCOPE_RUN = 'run';
+
+/** 回话内容范围：完整会话 */
+export const AI_CHAT_ADMIN_MESSAGE_SCOPE_CONVERSATION = 'conversation';
+
 /** 详情面板 Tab 值 */
 export const AI_CHAT_ADMIN_TAB_STEPS = 'steps';
 export const AI_CHAT_ADMIN_TAB_MESSAGES = 'messages';

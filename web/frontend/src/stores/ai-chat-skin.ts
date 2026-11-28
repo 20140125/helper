@@ -11,6 +11,7 @@ import {
   buildAiChatSkinStyle,
   normalizeAiChatSkinPresets,
   normalizeAiChatSkinSettings,
+  toAiChatSkinBlob,
 } from '@/utils/ai-chat';
 import type { AiChatSkinId, AiChatSkinPreset, AiChatSkinSettings } from '@/types/ai-chat-skin';
 import { useLocaleStore } from '@/stores/locale';
@@ -21,6 +22,35 @@ const skinService = new AiChatSkinService();
 /** 读取当前语言包中的皮肤文案 */
 const skinText = () => useLocaleStore().t.aiChat;
 
+/** 当前生效的背景图短地址（模块级，避免被 Pinia 代理成响应式状态） */
+let activeBackgroundUrl = '';
+/** 当前短地址对应的图片本体，用于复用与回收 */
+let activeBackgroundSource = '';
+
+/**
+ * 为背景图生成短 Blob 地址，并回收上一次的地址
+ * @param {string} dataUrl - 图片本体 data URL
+ * @returns {string} 可直接写进 CSS 的短地址；无图片或解码失败时返回空串
+ * @description 浏览器对单个 CSS 值有约 2MiB 上限，图片本体不能进 CSS 变量；
+ *   同一张图复用已有地址，图片变化时先 revoke 旧地址避免内存泄漏
+ */
+const createBackgroundObjectUrl = (dataUrl: string): string => {
+  if (dataUrl && dataUrl === activeBackgroundSource && activeBackgroundUrl) {
+    return activeBackgroundUrl;
+  }
+  if (activeBackgroundUrl) {
+    URL.revokeObjectURL(activeBackgroundUrl);
+    activeBackgroundUrl = '';
+    activeBackgroundSource = '';
+  }
+  if (!dataUrl || typeof URL === 'undefined' || !URL.createObjectURL) return '';
+  const blob = toAiChatSkinBlob(dataUrl);
+  if (!blob) return '';
+  activeBackgroundUrl = URL.createObjectURL(blob);
+  activeBackgroundSource = dataUrl;
+  return activeBackgroundUrl;
+};
+
 /**
  * 贾维斯皮肤全局 Store 类
  * @description 管理数据库预设定义、当前用户配置及其加载/切换/上传，供抽屉与设置面板共享
@@ -28,6 +58,8 @@ const skinText = () => useLocaleStore().t.aiChat;
 export class AiChatSkinStore {
   /** 当前用户皮肤配置 */
   settings: Ref<AiChatSkinSettings> = ref({ ...DEFAULT_AI_CHAT_SKIN_SETTINGS });
+  /** 自定义背景图的短地址，供 CSS 变量与缩略预览使用 */
+  backgroundObjectUrl: Ref<string> = ref('');
   /** 内置皮肤预设（数据库真源；接口不可用时用常量兜底） */
   presets: Ref<AiChatSkinPreset[]> = ref([...AI_CHAT_SKIN_PRESETS]);
   /** 是否正在读取皮肤配置 */
@@ -44,8 +76,23 @@ export class AiChatSkinStore {
    * @description 由 utils/ai-chat/skin.ts 结合数据库预设计算，绑定到抽屉根节点后只影响聊天窗口子树
    */
   skinStyle: ComputedRef<Record<string, string>> = computed(
-    () => buildAiChatSkinStyle(this.settings.value, this.presets.value),
+    () => buildAiChatSkinStyle(
+      this.settings.value,
+      this.presets.value,
+      this.backgroundObjectUrl.value,
+    ),
   );
+
+  /**
+   * 统一写入皮肤配置并同步背景图短地址
+   * @param {AiChatSkinSettings} next - 目标皮肤配置
+   * @returns {void}
+   * @description 所有配置写入都经过此处，保证图片本体与 CSS 短地址始终一致
+   */
+  applySettings = (next: AiChatSkinSettings): void => {
+    this.backgroundObjectUrl.value = createBackgroundObjectUrl(next.backgroundUrl);
+    this.settings.value = next;
+  };
 
   /**
    * 加载皮肤预设与当前用户配置
@@ -64,9 +111,9 @@ export class AiChatSkinStore {
       ]);
       const normalized = presetsRes ? normalizeAiChatSkinPresets(presetsRes.data.presets) : [];
       this.presets.value = normalized.length ? normalized : [...AI_CHAT_SKIN_PRESETS];
-      this.settings.value = skinRes
+      this.applySettings(skinRes
         ? normalizeAiChatSkinSettings(skinRes.data.skin, this.presets.value)
-        : { ...DEFAULT_AI_CHAT_SKIN_SETTINGS };
+        : { ...DEFAULT_AI_CHAT_SKIN_SETTINGS });
     } finally {
       this.loading.value = false;
       this.loaded.value = true;
@@ -121,14 +168,14 @@ export class AiChatSkinStore {
    */
   persist = async (next: AiChatSkinSettings): Promise<void> => {
     const previous = { ...this.settings.value };
-    this.settings.value = next;
+    this.applySettings(next);
     this.saving.value = true;
     try {
       const res = await skinService.saveSkin(next);
-      this.settings.value = normalizeAiChatSkinSettings(res.data.skin, this.presets.value);
+      this.applySettings(normalizeAiChatSkinSettings(res.data.skin, this.presets.value));
       MessagePlugin.success(skinText().skinApplied);
     } catch {
-      this.settings.value = previous;
+      this.applySettings(previous);
       MessagePlugin.error(skinText().skinSaveFailed);
     } finally {
       this.saving.value = false;

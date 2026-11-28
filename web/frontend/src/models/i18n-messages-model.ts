@@ -1,165 +1,102 @@
 import { computed, onMounted, onBeforeUnmount, ref, type Ref, type ComputedRef } from 'vue';
+import { useRoute } from 'vue-router';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { BaseModel } from '@/models/base-model';
 import { I18nService } from '@/services/i18n-service';
-import { I18N_DEFAULT_NAMESPACE, I18N_LANG_CODES, I18N_MESSAGES_PAGE_SIZE } from '@/constants/i18n-messages';
-import type { AutoFormField } from '@/types/auto-form';
-import type { I18nLang, I18nMessage } from '@/types/i18n';
+import { I18N_PAIRS_PAGE_SIZE } from '@/constants/i18n-messages';
+import type { I18nPair } from '@/types/i18n';
 import { Permission } from '@/types/permission';
 
 /**
  * 语言包管理页面数据模型类
- * @description 管理语言切换、命名空间/关键字筛选、分页与静态文案编辑，保存后刷新语言 Store
+ * @description 按 key 把 zh / en 合并成一行对照编辑，一次保存写两条，避免只改一种语言；
+ *   保留命名空间 / 关键字筛选与分页，保存后刷新 LocaleStore 立即生效。
  */
 export class I18nMessagesModel extends BaseModel {
-  /**
-   * i18n 语言包服务实例
-   * @type {I18nService}
-   * @description 封装运行时语言包与管理页读写接口
-   */
+  /** i18n 服务实例 */
   service: I18nService = new I18nService();
 
-  /**
-   * 当前页记录
-   * @type {Ref<I18nMessage[]>}
-   * @description 由列表接口返回，按语言包顺序排列
-   */
-  rows: Ref<I18nMessage[]> = ref([]);
+  /** 当前路由（支持从 ?namespace=aiChat 直接定位 AI 面板文案） */
+  private route = useRoute();
 
-  /**
-   * 过滤后的总条数
-   * @type {Ref<number>}
-   * @description 供分页组件显示总页数
-   */
+  /** 当前页的中英对照记录 */
+  rows: Ref<I18nPair[]> = ref([]);
+
+  /** 过滤后的总条数（按 key 去重） */
   total: Ref<number> = ref(0);
 
-  /**
-   * 当前语言下的命名空间清单
-   * @type {Ref<string[]>}
-   * @description 由列表接口一并返回，随语言切换刷新
-   */
+  /** 可用命名空间清单 */
   namespaces: Ref<string[]> = ref([]);
 
-  /**
-   * 当前筛选语言
-   * @type {Ref<I18nLang>}
-   * @description 默认中文，与运行时语言切换相互独立
-   */
-  lang: Ref<I18nLang> = ref('zh');
-
-  /**
-   * 当前筛选命名空间
-   * @type {Ref<string>}
-   * @description 默认 I18N_DEFAULT_NAMESPACE，不提供「全部分组」选项
-   */
-  namespace: Ref<string> = ref(I18N_DEFAULT_NAMESPACE);
-
-  /**
-   * 键路径 / 文案关键字
-   * @type {Ref<string>}
-   * @description 提交搜索时才参与查询，输入过程不触发请求
-   */
-  keyword: Ref<string> = ref('');
-
-  /**
-   * 固定返回条数（默认查询参数，页面不分页）
-   * @type {number}
-   * @description 与后端 I18N_MESSAGES_PAGE_SIZE 对齐，配合筛选与关键字定位
-   */
-  readonly defaultLimit: number = I18N_MESSAGES_PAGE_SIZE;
-
-  /**
-   * 编辑抽屉显示状态
-   * @type {Ref<boolean>}
-   * @description true 表示抽屉打开
-   */
-  drawerVisible: Ref<boolean> = ref(false);
-
-  /**
-   * 保存中标记
-   * @type {Ref<boolean>}
-   * @description 控制抽屉确认按钮 loading
-   */
-  saving: Ref<boolean> = ref(false);
-
-  /**
-   * 当前编辑的记录
-   * @type {Ref<I18nMessage | null>}
-   * @description null 表示未选中记录
-   */
-  editing: Ref<I18nMessage | null> = ref(null);
-
-  /**
-   * 编辑表单数据
-   * @type {Ref<Record<string, unknown>>}
-   * @description 仅包含 value 字段，提交时读取
-   */
-  formData: Ref<Record<string, unknown>> = ref({ value: '' });
-
-  /**
-   * 语言下拉选项
-   * @type {ComputedRef<Array<{ label: string; value: I18nLang }>>}
-   * @description 跟随界面语言切换显示中文或英文标签
-   */
-  langOptions: ComputedRef<Array<{ label: string; value: I18nLang }>> = computed(() => {
-    const { t } = this.localeStore;
-    return I18N_LANG_CODES.map((code) => ({
-      label: code === 'zh' ? t.i18nMessages.langZh : t.i18nMessages.langEn,
-      value: code,
-    }));
-  });
-
-  /**
-   * 命名空间下拉选项
-   * @type {ComputedRef<Array<{ label: string; value: string }>>}
-   * @description 首项为「全部」，其余取当前语言的命名空间
-   */
-  namespaceOptions: ComputedRef<Array<{ label: string; value: string }>> = computed(() =>
-    this.namespaces.value.map((ns) => ({ label: ns, value: ns })),
+  /** 当前筛选命名空间，空串表示全部分组 */
+  namespace: Ref<string> = ref(
+    typeof this.route.query.namespace === 'string' ? this.route.query.namespace : '',
   );
 
-  /**
-   * 编辑表单字段
-   * @type {ComputedRef<AutoFormField[]>}
-   * @description 单个多行文本框，提交时校验必填
-   */
-  fields: ComputedRef<AutoFormField[]> = computed(() => {
-    const { t } = this.localeStore;
-    return [{
-      name: 'value',
-      label: t.i18nMessages.fieldValue,
-      type: 'textarea',
-      placeholder: t.i18nMessages.fieldValuePlaceholder,
-      autosize: { minRows: 5, maxRows: 18 },
-      rules: [{ required: true, message: t.common.required }],
-    }];
+  /** 键路径 / 中文 / 英文关键字 */
+  keyword: Ref<string> = ref('');
+
+  /** 当前页码 */
+  page: Ref<number> = ref(1);
+
+  /** 每页条数 */
+  readonly pageSize: number = I18N_PAIRS_PAGE_SIZE;
+
+  /** 每行的中英文编辑草稿（keyPath → zh / en） */
+  draft: Ref<Record<string, { zh: string; en: string }>> = ref({});
+
+  /** 正在保存的键路径 */
+  savingKey: Ref<string> = ref('');
+
+  /** 命名空间下拉选项（首项为全部分组） */
+  namespaceOptions: ComputedRef<Array<{ label: string; value: string }>> = computed(() => [
+    { label: this.localeStore.t.i18nMessages.allNamespaces, value: '' },
+    ...this.namespaces.value.map((ns) => ({ label: ns, value: ns })),
+  ]);
+
+  /** 中英对照表格列 */
+  columns: ComputedRef<Array<Record<string, unknown>>> = computed(() => {
+    const t = this.localeStore.t.i18nMessages;
+    return [
+      { colKey: 'namespace', title: t.colNamespace, width: 140 },
+      { colKey: 'keyPath', title: t.colKeyPath, width: 260, ellipsis: true },
+      { colKey: 'zh', title: t.langZh, minWidth: 220 },
+      { colKey: 'en', title: t.langEn, minWidth: 220 },
+      { colKey: 'type', title: t.colType, width: 100 },
+      { colKey: 'actions', title: t.colActions, width: 100, fixed: 'right' as const },
+    ];
   });
 
-  /**
-   * 是否允许编辑文案
-   * @returns {boolean} 是否拥有 database:edit
-   * @description 页面查看已放开给所有登录用户，编辑仍由 database:view 推导出 database:edit 校验
-   */
+  /** 是否允许编辑文案（页面查看对所有登录用户开放，编辑需 database:edit） */
   canEditMessages = (): boolean => this.canEdit(Permission.DATABASE_VIEW);
 
   /**
-   * 加载当前筛选条件下的语言包条目
-   * @returns {Promise<void>} 无返回值
-   * @description 固定默认参数 limit=500、offset=0 一次返回；靠筛选与关键字缩小范围，页面不分页
+   * 判断某行中英文是否被改动
+   * @param {I18nPair} row - 文案行
+   * @returns {boolean} 有改动返回 true
    */
+  pairChanged = (row: I18nPair): boolean => {
+    const draft = this.draft.value[row.keyPath];
+    return Boolean(draft) && (draft.zh !== row.zh || draft.en !== row.en);
+  };
+
+  /** 加载当前筛选条件下的中英对照条目 */
   load = async (): Promise<void> => {
     this.pageLoading.value = true;
     try {
-      const res = await this.service.fetchMessages({
-        lang: this.lang.value,
-        namespace: this.namespace.value,
+      const res = await this.service.fetchPairs({
+        namespace: this.namespace.value || undefined,
         keyword: this.keyword.value.trim() || undefined,
-        limit: this.defaultLimit,
-        offset: 0,
+        limit: this.pageSize,
+        offset: (this.page.value - 1) * this.pageSize,
       });
-      this.rows.value = res.data.result.items;
-      this.total.value = res.data.result.total;
-      this.namespaces.value = res.data.result.namespaces;
+      const result = res.data.result;
+      this.rows.value = result.items;
+      this.total.value = result.total;
+      this.namespaces.value = result.namespaces;
+      this.draft.value = Object.fromEntries(
+        result.items.map((pair) => [pair.keyPath, { zh: pair.zh, en: pair.en }]),
+      );
     } catch (err) {
       this.rows.value = [];
       MessagePlugin.error((err as Error).message || this.localeStore.t.common.operationFailedRetry);
@@ -168,88 +105,60 @@ export class I18nMessagesModel extends BaseModel {
     }
   };
 
-  /**
-   * 刷新当前列表
-   * @returns {Promise<void>} 无返回值
-   * @description 顶部刷新按钮调用，保持当前筛选条件
-   */
+  /** 刷新当前列表 */
   refresh = (): Promise<void> => this.load();
 
-  /**
-   * 切换筛选语言
-   * @returns {void} 无返回值
-   * @description 语言变化时命名空间列表也随之变化，先清空命名空间再重新查询
-   */
-  handleLangChange = (): void => {
-    this.namespace.value = I18N_DEFAULT_NAMESPACE;
-    void this.load();
-  };
-
-  /**
-   * 切换筛选命名空间
-   * @returns {void} 无返回值
-   * @description 按新命名空间重新查询
-   */
+  /** 切换命名空间并回到第一页 */
   handleNamespaceChange = (): void => {
+    this.page.value = 1;
     void this.load();
   };
 
-  /**
-   * 提交关键字搜索
-   * @returns {void} 无返回值
-   * @description 仅在点击搜索或按下回车时请求，避免输入即校验/请求
-   */
+  /** 提交关键字搜索并回到第一页 */
   handleSearch = (): void => {
+    this.page.value = 1;
     void this.load();
   };
 
-  /**
-   * 重置筛选条件
-   * @returns {void} 无返回值
-   * @description 清空关键字与命名空间并重新查询，保留当前选择的语言
-   */
+  /** 重置筛选条件（回到全部分组） */
   resetFilters = (): void => {
     this.keyword.value = '';
-    this.namespace.value = I18N_DEFAULT_NAMESPACE;
+    this.namespace.value = '';
+    this.page.value = 1;
     void this.load();
   };
 
   /**
-   * 打开编辑抽屉
-   * @param {I18nMessage} row - 待编辑的记录
-   * @returns {void} 无返回值
-   * @description 仅允许编辑静态文案；函数型条目由 TS 语言包源码维护
+   * 翻页
+   * @param {{ current: number }} pagination - TDesign 分页上下文
+   * @returns {void}
    */
-  openEdit = (row: I18nMessage): void => {
-    if (!this.canEditMessages() || row.valueType !== 'text') return;
-    this.editing.value = row;
-    this.formData.value = { value: row.value };
-    this.drawerVisible.value = true;
+  onPageChange = (pagination: { current: number }): void => {
+    this.page.value = pagination.current;
+    void this.load();
   };
 
   /**
-   * 保存文案并刷新运行时语言包
-   * @returns {Promise<void>} 无返回值
-   * @description 写库成功后重新拉取列表与 LocaleStore，使当前会话立即使用新文案
+   * 一次保存中英文两条文案并刷新运行时语言包
+   * @param {I18nPair} row - 文案行
+   * @returns {Promise<void>}
+   * @description 函数型条目只读；保存时后端会补齐缺失的语言记录
    */
-  submitEdit = async (): Promise<void> => {
-    const row = this.editing.value;
-    if (!row) return;
-    const value = String(this.formData.value.value ?? '');
-    if (!value.trim()) {
-      MessagePlugin.warning(this.localeStore.t.common.required);
-      return;
-    }
-    this.saving.value = true;
+  savePair = async (row: I18nPair): Promise<void> => {
+    if (!this.canEditMessages() || row.hasFunction || !this.pairChanged(row)) return;
+    const draft = this.draft.value[row.keyPath];
+    if (!draft) return;
+    this.savingKey.value = row.keyPath;
     try {
-      await this.service.updateMessage(row.id, value);
+      await this.service.savePair(row.keyPath, draft.zh, draft.en);
+      row.zh = draft.zh;
+      row.en = draft.en;
+      await this.localeStore.reload();
       MessagePlugin.success(this.localeStore.t.common.saveSuccess);
-      this.drawerVisible.value = false;
-      await Promise.all([this.load(), this.localeStore.reload()]);
     } catch (err) {
       MessagePlugin.error((err as Error).message || this.localeStore.t.common.saveFailed);
     } finally {
-      this.saving.value = false;
+      this.savingKey.value = '';
     }
   };
 
@@ -264,7 +173,7 @@ export class I18nMessagesModel extends BaseModel {
 
 /**
  * Composition API 包装函数
- * @description 将 I18nMessagesModel 类包装为 Composition API 可用的函数
+ * @description 将 I18nMessagesModel 包装为页面可用的函数
  */
 export const useI18nMessagesModel = () => {
   const model = new I18nMessagesModel();

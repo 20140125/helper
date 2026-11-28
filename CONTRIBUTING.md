@@ -137,7 +137,7 @@ git commit -m "feat(scripts): 新增自定义规则执行脚本 custom_rules.sh"
 git commit -m "fix(workday): 修复 exit 0 与 log_info 拼在同一行的语法错误"
 
 # 文档更新
-git commit -m "docs: 更新 docs/ 目录下所有文档与当前脚本结构保持一致"
+git commit -m "docs: 在知识库管理页更新文档并重新导出种子 SQL"
 
 # 重构
 git commit -m "refactor(daemon): 整合 start_daemon.sh 和 stop_daemon.sh 为 daemon.sh"
@@ -225,8 +225,9 @@ cd web && npm run lint:fix
 - [ ] 代码通过 `bash -n` 语法检查
 - [ ] 新增脚本已加载 `project_config.sh` 和 `log_utils.sh`
 - [ ] 无硬编码路径，使用 `${PROJECT_DIR}` 变量
-- [ ] 相关文档已同步更新（`docs/`、`knowledge/`、`scripts/README.md`、`web/README.md`、根目录 `README.md`）
-- [ ] 改过 `docs/` / `knowledge/` 后已重跑 `npm run knowledge:sql`（同步现有库加 `--apply`）；新增 i18n 文案后已重跑 `npm run i18n:sql`
+- [ ] 相关文档已同步更新（知识库管理页中的文档、`scripts/README.md`、`web/README.md`、根目录 `README.md`）
+- [ ] 在知识库管理页 / 贾维斯改过文档后已重跑 `npm run knowledge:sql`（从数据库导出种子）；新增 i18n 文案后已重跑 `npm run i18n:sql`
+- [ ] 新增页面已同步 `hp_nav_items`（或经 `/navigation-admin` 维护），避免侧边栏菜单与贾维斯入口导航缺项
 - [ ] 改过前端源码（含 CSS）后已 `cd web/frontend && npm run build`（9527 生产模式托管构建产物）
 - [ ] `CHANGELOG` 已记录本次变更
 - [ ] 提交信息符合 Conventional Commits 规范

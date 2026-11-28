@@ -10,7 +10,7 @@
 
       <div v-if="detail.trace.error" class="run-error">
         <span class="run-error-label">{{ t.aiChatAdmin.metricError }}</span>
-        <pre class="code-block">{{ detail.trace.error }}</pre>
+        <pre class="code-output">{{ detail.trace.error }}</pre>
       </div>
 
       <t-tabs v-model="activeTab">
@@ -18,6 +18,15 @@
           <step-timeline :t="t" :steps="detail.trace.steps" />
         </t-tab-panel>
         <t-tab-panel :value="TAB_MESSAGES" :label="t.aiChatAdmin.tabMessages">
+          <div class="message-scope-bar">
+            <t-radio-group :value="messageScope" @change="(value: unknown) => emit('change-scope', String(value))">
+              <t-radio-button :value="SCOPE_RUN">{{ t.aiChatAdmin.messageInRun }}</t-radio-button>
+              <t-radio-button :value="SCOPE_CONVERSATION">
+                {{ t.aiChatAdmin.messageScopeConversation }}
+              </t-radio-button>
+            </t-radio-group>
+            <span class="message-scope-count">{{ t.aiChatAdmin.messageCount(detail.messages.length) }}</span>
+          </div>
           <message-list
             :t="t"
             :messages="detail.messages"
@@ -40,6 +49,8 @@ import {
   AI_CHAT_ADMIN_TAB_STEPS,
   AI_CHAT_ADMIN_TAB_MESSAGES,
   AI_CHAT_ADMIN_TAB_TOOLS,
+  AI_CHAT_ADMIN_MESSAGE_SCOPE_RUN,
+  AI_CHAT_ADMIN_MESSAGE_SCOPE_CONVERSATION,
 } from '@/constants/ai-chat-admin';
 import { formatAiDuration, formatAiTokens } from '@/utils/ai-chat-admin';
 import type { Locale } from '@/types/locale';
@@ -57,6 +68,13 @@ const props = defineProps<{
   loading: boolean;
   /** 按工具名聚合的调用统计 */
   toolStats: AiChatAdminToolStat[];
+  /** 回话内容范围：run=本次运行 / conversation=完整会话 */
+  messageScope: string;
+}>();
+
+const emit = defineEmits<{
+  /** 切换回话内容范围 */
+  (e: 'change-scope', value: string): void;
 }>();
 
 /** 详情面板当前 Tab */
@@ -65,6 +83,8 @@ const activeTab = ref<string>(AI_CHAT_ADMIN_TAB_STEPS);
 const TAB_STEPS = AI_CHAT_ADMIN_TAB_STEPS;
 const TAB_MESSAGES = AI_CHAT_ADMIN_TAB_MESSAGES;
 const TAB_TOOLS = AI_CHAT_ADMIN_TAB_TOOLS;
+const SCOPE_RUN = AI_CHAT_ADMIN_MESSAGE_SCOPE_RUN;
+const SCOPE_CONVERSATION = AI_CHAT_ADMIN_MESSAGE_SCOPE_CONVERSATION;
 
 /** 概览指标：本次运行的耗时、用量、工具与成本 */
 const metrics = computed<Array<{ label: string; value: string }>>(() => {
@@ -91,6 +111,8 @@ const metrics = computed<Array<{ label: string; value: string }>>(() => {
 </script>
 
 <style scoped>
+@import '@/styles/common.css';
+
 .run-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
@@ -119,6 +141,19 @@ const metrics = computed<Array<{ label: string; value: string }>>(() => {
   white-space: nowrap;
 }
 
+.message-scope-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.message-scope-count {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .run-error {
   margin-bottom: 18px;
   color: var(--td-error-color);
@@ -127,6 +162,13 @@ const metrics = computed<Array<{ label: string; value: string }>>(() => {
 .run-error-label {
   font-size: 12px;
   font-weight: 600;
+}
+
+.run-error .code-output {
+  max-height: 200px;
+  overflow: auto;
+  border-radius: 4px;
+  background: var(--bg-secondary);
 }
 
 .run-empty {

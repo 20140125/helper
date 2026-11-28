@@ -19,6 +19,7 @@ CREATE TABLE `hp_env_config` (
 INSERT INTO `hp_env_config` (`env_key`, `env_value`, `group_name`, `description`, `is_secret`, `sort_order`)
 VALUES ('DEFAULT_AUTH_CODE', '', '邮件/登录', '超级管理员默认验证码，留空即关闭', 0, 90);
 
--- 系统背景图：值为 /uploads/<文件名>，留空表示使用默认主题；由「系统配置 → 系统背景」上传写入
+-- 旧版系统背景图配置键：图片本体已改存 hp_app_background（42 号表），此行仅为兼容保留。
+-- 服务启动时由 ensureAppBackgroundSchema() 把旧值指向的 /uploads/bg-* 文件迁移入库后清空。
 INSERT INTO `hp_env_config` (`env_key`, `env_value`, `group_name`, `description`, `is_secret`, `sort_order`)
-VALUES ('APP_BACKGROUND_URL', '', '界面', '系统背景图地址（/uploads/xxx），留空表示使用默认主题', 0, 91);
+VALUES ('APP_BACKGROUND_URL', '', '界面', '旧版背景图地址（已废弃，图片现存 hp_app_background）', 0, 91);

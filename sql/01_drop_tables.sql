@@ -47,6 +47,9 @@ DROP TABLE IF EXISTS `hp_hot_search_snapshot`;
 --       避免全库重建把数据库里维护过的文案冲掉；见 sql/i18n/35_i18n_messages.sql
 -- 例外：hp_knowledge_docs 是知识库维护真源（用户文档可在管理页编辑），同样不删除表；
 --       初始化 / 同步按文件回灌系统文档、只补齐用户文档缺失项；见 sql/knowledge/38_knowledge_docs.sql
+-- 例外：hp_nav_groups / hp_nav_items 是导航维护真源（管理页可编辑），同样不删除表；
+--       41 号脚本用 CREATE TABLE IF NOT EXISTS + INSERT IGNORE 只补缺失项；见 sql/navigation/41_navigation.sql
 DROP TABLE IF EXISTS `hp_ai_chat_skins`;
 DROP TABLE IF EXISTS `hp_ai_chat_skin_presets`;
 DROP TABLE IF EXISTS `hp_user_appearance`;
+DROP TABLE IF EXISTS `hp_app_background`;

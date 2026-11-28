@@ -19,7 +19,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_DEPTH = 4;
 
 /** 参与索引的顶层目录 */
-const ROOT_DIRS = ['scripts', 'web', 'docs', 'sql'];
+const ROOT_DIRS = ['scripts', 'web', 'sql'];
 
 /** 参与索引的根目录散文件 */
 const ROOT_FILES = ['README.md', 'CHANGELOG', 'CONTRIBUTING.md'];

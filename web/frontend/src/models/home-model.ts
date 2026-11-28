@@ -10,6 +10,7 @@ import { THEME_STYLES } from '@/constants/theme';
 import { BaseModel, Permission } from '@/models/base-model';
 import enConfig from 'tdesign-vue-next/es/locale/en_US';
 import { useTabBarStore } from '@/stores/tab-bar';
+import { useNavigationStore } from '@/stores/navigation';
 
 /**
  * 首页数据模型类
@@ -54,6 +55,13 @@ export class HomeModel extends BaseModel {
    * @description 用于访问和修改 TabBar 配置
    */
   tabBarStore: ReturnType<typeof useTabBarStore> = useTabBarStore();
+
+  /**
+   * 侧边栏导航状态
+   * @type {ReturnType<typeof useNavigationStore>}
+   * @description 菜单显隐 / 分组 / 图标 / 顺序的数据库真源
+   */
+  navigationStore: ReturnType<typeof useNavigationStore> = useNavigationStore();
 
   // ==============================
   // 状态变量（ref）
@@ -100,10 +108,42 @@ export class HomeModel extends BaseModel {
   }
 
   /**
+   * 解析 i18n key 为当前语言文案
+   * @param {string} key - home.xxx / menu.xxx 形式的 key
+   * @returns {string} 当前语言文案，找不到时返回 key 本身
+   */
+  private resolveMenuLabel = (key: string): string => {
+    const [namespace, name] = key.includes('.') ? key.split('.', 2) : ['', key];
+    const dict = (namespace === 'home'
+      ? this.localeStore.t.home : this.localeStore.t.menu) as Record<string, string>;
+    return dict[name] ?? dict[key] ?? key;
+  };
+
+  /**
    * 所有菜单项列表（未过滤权限）
-   * @description 从路由配置派生菜单，保持单一数据源
+   * @description 优先读数据库导航表；接口未就绪时回退到路由派生，避免白屏
    */
   private get allMenuItems(): { value: string; label: string; icon: string; group?: string; permissions?: Permission[]; superAdminOnly?: boolean }[] {
+    const nav = this.navigationStore;
+    if (nav.loaded && nav.items.length > 0) {
+      const groupNames = new Map(
+        nav.groups.filter((g) => g.enabled).map((g) => [g.groupKey, this.resolveMenuLabel(g.labelKey)]),
+      );
+      return nav.items
+        .filter((item) => item.enabled && item.inMenu)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((item) => {
+          const resolved = this.resolveMenuLabel(item.labelKey);
+          return {
+            value: item.routeName,
+            label: resolved === item.labelKey ? item.labelZh : resolved,
+            icon: item.icon,
+            group: groupNames.get(item.groupKey),
+            permissions: item.permissionCode ? [item.permissionCode as Permission] : undefined,
+            superAdminOnly: item.superAdminOnly,
+          };
+        });
+    }
     const menu = this.localeStore.t.menu as Record<string, string>;
     const groupMap = this.GROUP_KEY_MAP;
     return router
@@ -142,9 +182,16 @@ export class HomeModel extends BaseModel {
 
   /**
    * 分组元信息（顺序、图标）
-   * @description 定义侧边栏分组的展示顺序和图标
+   * @description 优先读数据库分组表；接口未就绪时回退到内置顺序，避免白屏
    */
   private get GROUP_META(): { name: string; icon: string }[] {
+    const nav = this.navigationStore;
+    if (nav.groups.length > 0) {
+      return nav.groups
+        .filter((g) => g.enabled)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((g) => ({ name: this.resolveMenuLabel(g.labelKey), icon: g.icon }));
+    }
     const h = this.localeStore.t.home;
     return [
       { name: h.groupOverview, icon: 'dashboard' },

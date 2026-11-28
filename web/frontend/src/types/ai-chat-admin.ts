@@ -178,6 +178,8 @@ export interface AiChatAdminRunsParams {
   page?: number;
   /** 每页条数 */
   pageSize?: number;
+  /** 是否只显示有回话内容的运行（默认 true） */
+  onlyWithMessages?: boolean;
 }
 
 /** 运行列表响应 */
@@ -194,6 +196,8 @@ export type AiChatAdminRunsResponse = ApiResponse<{
   scope: string;
   /** 后端实际生效的天数 */
   days: number;
+  /** 后端实际生效的「仅显示有回话」开关 */
+  onlyWithMessages?: boolean;
 }>;
 
 /** 运行详情响应 */

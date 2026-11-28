@@ -81,3 +81,49 @@ export interface UpdateI18nMessageBody {
   /** 新的静态文案 */
   value?: string;
 }
+
+/** 中英对照的一条文案（按 key_path 把 zh / en 合并成一行） */
+export interface I18nPair {
+  /** 点号拼接的键路径 */
+  keyPath: string;
+  /** 一级命名空间 */
+  namespace: string;
+  /** 中文文案 */
+  zh: string;
+  /** 英文文案 */
+  en: string;
+  /** 是否含插值函数（只读） */
+  hasFunction: boolean;
+  /** 在语言包中的出现顺序 */
+  sortOrder: number;
+}
+
+/** 中英对照列表结果 */
+export interface I18nPairList {
+  /** 当前页记录 */
+  items: I18nPair[];
+  /** 过滤后的总条数（按 key 去重） */
+  total: number;
+  /** 可用命名空间 */
+  namespaces: string[];
+}
+
+/** 中英对照列表查询参数 */
+export interface I18nPairQuery {
+  /** 命名空间 */
+  namespace?: string;
+  /** 键路径 / 中文 / 英文关键字 */
+  keyword?: string;
+  /** 每页条数 */
+  limit?: number;
+  /** 偏移量 */
+  offset?: number;
+}
+
+/** 一次保存中英文两条文案的请求体 */
+export interface UpdateI18nPairBody {
+  /** 中文文案 */
+  zh?: string;
+  /** 英文文案 */
+  en?: string;
+}

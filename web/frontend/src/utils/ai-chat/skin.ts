@@ -144,16 +144,42 @@ const TDESIGN_VAR_MAP: Record<string, string> = {
 };
 
 /**
+ * 把校验过的图片 data URL 解码成 Blob
+ * @param {string} dataUrl - 图片本体 data URL
+ * @returns {Blob | null} 解码后的 Blob；格式非法或环境不支持时返回 null
+ * @description 浏览器对单个 CSS 自定义属性值有约 2MiB 上限，MB 级 data URL 不能
+ *   直接拼进 --ai-chat-bg-image；先还原成 Blob，再由 Store 生成短地址
+ */
+export const toAiChatSkinBlob = (dataUrl: string): Blob | null => {
+  if (typeof atob !== 'function' || typeof Blob === 'undefined') return null;
+  const matched = /^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/=]+)$/i.exec(dataUrl);
+  if (!matched) return null;
+  try {
+    const binary = atob(matched[2]);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: matched[1] });
+  } catch {
+    return null;
+  }
+};
+
+/**
  * 构建聊天抽屉的局部 CSS 变量
  * @param {AiChatSkinSettings} settings - 当前用户皮肤配置
  * @param {AiChatSkinPreset[]} presets - 数据库读取的预设列表
+ * @param {string} backgroundObjectUrl - 自定义背景图的短 Blob 地址（由 Store 生成）
  * @returns {Record<string, string>} 绑定到抽屉根节点与浮层的 CSS 变量
  * @description 无任何配色覆盖时返回空对象，完全沿用站点明暗主题；其余情况统一注入
- *   --ai-chat-*、项目通用变量与 TDesign 内部变量三层映射；自定义背景图叠加暗色遮罩
+ *   --ai-chat-*、项目通用变量与 TDesign 内部变量三层映射；自定义背景图叠加暗色遮罩。
+ *   背景图一律使用短地址，绝不把图片本体写进 CSS（超过浏览器 2MiB 上限会被静默丢弃）
  */
 export const buildAiChatSkinStyle = (
   settings: AiChatSkinSettings,
   presets: AiChatSkinPreset[],
+  backgroundObjectUrl: string = '',
 ): Record<string, string> => {
   const preset = presets.find((item) => item.skinKey === settings.skinId && item.enabled);
   const hasBackground = Boolean(
@@ -178,8 +204,10 @@ export const buildAiChatSkinStyle = (
   Object.assign(style, PROJECT_VAR_MAP, TDESIGN_VAR_MAP);
 
   if (hasBackground) {
-    style['--ai-chat-bg-image'] =
-      `linear-gradient(rgba(8, 12, 22, 0.55), rgba(8, 12, 22, 0.55)), url("${settings.backgroundUrl}")`;
+    if (backgroundObjectUrl) {
+      style['--ai-chat-bg-image'] =
+        `linear-gradient(rgba(8, 12, 22, 0.55), rgba(8, 12, 22, 0.55)), url("${backgroundObjectUrl}")`;
+    }
   } else if (preset?.bgImage) {
     style['--ai-chat-bg-image'] = preset.bgImage;
   }

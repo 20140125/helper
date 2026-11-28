@@ -23,6 +23,7 @@ import Database from '@/views/database.vue';
 import I18nMessages from '@/views/i18n-messages.vue';
 import CacheAdmin from '@/views/cache-admin.vue';
 import AmapGeocode from '@/views/amap-geocode.vue';
+import NavigationAdmin from '@/views/navigation-admin.vue';
 import Forbidden from '@/views/forbidden.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useBootstrapStore } from '@/stores/bootstrap';
@@ -143,7 +144,7 @@ const router = createRouter({
       component: AiChatAdmin,
       meta: {
         label: 'menu.aiChatAdmin',
-        icon: 'chart-analytics',
+        icon: 'chart-bubble',
         inMenu: true,
         menuGroup: 'operations',
         permissions: [Permission.AI_CHAT_VIEW],
@@ -221,6 +222,18 @@ const router = createRouter({
         inMenu: true,
         menuGroup: 'operations',
         permissions: [Permission.CACHE_VIEW],
+      } satisfies RouteMeta,
+    },
+    {
+      path: '/navigation-admin',
+      name: 'navigation-admin',
+      component: NavigationAdmin,
+      meta: {
+        label: 'menu.navigationAdmin',
+        icon: 'menu',
+        inMenu: true,
+        menuGroup: 'operations',
+        permissions: [Permission.CONFIG_VIEW],
       } satisfies RouteMeta,
     },
     // ---- 开发工具 ----

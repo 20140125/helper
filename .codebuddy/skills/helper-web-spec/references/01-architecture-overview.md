@@ -31,6 +31,8 @@
 
 按顺序创建：`types/ → services/ → models/ → views/ → router/`（可选 `stores/`，仅跨页面共享时）
 
+新增页面还要同步 `hp_nav_items`（或经 `/navigation-admin` 管理页维护）：路由名、路径、中文名、i18n key、分组、菜单显隐、图标、排序、权限码。侧边栏菜单与贾维斯 `query_pages` 都读这张表，只在 `router meta` 里写 `inMenu` 不会让页面出现在菜单中；接口不可用时 `home-model.ts` 才回退到路由派生。
+
 ---
 
 ## 新增后端路由流程

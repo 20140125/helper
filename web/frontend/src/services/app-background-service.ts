@@ -2,6 +2,7 @@ import { BaseService } from './base-service';
 import type {
   AppBackgroundMutationResponse,
   AppBackgroundResponse,
+  AppBackgroundSaveResponse,
   AppBackgroundUploadResponse,
 } from '@/types/app-background';
 
@@ -35,13 +36,13 @@ export class AppBackgroundService extends BaseService {
   };
 
   /**
-   * 设置系统背景
-   * @param {string} url - 上传返回的站内相对地址
-   * @returns {Promise<AppBackgroundMutationResponse>} 保存结果
-   * @description 服务端只接受 /uploads/<文件名> 格式，其余返回 400
+   * 保存系统背景图本体
+   * @param {string} url - 上传返回的图片本体 data URL
+   * @returns {Promise<AppBackgroundSaveResponse>} 保存结果（含站内短地址）
+   * @description 服务端把图片写入 hp_app_background，只返回几十字符的短地址
    */
-  saveBackground = (url: string): Promise<AppBackgroundMutationResponse> =>
-    this.put<AppBackgroundMutationResponse>('/app-background', { url });
+  saveBackground = (url: string): Promise<AppBackgroundSaveResponse> =>
+    this.put<AppBackgroundSaveResponse>('/app-background', { url });
 
   /**
    * 清除系统背景，恢复默认主题

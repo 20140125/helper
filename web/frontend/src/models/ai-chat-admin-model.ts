@@ -8,6 +8,7 @@ import {
   AI_CHAT_ADMIN_PAGE_SIZE,
   AI_CHAT_ADMIN_SCOPE_ALL,
   AI_CHAT_ADMIN_SCOPE_ME,
+  AI_CHAT_ADMIN_MESSAGE_SCOPE_RUN,
   AI_CHAT_ADMIN_DAYS_VALUES,
   AI_CHAT_ADMIN_PERMISSIONS,
 } from '@/constants/ai-chat-admin';
@@ -108,6 +109,20 @@ export class AiChatAdminModel extends BaseModel {
    * @description 控制抽屉内的 loading 遮罩
    */
   detailLoading: Ref<boolean> = ref(false);
+
+  /**
+   * 回话内容范围
+   * @type {Ref<string>}
+   * @description run=仅本次运行消息（默认，避免每次详情都展示同一批历史），conversation=完整会话
+   */
+  messageScope: Ref<string> = ref(AI_CHAT_ADMIN_MESSAGE_SCOPE_RUN);
+
+  /**
+   * 是否只显示有回话内容的运行
+   * @type {Ref<boolean>}
+   * @description 默认 true：中断 / 未写回消息的运行点开是空的，不必占满列表；关掉后可看全量用于排障
+   */
+  onlyWithMessages: Ref<boolean> = ref(true);
 
   // ==============================
   // 计算属性（getter）
@@ -254,6 +269,7 @@ export class AiChatAdminModel extends BaseModel {
         keyword: this.keyword.value.trim(),
         page: this.page.value,
         pageSize: this.pageSize.value,
+        onlyWithMessages: this.onlyWithMessages.value,
       });
       this.items.value = data.items;
       this.total.value = data.total;
@@ -268,24 +284,48 @@ export class AiChatAdminModel extends BaseModel {
   };
 
   /**
-   * 打开某次运行的详情抽屉
-   * @param {AiChatAdminRun} row - 被点击的运行记录
+   * 拉取当前运行详情
+   * @param {string} runId - 运行 ID
+   * @param {boolean} clearBefore - 是否先清空旧详情
    * @returns {Promise<void>}
-   * @description 先清空旧详情再拉取，避免切换记录时闪现上一次内容
+   * @description 打开新运行与切换回话范围共用；切换范围时保留旧详情避免整页闪烁
    */
-  openDetail = async (row: AiChatAdminRun): Promise<void> => {
-    this.selectedRunId.value = row.run_id;
-    this.detail.value = null;
-    this.drawerVisible.value = true;
+  private loadDetail = async (runId: string, clearBefore: boolean): Promise<void> => {
+    if (clearBefore) this.detail.value = null;
     this.detailLoading.value = true;
     try {
-      const { data } = await this.aiChatAdminService.fetchRunDetail(row.run_id);
+      const { data } = await this.aiChatAdminService.fetchRunDetail(runId, this.messageScope.value);
       this.detail.value = data;
     } catch {
       MessagePlugin.error(this.t.value.aiChatAdmin.detailFailed);
     } finally {
       this.detailLoading.value = false;
     }
+  };
+
+  /**
+   * 打开某次运行的详情抽屉
+   * @param {AiChatAdminRun} row - 被点击的运行记录
+   * @returns {Promise<void>}
+   * @description 重置回话范围为「本次运行」，先清空旧详情再拉取
+   */
+  openDetail = async (row: AiChatAdminRun): Promise<void> => {
+    this.selectedRunId.value = row.run_id;
+    this.messageScope.value = AI_CHAT_ADMIN_MESSAGE_SCOPE_RUN;
+    this.drawerVisible.value = true;
+    await this.loadDetail(row.run_id, true);
+  };
+
+  /**
+   * 切换回话内容范围
+   * @param {string} value - run / conversation
+   * @returns {Promise<void>}
+   * @description 同一会话累积多次运行，默认只展示本次消息；需要上下文时再切到完整会话
+   */
+  switchMessageScope = async (value: string): Promise<void> => {
+    if (!this.selectedRunId.value || value === this.messageScope.value) return;
+    this.messageScope.value = value;
+    await this.loadDetail(this.selectedRunId.value, false);
   };
 
   /**
@@ -306,6 +346,17 @@ export class AiChatAdminModel extends BaseModel {
   onFilterChange = (): void => {
     this.page.value = 1;
     void this.load();
+  };
+
+  /**
+   * 切换「包含无回话记录」
+   * @param {boolean} includeEmpty - 是否把没有落盘消息的运行也显示出来
+   * @returns {void}
+   * @description 复选框默认是「只包含有回话的运行」，勾选后才展示空跑记录用于排障
+   */
+  handleOnlyWithMessagesChange = (includeEmpty: boolean): void => {
+    this.onlyWithMessages.value = !includeEmpty;
+    this.onFilterChange();
   };
 
   /**

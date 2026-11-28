@@ -17,23 +17,15 @@
       icon="file-code"
       icon-theme="secondary"
     >
-      <div class="i18n-filters">
-        <div class="i18n-filter-field">
-          <span class="i18n-filter-label">{{ t.i18nMessages.langLabel }}</span>
-          <t-select
-            v-model="lang"
-            :options="langOptions"
-            class="i18n-filter-lang"
-            @change="handleLangChange"
-          />
-        </div>
+      <t-alert theme="info" :message="t.i18nMessages.pairHint" class="i18n-pair-hint" />
 
+      <div class="i18n-filters">
         <div class="i18n-filter-field">
           <span class="i18n-filter-label">{{ t.i18nMessages.colNamespace }}</span>
           <t-select
-          v-model="namespace"
-          :options="namespaceOptions"
-          class="i18n-filter-ns"
+            v-model="namespace"
+            :options="namespaceOptions"
+            class="i18n-filter-ns"
             @change="handleNamespaceChange"
           />
         </div>
@@ -60,45 +52,86 @@
         </div>
       </div>
 
-      <i18n-message-table
-        :t="t"
-        :rows="rows"
-        :loading="pageLoading"
-        :can-edit="canEditMessages()"
-        @edit="openEdit"
-      />
-    </card-panel>
+      <div class="i18n-table-wrap">
+        <t-table
+          :data="rows"
+          :columns="columns"
+          :loading="pageLoading"
+          :empty="t.i18nMessages.emptyHint"
+          row-key="keyPath"
+          hover
+          stripe
+          size="small"
+          style="min-width: 980px;"
+        >
+          <template #zh="{ row }">
+            <t-input
+              v-model="draft[row.keyPath].zh"
+              size="small"
+              :disabled="!canEditMessages() || row.hasFunction"
+            />
+          </template>
+          <template #en="{ row }">
+            <t-input
+              v-model="draft[row.keyPath].en"
+              size="small"
+              :disabled="!canEditMessages() || row.hasFunction"
+            />
+          </template>
+          <template #type="{ row }">
+            <t-tag :theme="row.hasFunction ? 'warning' : 'default'" variant="light" size="small">
+              {{ row.hasFunction ? t.i18nMessages.typeFunction : t.i18nMessages.typeText }}
+            </t-tag>
+          </template>
+          <template #actions="{ row }">
+            <t-button
+              v-if="canEditMessages() && !row.hasFunction"
+              size="small"
+              theme="primary"
+              :disabled="!pairChanged(row)"
+              :loading="savingKey === row.keyPath"
+              @click="savePair(row)"
+            >
+              {{ t.common.save }}
+            </t-button>
+            <span v-else>—</span>
+          </template>
+        </t-table>
+      </div>
 
-    <i18n-message-edit-drawer
-      v-model:visible="drawerVisible"
-      v-model:form="formData"
-      :t="t"
-      :fields="fields"
-      :row="editing"
-      :loading="saving"
-      :readonly="!canEditMessages()"
-      :is-mobile="isMobile"
-      @confirm="submitEdit"
-    />
+      <div v-if="total > pageSize" class="i18n-pagination">
+        <t-pagination
+          v-model="page"
+          :total="total"
+          :page-size="pageSize"
+          :total-content="false"
+          :show-page-size="false"
+          size="small"
+          @change="onPageChange"
+        />
+      </div>
+    </card-panel>
   </page-layout>
 </template>
 
 <script setup lang="ts">
 import PageLayout from '@/components/common/page-layout.vue';
 import CardPanel from '@/components/common/card-panel.vue';
-import I18nMessageTable from '@/components/i18n-messages/i18n-message-table.vue';
-import I18nMessageEditDrawer from '@/components/i18n-messages/i18n-message-edit-drawer.vue';
 import { useI18nMessagesModel } from '@/models/i18n-messages-model';
 
 const {
-  t, pageLoading, isMobile, rows, lang, namespace, keyword,
-  langOptions, namespaceOptions, drawerVisible, formData, fields,
-  editing, saving, canEditMessages, refresh, handleLangChange, handleNamespaceChange,
-  handleSearch, resetFilters, openEdit, submitEdit,
+  t, pageLoading, rows, columns, namespace, keyword, namespaceOptions,
+  page, pageSize, total, draft, savingKey, canEditMessages,
+  pairChanged, refresh, handleNamespaceChange, handleSearch, resetFilters,
+  onPageChange, savePair,
 } = useI18nMessagesModel();
 </script>
 
 <style scoped>
+.i18n-pair-hint {
+  margin-bottom: 16px;
+}
+
 .i18n-filters {
   display: flex;
   flex-wrap: wrap;
@@ -126,10 +159,6 @@ const {
   color: var(--text-muted);
 }
 
-.i18n-filter-lang {
-  width: 140px;
-}
-
 .i18n-filter-ns {
   width: 200px;
 }
@@ -140,12 +169,19 @@ const {
   gap: 8px;
 }
 
-@media (max-width: 768px) {
-  .i18n-filter-actions {
-    width: 100%;
-  }
+.i18n-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
 
-  .i18n-filter-lang,
+.i18n-pagination {
+  display: flex;
+  justify-content: center;
+  padding-top: 16px;
+}
+
+@media (max-width: 768px) {
+  .i18n-filter-actions,
   .i18n-filter-ns {
     width: 100%;
   }

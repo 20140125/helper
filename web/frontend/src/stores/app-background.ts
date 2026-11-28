@@ -73,8 +73,8 @@ export const useAppBackgroundStore = defineStore('app-background', () => {
     uploading.value = true;
     try {
       const res = await service.uploadBackground(file);
-      await service.saveBackground(res.data.url);
-      url.value = res.data.url;
+      const saved = await service.saveBackground(res.data.url);
+      url.value = saved.data.url;
       apply();
       MessagePlugin.success(localeStore.t.config.backgroundApplied);
     } catch (err) {

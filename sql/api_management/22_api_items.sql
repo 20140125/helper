@@ -267,22 +267,22 @@ FROM `hp_api_categories` c WHERE c.category_key = 'cat_cache';
 -- ── 系统背景图（上传 / 读取 / 设置 / 清除）────────────────────────
 INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
 SELECT 'api_app_background_get', c.id, '读取系统背景', 'GET', '/api/app-background',
-       '读取当前系统背景图地址（登录页与首屏公开）', 1, '2026-11-28 19:00:00', '2026-11-28 19:00:00'
+       '读取当前系统背景图的站内短地址 /uploads/appbg-<md5>（登录页与首屏公开）', 1, '2026-11-28 19:00:00', '2026-11-28 19:00:00'
 FROM `hp_api_categories` c WHERE c.category_key = 'cat_config';
 
 INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
 SELECT 'api_app_background_upload', c.id, '上传系统背景图', 'POST', '/api/app-background/upload',
-       '上传 JPG / PNG / WEBP / GIF 图片（最大 5MB），返回站内相对地址', 1, '2026-11-28 19:00:00', '2026-11-28 19:00:00'
+       '上传 JPG / PNG / WEBP / GIF 图片（最大 5MB），返回图片本体 data URL（不落磁盘）', 1, '2026-11-28 19:00:00', '2026-11-28 19:00:00'
 FROM `hp_api_categories` c WHERE c.category_key = 'cat_config';
 
 INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
 SELECT 'api_app_background_set', c.id, '设置系统背景', 'PUT', '/api/app-background',
-       '把上传得到的站内地址写入 hp_env_config（config:edit）', 1, '2026-11-28 19:00:00', '2026-11-28 19:00:00'
+       '把上传得到的图片本体写入 hp_app_background，返回站内短地址（config:edit）', 1, '2026-11-28 19:00:00', '2026-11-28 19:00:00'
 FROM `hp_api_categories` c WHERE c.category_key = 'cat_config';
 
 INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
 SELECT 'api_app_background_clear', c.id, '清除系统背景', 'DELETE', '/api/app-background',
-       '清空背景配置，恢复默认主题（config:edit）', 1, '2026-11-28 19:00:00', '2026-11-28 19:00:00'
+       '删除库内背景图记录，恢复默认主题（config:edit）', 1, '2026-11-28 19:00:00', '2026-11-28 19:00:00'
 FROM `hp_api_categories` c WHERE c.category_key = 'cat_config';
 
 -- ── 按用户外观偏好（背景图遮挡层不透明度）────────────────────────
@@ -295,3 +295,41 @@ INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, 
 SELECT 'api_user_appearance_set', c.id, '保存个人外观偏好', 'PUT', '/api/user-appearance',
        '保存当前登录用户的背景图遮挡层不透明度（20–100 整数，无需额外权限）', 1, '2026-11-28 19:20:00', '2026-11-28 19:20:00'
 FROM `hp_api_categories` c WHERE c.category_key = 'cat_config';
+
+-- ── AI 回话分析（运行列表 / 单次运行详情，只读）──────────────────────
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_ai_chat_admin_runs_get', c.id, '查询 AI 运行列表', 'GET', '/api/ai-chat-admin/runs',
+       '分页查询 AI 运行记录（用量、耗时、工具调用数、失败数与成本），管理员可看全量', 1, '2026-11-28 20:30:00', '2026-11-28 20:30:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_ai_chat';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_ai_chat_admin_run_detail_get', c.id, '查询 AI 运行详情', 'GET', '/api/ai-chat-admin/runs/:runId',
+       '读取单次运行的逐轮 token 用量、工具调用明细与会话消息正文', 1, '2026-11-28 20:30:00', '2026-11-28 20:30:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_ai_chat';
+
+-- ── 侧边栏导航与页面注册表（数据库唯一真源）──────────────────────
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_navigation_get', c.id, '读取导航分组与页面', 'GET', '/api/navigation',
+       '前端侧边栏菜单与贾维斯 query_pages 共用的分组 / 页面注册表，含停用项由前端过滤', 1, '2026-11-28 20:40:00', '2026-11-28 20:40:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_config';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_navigation_items_post', c.id, '新增 / 更新页面入口', 'POST', '/api/navigation/items',
+       '维护页面注册表的路径、中文名、分组、显隐、图标、排序与权限码，写操作需 CONFIG_EDIT', 1, '2026-11-28 20:40:00', '2026-11-28 20:40:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_config';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_navigation_groups_put', c.id, '新增 / 更新菜单分组', 'PUT', '/api/navigation/groups/:groupKey',
+       '维护侧边栏分组的 i18n key、图标、顺序与启用状态，写操作需 CONFIG_EDIT', 1, '2026-11-28 20:40:00', '2026-11-28 20:40:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_config';
+
+-- ── 语言包中英对照（所有文案一次保存写 zh / en 两条）──────────────────────
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_i18n_pairs_get', c.id, '读取中英对照文案', 'GET', '/api/i18n/pairs',
+       '按 key 把 zh / en 合并成一行，支持命名空间 / 关键字筛选与分页', 1, '2026-11-28 21:00:00', '2026-11-28 21:00:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_database';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_i18n_pairs_put', c.id, '一次保存中英文文案', 'PUT', '/api/i18n/pairs/:keyPath',
+       '一次写 zh / en 两条记录，缺失语言自动补齐；写操作需 DATABASE_EDIT', 1, '2026-11-28 21:00:00', '2026-11-28 21:00:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_database';

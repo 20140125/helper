@@ -31,15 +31,15 @@
 
         <details v-if="call.args" class="tool-detail">
           <summary>{{ t.aiChatAdmin.stepArgs }}</summary>
-          <pre class="code-block">{{ prettifyAiText(call.args) }}</pre>
+          <pre class="code-output">{{ prettifyAiText(call.args) }}</pre>
         </details>
         <details v-if="call.result" class="tool-detail">
           <summary>{{ t.aiChatAdmin.stepResult }}</summary>
-          <pre class="code-block">{{ prettifyAiText(call.result) }}</pre>
+          <pre class="code-output">{{ prettifyAiText(call.result) }}</pre>
         </details>
         <div v-if="call.error" class="tool-error">
           <span>{{ t.aiChatAdmin.stepError }}</span>
-          <pre class="code-block">{{ prettifyAiText(call.error) }}</pre>
+          <pre class="code-output">{{ prettifyAiText(call.error) }}</pre>
         </div>
       </div>
     </div>
@@ -60,6 +60,8 @@ defineProps<{
 </script>
 
 <style scoped>
+@import '@/styles/common.css';
+
 .step-empty {
   padding: 24px 0;
   text-align: center;
@@ -136,5 +138,13 @@ defineProps<{
   margin-top: 8px;
   font-size: 12px;
   color: var(--td-error-color);
+}
+
+.tool-detail .code-output,
+.tool-error .code-output {
+  max-height: 260px;
+  overflow: auto;
+  border-radius: 4px;
+  background: var(--bg-secondary);
 }
 </style>

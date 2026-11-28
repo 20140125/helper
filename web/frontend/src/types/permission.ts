@@ -123,4 +123,7 @@ export enum Permission {
   // ── 知识库管理 ──
   KNOWLEDGE_BASE_VIEW = 'knowledge-base:view',
   KNOWLEDGE_BASE_EDIT = 'knowledge-base:edit',
+
+  // ── 项目结构 ──
+  PROJECT_VIEW = 'project:view',
 }

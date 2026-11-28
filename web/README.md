@@ -140,6 +140,7 @@ web/
 | `/logs` | 运行日志 | 按记录查看 `hp_run_logs`：筛选、分页、展开详情，列表直接显示请求地址 |
 | `/cache` | 缓存文件 | 按缓存键查看/编辑数据库缓存条目 |
 | `/cache-admin` | 缓存数据管理 | 按表 / 粒度 / 关键字检索 13 张 `hp_cache_*` 表并编辑单条缓存行（表清单按表名去重） |
+| `/navigation-admin` | 导航数据管理 | 维护侧边栏分组、页面入口与贾维斯页面注册表（`hp_nav_groups` / `hp_nav_items`） |
 | `/amap-geocode` | 高德地理编码缓存 | 地址与经纬度的缓存映射 |
 | `/database` | 数据库管理 | 连接状态、库表结构与数据预览、SQL 控制台、建表脚本查看与初始化（仅超级管理员） |
 
@@ -183,6 +184,7 @@ web/
 | `/api/config` | 读写 `.env`（`web/.env` 优先） | `CONFIG_VIEW` / `CONFIG_EDIT` |
 | `/api/app-background` | 系统背景图读取 / 上传 / 设置 / 清除（GET 公开，写需 CONFIG_EDIT） | — / `CONFIG_EDIT` |
 | `/api/user-appearance` | 按用户读写背景图遮挡层不透明度（登录后即可，无需额外权限） | — |
+| `/api/navigation` | 侧边栏分组 / 页面注册表读取（GET 公开）；分组与页面的增删改 | — / `CONFIG_EDIT` |
 | `/api/webhooks` | 企业微信机器人管理 | `CONFIG_VIEW` / `WEBHOOK_EDIT` |
 | `/api/logs` | 日志来源列表、记录分页检索 / 单条详情 / 清空（`hp_run_logs`）；列表行含 `message` / `context`，前端据此解析请求地址 | `LOGS_VIEW` / `LOGS_EDIT` |
 | `/api/daemon` | 守护进程 start / stop / restart | — / `DAEMON_EDIT` |
@@ -238,7 +240,7 @@ Type (types/*.ts)               TypeScript 类型定义（interface 归此处）
 - **常量归口**：全部放 `constants/`
 - **类型归口**：interface 全部放 `types/`
 - **utils 拆分阈值**：单文件 > 200 行拆子目录
-- **i18n**：文案统一维护在 MySQL `hp_i18n_messages`（管理页 `/i18n-messages`）；新增 key 先写 zh / en 两条，再 `cd web && npm run i18n:sql` 从库导出 `sql/i18n/35_i18n_messages.sql` 与 `types/locale.ts`（生成文件，勿手改）；前端启动读库并用 localStorage 缓存兜底
+- **i18n**：文案统一维护在 MySQL `hp_i18n_messages`（管理页 `/i18n-messages`）；日常修改在管理页按 key 中英对照编辑，一次保存写 zh / en 两条，不要只改一种语言；新增 key 先写 zh / en 两条，再 `cd web && npm run i18n:sql` 从库导出 `sql/i18n/35_i18n_messages.sql` 与 `types/locale.ts`（生成文件，勿手改）；前端启动读库并用 localStorage 缓存兜底
 - **双向绑定**：Vue 3.4+ `defineModel` 优先，消除 `computed` 桥接
 
 ---

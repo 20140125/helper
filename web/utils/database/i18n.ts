@@ -9,6 +9,9 @@ import {
   type I18nMessage,
   type I18nMessageList,
   type I18nMessageQuery,
+  type I18nPair,
+  type I18nPairList,
+  type I18nPairQuery,
   type I18nTranslationsMap,
   type I18nValueType,
 } from '@/types/i18n';
@@ -185,4 +188,101 @@ export const updateI18nMessage = async (id: number, value: string): Promise<void
     [value, id],
   );
   if (result.affectedRows === 0) throw new Error('文案不存在，或该条目为插值函数（请在语言包源码中维护）');
+};
+
+/**
+ * 中英对照分页查询（按 key_path 把 zh / en 合并成一行）
+ * @param {I18nPairQuery} query - 命名空间、关键字与分页参数
+ * @returns {Promise<I18nPairList>} 配对后的当前页记录、总数与命名空间清单
+ * @description 条件全部参数化；总数按 key 去重，函数型条目标记只读；两种语言缺一条时仍返回该 key，便于补齐
+ */
+export const listI18nPairs = async (query: I18nPairQuery): Promise<I18nPairList> => {
+  const where: string[] = ['`lang` IN (\'zh\', \'en\')'];
+  const params: Array<string | number> = [];
+  if (query.namespace) {
+    where.push('`namespace` = ?');
+    params.push(query.namespace);
+  }
+  if (query.keyword) {
+    where.push('(`key_path` LIKE ? OR `value` LIKE ?)');
+    params.push(`%${query.keyword}%`, `%${query.keyword}%`);
+  }
+  const whereSql = `WHERE ${where.join(' AND ')}`;
+  const limit = Math.min(
+    Math.max(Math.trunc(query.limit ?? 0) || I18N_MESSAGES_PAGE_SIZE, 1),
+    I18N_MESSAGES_MAX_PAGE_SIZE,
+  );
+  const offset = Math.max(Math.trunc(query.offset ?? 0) || 0, 0);
+  const pool = getPool();
+  const [countRows] = await pool.query<CountRow[]>(
+    `SELECT COUNT(DISTINCT \`key_path\`) AS total FROM \`hp_i18n_messages\` ${whereSql}`,
+    params,
+  );
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT \`key_path\`, \`namespace\`, MIN(\`sort_order\`) AS sort_order,
+       MAX(CASE WHEN \`lang\` = 'zh' THEN \`value\` END) AS zh,
+       MAX(CASE WHEN \`lang\` = 'en' THEN \`value\` END) AS en,
+       MAX(CASE WHEN \`value_type\` = 'function' THEN 1 ELSE 0 END) AS has_function
+     FROM \`hp_i18n_messages\` ${whereSql}
+     GROUP BY \`key_path\`, \`namespace\`
+     ORDER BY sort_order, \`key_path\` LIMIT ? OFFSET ?`,
+    [...params, limit, offset],
+  );
+  const items: I18nPair[] = rows.map((row) => ({
+    keyPath: String(row.key_path),
+    namespace: String(row.namespace),
+    zh: String(row.zh ?? ''),
+    en: String(row.en ?? ''),
+    hasFunction: Number(row.has_function ?? 0) === 1,
+    sortOrder: Number(row.sort_order ?? 0),
+  }));
+  const [nsRows] = await pool.query<RowDataPacket[]>(
+    'SELECT DISTINCT `namespace` FROM `hp_i18n_messages` ORDER BY `namespace`',
+  );
+  return {
+    items,
+    total: Number(countRows[0]?.total ?? 0),
+    namespaces: nsRows.map((row) => String(row.namespace)),
+  };
+};
+
+/**
+ * 一次保存同一 key 的中英文两条文案
+ * @param {string} keyPath - 键路径
+ * @param {string} zh - 中文文案
+ * @param {string} en - 英文文案
+ * @returns {Promise<void>}
+ * @description 两条都是 text 才允许改；某语言缺失时按同一 path_json / sort_order 补齐，避免只存在一种语言
+ */
+export const updateI18nPair = async (keyPath: string, zh: string, en: string): Promise<void> => {
+  if (!keyPath || keyPath.length > 191) throw new Error('文案 key 不合法');
+  if (zh.length > I18N_VALUE_MAX_LENGTH || en.length > I18N_VALUE_MAX_LENGTH) {
+    throw new Error(`文案超长（最多 ${I18N_VALUE_MAX_LENGTH} 字符）`);
+  }
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT \`id\`, \`lang\`, \`namespace\`, \`sort_order\`, \`value_type\`
+     FROM \`hp_i18n_messages\` WHERE \`key_path\` = ? AND \`lang\` IN ('zh', 'en')`,
+    [keyPath],
+  );
+  if (rows.length === 0) throw new Error('文案不存在');
+  if (rows.some((row) => String(row.value_type) === 'function')) {
+    throw new Error('该条目是插值函数，只读');
+  }
+  const pathJson = JSON.stringify(keyPath.split('.'));
+  const namespace = String(rows[0].namespace);
+  const sortOrder = Number(rows[0].sort_order ?? 0);
+  for (const [lang, value] of [['zh', zh], ['en', en]] as const) {
+    const existing = rows.find((row) => String(row.lang) === lang);
+    if (existing) {
+      await pool.execute('UPDATE `hp_i18n_messages` SET `value` = ? WHERE `id` = ?', [value, existing.id]);
+    } else {
+      await pool.execute(
+        `INSERT INTO \`hp_i18n_messages\`
+           (\`lang\`, \`key_path\`, \`namespace\`, \`path_json\`, \`value\`, \`value_type\`, \`sort_order\`)
+         VALUES (?, ?, ?, ?, ?, 'text', ?)`,
+        [lang, keyPath, namespace, pathJson, value, sortOrder],
+      );
+    }
+  }
 };

@@ -10,6 +10,10 @@
 ## [Unreleased]
 
 ### 新增
+- **知识库文档收归数据库 + SQL**：删除项目根 `docs/`（25 篇）与 `knowledge/`（3 篇）Markdown 镜像，文档全文以「一个文档一条 INSERT」保存在 `sql/knowledge/38_knowledge_docs.sql`（28 条，DDL / UPSERT 语义不变），`helper_database.sql` 全库初始化照常导入
+  - `npm run knowledge:sql` 改为从 `hp_knowledge_docs` 全量导出种子（不再扫描文件目录），库中无文档时拒绝覆盖种子，避免删目录后重跑把初始化数据清空；`--apply` 参数废弃（真源即数据库，无需回灌）
+  - 正文 `content` 保留可读 Markdown 原文（真实换行 + 标准 SQL 单引号双写 + 反斜杠双写），文件头 `SET NAMES utf8mb4` 并临时清空会话 `sql_mode`（末尾恢复），保证 emoji（🚀📅💡）、`━`、反斜杠 `\K` 等字符即使在 `NO_BACKSLASH_ESCAPES` 环境下 `SOURCE` 也不报错、正文不被改写；28 条 INSERT 的 SHA-256 / 字节数全量校验通过，并在该环境下实跑最后 3 条验证
+  - 运行时本来就只读数据库内存快照，删除目录不影响知识库管理页、BM25 检索与贾维斯工具；`read_project_file` 白名单与项目地图移除 `docs`；README / CONTRIBUTING 改为指向知识库管理页与种子 SQL
 - **背景遮挡层不透明度（按用户）**：系统背景图开启后，顶栏主题菜单可拖动滑杆统一调整卡片 / 顶栏 / 侧边栏 / 标签栏这些遮挡层的不透明度（20–100，默认 86），数值越大越不透明、背景图越淡
   - 新增 `/api/user-appearance`（GET / PUT，全局 JWT 登录后即可，按 `req.userEmail` 隔离）与 `hp_user_appearance` 表（`sql/config/40_user_appearance.sql`）；存量库由 `ensureUserAppearanceSchema()` 启动幂等建表，不透明度只接受 20–100 整数
   - `styles/app-background.css` 用 `--app-bg-surface-opacity` 在根节点统一重定义项目自身与 TDesign 的背景变量（按主题另存原色副本，避免变量自引用），卡片 / 顶栏 / 侧边栏 / 标签栏 / 表格 / 弹层 / 按钮等所有遮挡层自动使用同一个不透明度；逐类名覆盖会漏掉 `.t-layout__sider` / `.t-tabs` 等 TDesign 容器，故改为变量级统一；表格的 `.t-table` / `tr` / `th` / `td` 再单独置为透明，避免多层半透明叠加把内容区重新堆成实色（仅保留 hover 淡主色）；卡片 / 顶栏去掉毛玻璃模糊与投影、侧栏内层置透明，保证所有遮挡层只叠加一层底色、与侧边栏观感一致；主内容区统一铺一层底色（卡片改透明避免叠加）、标签栏去掉外层与标签项的重复底色，解决页面标题白字直接压在背景图上、以及标签栏发黑的问题。前端 `useUserAppearanceStore` 拖动时即时写 CSS 变量、松手后写库，`topbar.*` 中英文案各 2 条随启动补种子
@@ -75,7 +79,23 @@
   - 列定义与解析逻辑在 `models/logs-model.ts`（`columns` + `addressOf`），展示在 `views/logs.vue` 的 `#address` 单元格，超长省略并 hover 显示完整地址；列表接口无需改动（`message` / `context` 本就随行返回）
   - 新增 i18n `logs.colAddress`（zh「地址」/ en「Address」）写入 `hp_i18n_messages`，经 `npm run i18n:sql` 同步 `sql/i18n/35_i18n_messages.sql` 与 `types/locale.ts`；种子 SQL 因生成器按 200 行分批会有少量行移位
 
+- **侧边栏导航与页面注册表入库**：新增 `hp_nav_groups` / `hp_nav_items`（`sql/navigation/41_navigation.sql`），菜单分组、显隐、图标、顺序、权限码与页面中文名 / 用途 / 覆盖工具统一由数据库维护
+  - `GET /api/navigation` 供前端启动读取，写操作由 `CONFIG_EDIT` 保护；启动 `ensureNavigationSchema()` 只做幂等建表；5 个分组 / 25 个页面（含新增管理页）的初始种子仅由 `sql/navigation/41_navigation.sql` 的 `INSERT IGNORE` 维护，不覆盖管理页编辑过的值
+  - `home-model.ts` 改为读 `useNavigationStore`（接口失败回退路由派生菜单），贾维斯 `query_pages` 直接查库，删除硬编码 `web/types/pages.ts`；前端路由 meta 只保留权限校验与兜底标签
+  - 新增 `/navigation-admin` 管理页：分组与页面入口的增删改、显隐、图标、排序、权限码；AI 面板「我可以帮你」与底部「试试」文案本就在 `hp_i18n_messages`，页面内提供语言包跳转入口，不另建重复真源
+  - `helper_database.sql` 接入 41 号脚本；`01_drop_tables.sql` 按维护真源例外不删表；`22_api_items.sql` 与库内接口元数据补 3 条；`navigationAdmin.*` 与 `menu.navigationAdmin` 中英文案各 24 条经 `npm run i18n:sql` 导出
+  - 文档同步：`README.md`、`web/README.md`、`CONTRIBUTING.md`、`.codebuddy/skills/helper-web-spec/references/01-architecture-overview.md` 与 `web/skills/project-overview/SKILL.md` 补「新增页面需登记导航表」。`docs/` / `knowledge/` 的 Markdown 源文件在本次工作区已被并行任务删除（知识库改由数据库管理页维护），故未重跑 `npm run knowledge:sql`，避免用空目录覆盖库中 28 篇文档
+- **`GET /api/navigation` 按用户权限裁剪**：普通登录用户只收到启用分组，以及启用、非超管专属、权限码匹配（或未设权限码）的页面；超管与 `CONFIG_VIEW` / `CONFIG_EDIT` 维护者仍返回全量，保证 `/navigation-admin` 可维护停用项与隐藏项
+- **语言包管理页改为中英对照编辑（覆盖全部文案）**：所有 i18n 文案按 key 把 zh / en 合并成一行，一次保存写两条，避免只改一种语言
+  - 新增 `GET /api/i18n/pairs`（按 key 去重分页、命名空间 / 关键字筛选）与 `PUT /api/i18n/pairs/:keyPath`（`database:edit`）；后者一次写 zh / en 两行，某语言缺失时按同一 `path_json` / `sort_order` 补齐，插值函数条目只读
+  - `/i18n-messages` 改为对照表格：中文 / 英文两列输入、按行保存、保存后 `LocaleStore.reload()` 立即生效；支持全部分组、命名空间筛选、关键字与每页 50 条分页
+  - `/navigation-admin` 移除 AI 面板专用对照表，改为说明卡片 + 跳转 `/i18n-messages?namespace=aiChat`；AI 面板「我可以帮你」与底部「试试」等所有文案统一在语言包页维护
+  - `i18nMessages.pairHint` / `subtitle` 与 `navigationAdmin.aiHint` / `aiLink` 文案更新，经 `npm run i18n:sql` 导出
+- **权限列表线上线下同步**：前端 `Permission` 枚举补 `PROJECT_VIEW`（与后端枚举 / `hp_permissions` 对齐，共 70 条，导航管理页权限码下拉同步为 70 项）；`sql/rbac/03_permissions.sql` 中 `api-management:view` / `api-category:view` / `ai-chat:view` 三条 `route` 与导航表实际路径对齐（`/interface-management` / `/interface-categories` / `/ai-cost`），并同步更新运行中的 `hp_permissions` 表
+- **导航数据管理页表格横向滚动**：分组表 / 页面表设置 `scroll.x`，避免列宽被压缩导致「操作」与相邻列重叠
+
 ### 变更
+- **系统背景图改为图片本体入库**：新建 `hp_app_background`（LONGBLOB 存图片二进制 + 内容 MD5，全站固定单行），不再写 `hp_env_config.APP_BACKGROUND_URL`、也不再落 `public/uploads` 磁盘；`POST /api/app-background/upload` 改用 memoryStorage 返回图片本体 data URL，`PUT /api/app-background` 写库并返回 `/uploads/appbg-<md5>` 站内短地址，`GET /uploads/appbg-<md5>` 由后端从库中输出二进制（URL 自带内容版本，可长缓存）。CSS 变量始终是几十字符的路径，因此不会重蹈浏览器单个 CSS 值约 2MiB 上限的问题，首屏与登录页也无需下载 MB 级配置；服务启动幂等建表，并把旧 `/uploads/bg-*` 文件一次性迁移入库后清空旧配置键。42 号种子 SQL、`helper_database.sql`、`01_drop_tables.sql` 与接口元数据同步
 - **缓存数据管理页表清单按表名去重**：`hp_cache_res_hot_list` 由 5 个平台前缀共用，`web/utils/database/cache-admin.ts` 构造 `RES_TABLES` 时按表名去重（保留首条路由），下拉不再出现 5 个同名选项，列表 UNION 也不再把该表拼 5 次；13 张唯一表、全量 `total` 与实际行数一致，筛选热搜表由 10 条回到 2 条
 - **系统背景图改为单层铺满绘制**：`styles/app-background.css` 只在 `body` 上绘制一次背景图，`.app-layout` / `.main-layout` / `.page-content` 保持透明；所有 `background` 长属性加 `!important` 以压过 `style.css` 的简写 `!important`（否则 `background-size` 被压回 `auto`，图片按原始像素只露局部）；图片层用 `cover` 铺满视口、按短边裁切不留左右黑边，压暗层由 0.5 降到 0.22，并隐藏 `.page-content::before` 网格线
 - **微博 / B站 / 抖音 / 爱奇艺热搜归档也落到 `hp_cache_res_hot_list`**：新增 `weibohot_` / `bilibilihot_` / `douyinhot_` / `iqiyihot_` 四条路由（与 `tencenthot_` 一样保留平台前缀），汇总查询按表去重，避免同一张表被多个前缀重复拼接
