@@ -52,7 +52,7 @@ bash -c 'source scripts/weather_config.sh 2>/dev/null; echo "MAIL_HOST=${MAIL_HO
 | 功能管理 | 节日祝福语 / 提醒寄语 | `/greetings`、`/reminder-quotes` | 文案库维护 |
 | 功能管理 | AI 审批 | `/approvals` | 贾维斯增删改审批单：通过并执行 / 驳回（仅超级管理员可决策） |
 | 系统运维 | 运行日志 | `/logs` | 各脚本日志查看与清空 |
-| 系统运维 | 缓存文件 | `/cache` | 查看/编辑 `.cache` 下的 JSON |
+| 系统运维 | 缓存文件 | `/cache` | 查看/编辑数据库中的缓存条目（缓存键） |
 | 权限管理 | 角色/用户/权限/申请 | `/rbac/*` | RBAC 与权限审批 |
 | 开发工具 | 表单配置器 | `/auto-form-playground` | auto-form 表单调试 |
 
@@ -60,7 +60,7 @@ bash -c 'source scripts/weather_config.sh 2>/dev/null; echo "MAIL_HOST=${MAIL_HO
 
 ## 4. 三个高频操作
 
-**改配置**：系统配置 → 修改 → 保存。普通 env 项写入 `web/.env`，改 `MAIL_*`/`JWT_SECRET` 后**需重启 Web**；`AI_INSPECTOR_*` 例外，调度器每分钟重读一次，保存后 60 秒内自动生效。模型配置存 `.cache/ai-model-configs.json`，保存后立即生效、无需重启。
+**改配置**：系统配置 → 修改 → 保存。普通 env 项写入 `web/.env`，改 `MAIL_*`/`JWT_SECRET` 后**需重启 Web**；`AI_INSPECTOR_*` 例外，调度器每分钟重读一次，保存后 60 秒内自动生效。模型配置存数据库（`ai-model-configs.json` 缓存键），保存后立即生效、无需重启。
 
 系统配置的分区：企业微信机器人、天气 / 老黄历 / 星座、项目配置、生日提醒、卡片全局配置、**邮件配置**（`MAIL_*`，登录验证码）、**AI 模型与记忆**（模型配置组 / `AI_MEMORY_ENABLED` / `AI_COST_PRICING_JSON`）、**定时巡检与外部消息入口**（`AI_INSPECTOR_*` / `AI_CHAT_WEBHOOK_*`）。
 

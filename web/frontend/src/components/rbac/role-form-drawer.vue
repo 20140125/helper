@@ -40,7 +40,7 @@ import PermissionChecker from '@/components/rbac/permission-checker.vue';
 import type { RoleConfig, PermissionGroup } from '@/types/rbac';
 import type { AutoFormField } from '@/types/auto-form';
 import type { FormMode } from '@/constants/form';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 defineProps<{
   /** i18n 翻译函数（由父组件通过 LocaleStore.t 传入，响应式） */

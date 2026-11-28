@@ -18,21 +18,23 @@
 #   get_special_day_greeting <节日名>  - 获取特殊节日祝福语
 #
 # 数据来源：
-#   - .cache/greetings.json（统一祝福语数据文件）
+#   - greetings.json 对应的已有业务表（统一祝福语数据文件，缓存数据库唯一真源）
 #
 # 使用方式：
 #   source "${PROJECT_DIR}/greetings_loader.sh"
 #
 # 作者：智能提醒系统
-# 更新：2026-03-23
+# 更新：2026-11-28
 # ======================================
 
 # 获取脚本所在目录，加载项目路径配置
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/project_config.sh"
+# 按需加载缓存数据库通道（缓存 JSON 不再落盘）
+source "${PROJECT_DIR}/cache_db.sh"
 
-# 统一JSON文件路径
-GREETINGS_JSON="${CACHE_DIR}/greetings.json"
+# 统一 JSON 的缓存键
+GREETINGS_KEY='greetings.json'
 
 # 从JSON获取24节气祝福语
 # 参数: $1 - 节气名称（如：立春、雨水）
@@ -40,12 +42,13 @@ GREETINGS_JSON="${CACHE_DIR}/greetings.json"
 get_solar_term_greeting() {
     local term_name="$1"
     
-    python3 << PYEOF 2>/dev/null
+    python3 3< <(cache_db_read "$GREETINGS_KEY") << PYEOF 2>/dev/null
 import json
+import os
 import sys
 
 try:
-    with open('$GREETINGS_JSON', 'r', encoding='utf-8') as f:
+    with os.fdopen(3, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
     term_name = '$term_name'
@@ -69,12 +72,13 @@ PYEOF
 get_holiday_greeting() {
     local holiday_name="$1"
     
-    python3 << PYEOF 2>/dev/null
+    python3 3< <(cache_db_read "$GREETINGS_KEY") << PYEOF 2>/dev/null
 import json
+import os
 import sys
 
 try:
-    with open('$GREETINGS_JSON', 'r', encoding='utf-8') as f:
+    with os.fdopen(3, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
     holiday_name = '$holiday_name'
@@ -117,12 +121,13 @@ PYEOF
 get_lunar_festival_greeting() {
     local festival_name="$1"
     
-    python3 << PYEOF 2>/dev/null
+    python3 3< <(cache_db_read "$GREETINGS_KEY") << PYEOF 2>/dev/null
 import json
+import os
 import sys
 
 try:
-    with open('$GREETINGS_JSON', 'r', encoding='utf-8') as f:
+    with os.fdopen(3, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
     festival_name = '$festival_name'
@@ -148,13 +153,14 @@ get_birthday_greeting() {
     local name="$1"
     local use_random="${2:-true}"
     
-    python3 << PYEOF 2>/dev/null
+    python3 3< <(cache_db_read "$GREETINGS_KEY") << PYEOF 2>/dev/null
 import json
+import os
 import random
 import sys
 
 try:
-    with open('$GREETINGS_JSON', 'r', encoding='utf-8') as f:
+    with os.fdopen(3, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
     name = '$name'
@@ -194,12 +200,13 @@ PYEOF
 get_special_day_greeting() {
     local day_name="$1"
     
-    python3 << PYEOF 2>/dev/null
+    python3 3< <(cache_db_read "$GREETINGS_KEY") << PYEOF 2>/dev/null
 import json
+import os
 import sys
 
 try:
-    with open('$GREETINGS_JSON', 'r', encoding='utf-8') as f:
+    with os.fdopen(3, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
     day_name = '$day_name'

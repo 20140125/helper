@@ -25,7 +25,7 @@ export const chatCompletion = async (
   media_urls?: string[];
   usage?: UsageInfo;
 }> => {
-  const body = buildRequestBody(messages, tools, modelOverride, false);
+  const body = await buildRequestBody(messages, tools, modelOverride, false);
   const resp = await requestChatCompletion(body, false, signal);
   const json = (await resp.json()) as {
     choices?: Array<{

@@ -40,7 +40,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import LoadingSpinner from '@/components/common/loading-spinner.vue';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { json } from '@codemirror/lang-json';

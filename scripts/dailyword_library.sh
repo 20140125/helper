@@ -5,12 +5,12 @@
 # ======================================
 #
 # 背景：
-#   .cache/api_responses/dailyword_<YYYY-MM>.json 是「原始响应归档」，
+#   hp_cache_res_* 的 api_responses/dailyword_<YYYY-MM>.json 是「原始响应归档」，
 #   定位是日内复用，按 prune_api_archive() 只保留最近 1 个自然月。
 #   但每日一言是内容素材（金山词霸每日英语 + 一言语录），历史越久越值钱，
 #   不该随归档一起被清掉 —— 因此单独沉淀一份历史库：
 #
-#     .cache/dailyword_library.json
+#     dailyword_library.json 对应的已有业务表
 #     {
 #       "updated_at": "2026-10-14",
 #       "entries": {
@@ -21,7 +21,7 @@
 #
 # 最终落地：每日一词 → 每日励志
 #   历史库只解决「留档」，取数后还要让句子真正被用起来：
-#   每日一词的中文名言（quote）会追加进 .cache/reminder_quotes.json 的
+#   每日一词的中文名言（quote）会追加进 reminder_quotes.json 对应的已有业务表 的
 #   quotes.quotes（每日励志语录库，get_quote_* 系列与 Web 管理端共用），
 #   之后早安播报 / 工作日提醒等场景就能随机取到这些句子。
 #   英文部分只进历史库，不混进中文励志库。
@@ -55,10 +55,20 @@
 # 更新：2026-11-28
 # ======================================
 
-# 历史库文件路径（依赖 project_config.sh 导出的 CACHE_DIR，未加载时按脚本位置兜底）
-DAILYWORD_LIBRARY="${CACHE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.cache}/dailyword_library.json"
-# 每日励志语录库（每日一词的最终落地位置；Web 管理端也读写同一文件）
-REMINDER_QUOTES_JSON="${CACHE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.cache}/reminder_quotes.json"
+# 按需加载项目路径与缓存数据库通道（本文件会被 tools/daily_word.sh 与预取脚本 source）
+_DAILYWORD_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -z "${PROJECT_DIR:-}" ]; then
+    source "${_DAILYWORD_LIB_DIR}/project_config.sh"
+fi
+if ! declare -F cache_db_read >/dev/null 2>&1; then
+    source "${PROJECT_DIR}/cache_db.sh"
+fi
+
+# 缓存键：库内 JSON 物化为临时文件，保留原有 Python 读写逻辑；写回统一 persist
+DAILYWORD_LIBRARY_KEY='dailyword_library.json'
+REMINDER_QUOTES_KEY='reminder_quotes.json'
+DAILYWORD_LIBRARY="$(cache_db_materialize "$DAILYWORD_LIBRARY_KEY" 2>/dev/null || printf '')"
+REMINDER_QUOTES_JSON="$(cache_db_materialize "$REMINDER_QUOTES_KEY" 2>/dev/null || printf '')"
 
 # -----------------------------------------
 # 沉淀写入器（Python 源码，供 persist_dailyword 用 python3 -c 调用）
@@ -226,12 +236,17 @@ append_dailyword_quote() {
     # ${1:-}：调用方可能是 set -u 环境（如 daily_word.sh），不传参时不能让脚本崩
     local items_json="${1:-}"
 
-    if [ -z "${items_json}" ] || [ ! -f "${REMINDER_QUOTES_JSON}" ]; then
+    # reminder_quotes.json 不存在则放弃追加（绝不重建，避免清空 Web 端人工维护内容）
+    if [ -z "${items_json}" ] || ! cache_db_exists "${REMINDER_QUOTES_KEY}"; then
         return 0
     fi
 
     local rc=0
     printf '%s' "${items_json}" | python3 -c "${_DAILYWORD_QUOTES_PY}" "${REMINDER_QUOTES_JSON}" 2>/dev/null || rc=$?
+    # Python 写临时文件后必须回写数据库
+    if [ "$rc" -eq 0 ]; then
+        cache_db_persist "${REMINDER_QUOTES_KEY}" "${REMINDER_QUOTES_JSON}" 2>/dev/null || rc=$?
+    fi
 
     # rc=2：句子太长/太短或命中消极词，属正常跳过，不打警告
     case "${rc}" in
@@ -259,9 +274,14 @@ persist_dailyword() {
     # 最终落地：先补进每日励志语录库，再沉淀进历史库（两者的 key 不同，互不依赖）
     append_dailyword_quote "${items_json}"
 
-    mkdir -p "$(dirname "${DAILYWORD_LIBRARY}")" 2>/dev/null
+    local rc=0
+    printf '%s' "${items_json}" | python3 -c "${_DAILYWORD_PERSIST_PY}" "${DAILYWORD_LIBRARY}" 2>/dev/null || rc=$?
+    # Python 原子写临时文件后必须回写数据库
+    if [ "$rc" -eq 0 ]; then
+        cache_db_persist "${DAILYWORD_LIBRARY_KEY}" "${DAILYWORD_LIBRARY}" 2>/dev/null || rc=$?
+    fi
 
-    if printf '%s' "${items_json}" | python3 -c "${_DAILYWORD_PERSIST_PY}" "${DAILYWORD_LIBRARY}" 2>/dev/null; then
+    if [ "$rc" -eq 0 ]; then
         return 0
     fi
 

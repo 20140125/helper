@@ -64,6 +64,8 @@ FROM (
   SELECT 'api_cache_read' AS item_key, 'cat_cache' AS cat_key, '读取缓存文件' AS name, 'GET' AS method, '/api/cache' AS path, '读取指定缓存文件内容' AS description, 1 AS enabled, '2026-04-17 02:47:00' AS created_at, '2026-04-17 02:47:00' AS updated_at UNION ALL
   SELECT 'api_cache_write' AS item_key, 'cat_cache' AS cat_key, '写入缓存文件' AS name, 'POST' AS method, '/api/cache' AS path, '写入指定缓存文件内容' AS description, 1 AS enabled, '2026-04-17 02:47:00' AS created_at, '2026-04-17 02:47:00' AS updated_at UNION ALL
   SELECT 'api_logs_get' AS item_key, 'cat_logs' AS cat_key, '获取 Access Log' AS name, 'GET' AS method, '/api/logs' AS path, '读取 Web 服务的 Access Log 内容' AS description, 1 AS enabled, '2026-04-17 02:47:00' AS created_at, '2026-04-17 02:47:00' AS updated_at UNION ALL
+  SELECT 'api_logs_rows' AS item_key, 'cat_logs' AS cat_key, '获取运行日志记录' AS name, 'GET' AS method, '/api/logs/rows' AS path, '运行日志表格分页查询：按来源/级别/关键词筛选，默认每页 15 条' AS description, 1 AS enabled, '2026-11-28 15:00:00' AS created_at, '2026-11-28 15:00:00' AS updated_at UNION ALL
+  SELECT 'api_logs_row_detail' AS item_key, 'cat_logs' AS cat_key, '获取日志详情' AS name, 'GET' AS method, '/api/logs/rows/:id' AS path, '按 ID 读取单条运行日志详情（含上下文、链路 ID、关联用户）' AS description, 1 AS enabled, '2026-11-28 15:00:00' AS created_at, '2026-11-28 15:00:00' AS updated_at UNION ALL
   SELECT 'api_upload_file' AS item_key, 'cat_upload' AS cat_key, '上传文件' AS name, 'POST' AS method, '/api/upload/file' AS path, '上传单个文件，保存到 public/uploads 目录，返回可访问的文件 URL' AS description, 1 AS enabled, '2026-04-17 02:47:00' AS created_at, '2026-04-17 02:47:00' AS updated_at UNION ALL
   SELECT 'api_web_service_status' AS item_key, 'cat_web_service' AS cat_key, '获取 Web 服务状态' AS name, 'GET' AS method, '/api/web-service/status' AS path, '获取 Web 服务的运行状态及 Pitem_key' AS description, 1 AS enabled, '2026-04-17 02:47:00' AS created_at, '2026-04-17 02:47:00' AS updated_at UNION ALL
   SELECT 'api_web_service_start' AS item_key, 'cat_web_service' AS cat_key, '启动 Web 服务' AS name, 'POST' AS method, '/api/web-service/start' AS path, '启动 Web 服务进程' AS description, 1 AS enabled, '2026-04-17 02:47:00' AS created_at, '2026-04-17 02:47:00' AS updated_at UNION ALL
@@ -151,3 +153,58 @@ SELECT 'api_bootstrap_get', c.id, '获取首页首屏聚合数据', 'GET', '/api
        '合并系统状态、Web 服务状态、规则列表与日志来源列表的首屏数据，按权限逐块裁剪',
        1, '2026-11-28 11:09:57', '2026-11-28 11:09:57'
 FROM `hp_api_categories` c WHERE c.category_key = 'cat_system';
+
+-- 贾维斯 AI 助手皮肤配置（按用户读写 + 自定义背景图上传）
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_ai_chat_skin_get', c.id, '读取皮肤配置', 'GET', '/api/ai-chat/skin',
+       '读取当前登录用户的贾维斯皮肤配置（预设 ID 与自定义背景图本体 data URL）',
+       1, '2026-11-28 13:45:00', '2026-11-28 13:45:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_ai_chat';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_ai_chat_skin_save', c.id, '保存皮肤配置', 'PUT', '/api/ai-chat/skin',
+       '按当前登录用户 UPSERT 皮肤配置；预设 ID 查库校验，背景图本体直接存 LONGTEXT',
+       1, '2026-11-28 13:45:00', '2026-11-28 13:45:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_ai_chat';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_ai_chat_skin_background_upload', c.id, '上传皮肤背景图', 'POST', '/api/ai-chat/skin/background',
+       '上传自定义皮肤背景图（JPG/PNG/WEBP/GIF，最大 5MB），返回图片本体 data URL 以便随配置入库',
+       1, '2026-11-28 13:45:00', '2026-11-28 13:45:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_ai_chat';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_ai_chat_skin_presets_list', c.id, '读取皮肤预设', 'GET', '/api/ai-chat/skin/presets',
+       '列出数据库中已启用的贾维斯皮肤预设定义（名称、缩略图、背景与 CSS 变量）',
+       1, '2026-11-28 14:30:00', '2026-11-28 14:30:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_ai_chat';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_ai_chat_skin_preset_save', c.id, '新增/更新皮肤预设', 'PUT', '/api/ai-chat/skin/presets/:key',
+       '按 skin_key UPSERT 一条皮肤预设定义，enabled=0 可作软删除；CSS 值与变量字典均做安全校验',
+       1, '2026-11-28 14:30:00', '2026-11-28 14:30:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_ai_chat';
+
+-- 前端 i18n 语言包：运行时读文案（公开）+ 管理页列表/编辑
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_i18n_translations_get', c.id, '读取语言包', 'GET', '/api/i18n/translations',
+       '一次读取全部语言（zh / en）的完整文案（公开接口，登录页与首屏使用）',
+       1, '2026-11-28 14:05:00', '2026-11-28 14:05:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_database';
+
+-- 已有库把旧的按语言分拆接口同步为合并后的单一路径（INSERT IGNORE 不会更新旧记录）
+UPDATE `hp_api_items` SET `path` = '/api/i18n/translations',
+       `description` = '一次读取全部语言（zh / en）的完整文案（公开接口，登录页与首屏使用）'
+WHERE `item_key` = 'api_i18n_translations_get';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_i18n_messages_list', c.id, '语言条目列表', 'GET', '/api/i18n/messages',
+       '按语言、命名空间、关键字分页查询语言包条目（登录用户均可查看）',
+       1, '2026-11-28 14:05:00', '2026-11-28 14:05:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_database';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_i18n_messages_update', c.id, '更新语言文案', 'PUT', '/api/i18n/messages/:id',
+       '更新单条静态文案；函数型条目只读，请在语言包源码中维护（database:edit）',
+       1, '2026-11-28 14:05:00', '2026-11-28 14:05:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_database';

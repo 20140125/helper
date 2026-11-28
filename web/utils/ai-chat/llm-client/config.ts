@@ -20,13 +20,13 @@ export interface ProviderConfig {
 
 /**
  * 取首个配置组作为默认 provider
- * @returns {ProviderConfig} 默认配置
- * @description 端点、Key、模型唯一来源均为 .cache/ai-model-configs.json，每次调用现读、保存后热生效；
+ * @returns {Promise<ProviderConfig>} 默认配置
+ * @description 端点、Key、模型唯一来源均为数据库 已有业务表（缓存键 ai-model-configs.json），每次调用现读、保存后热生效；
  *   优先使用配置页标记的「默认模型」（脚本/定时任务未指定 model 时的取值），没有标记时回退到
  *   首个配置组的首个模型；没有配置组时返回空值，由 validateLlmConfig 提示去配置页新增
  */
-const getFirstGroupConfig = (): ProviderConfig => {
-  const groups = readAiModelGroups();
+const getFirstGroupConfig = async (): Promise<ProviderConfig> => {
+  const groups = await readAiModelGroups();
   for (const group of groups) {
     const entry = group.models.find((m) => m.isDefault);
     if (entry) {
@@ -50,15 +50,15 @@ const getFirstGroupConfig = (): ProviderConfig => {
 /**
  * 按模型 ID 解析所属配置组与模型条目
  * @param {string | undefined} modelId - 模型 ID
- * @returns {{ group: AiModelGroup; entry: AiModelEntry } | undefined} 命中的配置组模型
- * @description 唯一来源是 .cache/ai-model-configs.json 里已导入配置的模型；
+ * @returns {Promise<{ group: AiModelGroup; entry: AiModelEntry } | undefined>} 命中的配置组模型
+ * @description 唯一来源是数据库 已有业务表（缓存键 ai-model-configs.json）里已导入配置的模型；
  *   接口 /models 拉取到的模型必须先在配置页勾选导入，才会出现在这里
  */
-const resolveModel = (
+const resolveModel = async (
   modelId: string | undefined,
-): { group: AiModelGroup; entry: AiModelEntry } | undefined => {
+): Promise<{ group: AiModelGroup; entry: AiModelEntry } | undefined> => {
   if (!modelId) return undefined;
-  const groups = readAiModelGroups();
+  const groups = await readAiModelGroups();
   for (const group of groups) {
     const entry = group.models.find((m) => m.id === modelId);
     if (entry) return { group, entry };
@@ -67,14 +67,14 @@ const resolveModel = (
 };
 
 /**
- * 按模型 ID 解析对应 provider 的运行配置（每次调用都重读配置文件，便于热更新）
+ * 按模型 ID 解析对应 provider 的运行配置（每次调用都重读数据库配置，便于热更新）
  * @param {string | undefined} modelId - 模型 ID；命中配置组时使用其端点与 Key
- * @returns {ProviderConfig & { provider: LlmProvider }} provider 配置 + provider 名
+ * @returns {Promise<ProviderConfig & { provider: LlmProvider }>} provider 配置 + provider 名
  */
-export const getLlmConfigForModel = (
+export const getLlmConfigForModel = async (
   modelId: string | undefined,
-): ProviderConfig & { provider: LlmProvider } => {
-  const custom = resolveModel(modelId);
+): Promise<ProviderConfig & { provider: LlmProvider }> => {
+  const custom = await resolveModel(modelId);
   if (custom) {
     return {
       baseUrl: custom.group.baseUrl,
@@ -84,16 +84,16 @@ export const getLlmConfigForModel = (
       provider: 'custom',
     };
   }
-  return { ...getFirstGroupConfig(), provider: 'zhipu' };
+  return { ...(await getFirstGroupConfig()), provider: 'zhipu' };
 };
 
 /**
  * 校验 LLM 配置是否完整
  * @param {string} [modelId] - 可选模型 ID
- * @returns {string | null} 错误描述，null 表示配置完整
+ * @returns {Promise<string | null>} 错误描述，null 表示配置完整
  */
-export const validateLlmConfig = (modelId?: string): string | null => {
-  const cfg = getLlmConfigForModel(modelId);
+export const validateLlmConfig = async (modelId?: string): Promise<string | null> => {
+  const cfg = await getLlmConfigForModel(modelId);
   if (!cfg.apiKey) {
     if (cfg.provider === 'custom') {
       return `模型 ${modelId ?? ''} 未配置 API Key，请到「系统配置 → AI 模型与记忆」补全`;
@@ -105,16 +105,16 @@ export const validateLlmConfig = (modelId?: string): string | null => {
 
 /**
  * 获取可用的模型列表
- * @returns {{ models: LlmModelOption[]; default: string }} 模型列表与当前默认模型 ID
- * @description 只返回 .cache/ai-model-configs.json 里已导入配置的模型，并带上所属配置组供下拉分组展示；
+ * @returns {Promise<{ models: LlmModelOption[]; default: string }>} 模型列表与当前默认模型 ID
+ * @description 只返回数据库 已有业务表（缓存键 ai-model-configs.json）里已导入配置的模型，并带上所属配置组供下拉分组展示；
  *   接口 /models 拉取到的模型需先在配置页导入才会出现，不做运行时自动发现；
  *   默认模型取首个配置组的首个模型，若不在列表中会临时补一项保证选中态存在；
  *   没有配置组时 default 为空字符串，不补空项；
  *   配置页勾选「隐藏」的模型（测试不可用等）在此统一过滤，不出现在贾维斯窗口
  */
-export const getAvailableModels = (): { models: LlmModelOption[]; default: string } => {
-  const fallback = getFirstGroupConfig();
-  const models: LlmModelOption[] = readAiModelGroups().flatMap((group) =>
+export const getAvailableModels = async (): Promise<{ models: LlmModelOption[]; default: string }> => {
+  const fallback = await getFirstGroupConfig();
+  const models: LlmModelOption[] = (await readAiModelGroups()).flatMap((group) =>
     group.models.filter((entry) => !entry.hidden).map((entry) => ({
       id: entry.id,
       label: entry.label,
@@ -142,21 +142,21 @@ export const getAvailableModels = (): { models: LlmModelOption[]; default: strin
 /**
  * 检查指定模型是否支持 SSE 流式调用
  * @param {string} modelId - 模型 ID
- * @returns {boolean} 是否支持流式（默认 true）
+ * @returns {Promise<boolean>} 是否支持流式（默认 true）
  * @description CogView（文生图）和 CogVideo（文生视频）类模型不支持 stream 模式
  */
-export const isModelStreamable = (modelId: string): boolean => {
-  return resolveModel(modelId)?.entry.streamable ?? true;
+export const isModelStreamable = async (modelId: string): Promise<boolean> => {
+  return (await resolveModel(modelId))?.entry.streamable ?? true;
 };
 
 /**
  * 检查指定模型是否支持图片理解（多模态输入）
  * @param {string} [modelId] - 模型 ID
- * @returns {boolean} 支持看图返回 true；未知模型按不支持处理
+ * @returns {Promise<boolean>} 支持看图返回 true；未知模型按不支持处理
  */
-export const isVisionModel = (modelId?: string): boolean => {
+export const isVisionModel = async (modelId?: string): Promise<boolean> => {
   if (!modelId) return false;
-  return resolveModel(modelId)?.entry.vision ?? false;
+  return (await resolveModel(modelId))?.entry.vision ?? false;
 };
 
 /**

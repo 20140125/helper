@@ -10,7 +10,7 @@
 #
 # 说明：
 #   与 scripts/history_today.sh 共用同一份归档缓存
-#   （.cache/api_responses/historytoday_<MMDD>_<YYYY-MM>.json），
+#   （api_responses/historytoday-<YYYY-MM-DD>.json KV），
 #   同一天不会重复请求维基百科。data / json 模式输出接口原始返回。
 #
 # 使用方式：

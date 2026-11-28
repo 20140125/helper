@@ -67,16 +67,16 @@ const stripInternalFields = (messages: ChatMessage[]): ChatMessage[] => {
  * @param {ToolDefinition[] | undefined} tools - 工具列表
  * @param {string | undefined} modelOverride - 指定模型 ID
  * @param {boolean} stream - 是否为流式
- * @returns {ChatCompletionRequest} 请求体
+ * @returns {Promise<ChatCompletionRequest>} 请求体
  */
-export const buildRequestBody = (
+export const buildRequestBody = async (
   messages: ChatMessage[],
   tools: ToolDefinition[] | undefined,
   modelOverride: string | undefined,
   stream: boolean,
-): ChatCompletionRequest => {
+): Promise<ChatCompletionRequest> => {
   // 按 modelOverride 反查 provider，保证 maxTokens 取的是该 provider 的运行配置
-  const cfg = getLlmConfigForModel(modelOverride);
+  const cfg = await getLlmConfigForModel(modelOverride);
   const body: ChatCompletionRequest = {
     model: modelOverride?.trim() || cfg.model,
     messages: stripInternalFields(messages),
@@ -139,7 +139,7 @@ export const requestChatCompletion = async (
   onRetry?: (attempt: number, delayMs: number, reason: RetryReason) => void,
 ): Promise<Response> => {
   // 按 body.model 路由到对应 provider 的 baseUrl/apiKey
-  const cfg = getLlmConfigForModel(body.model);
+  const cfg = await getLlmConfigForModel(body.model);
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${cfg.apiKey}`,

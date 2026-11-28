@@ -1,8 +1,6 @@
-import fs from 'fs';
 import type { RowDataPacket } from 'mysql2';
 import { getPool } from '@/utils/database/connection';
 import { formatDate } from '@/utils/script';
-import { PROJECT_DIR } from '@/utils/paths';
 import type { Permission } from '@/types/permission';
 import type { PermissionMeta, PermissionType, RbacConfig, RoleConfig, UserRole } from '@/types/rbac';
 import type { UserRecord, UsersStore } from '@/types/auth';
@@ -28,7 +26,8 @@ const toDateText = (value: unknown): string => {
 /**
  * 确保 hp_permissions 具备权限元信息所需的列
  * @returns {Promise<void>}
- * @description 存量库只建了基础列，运行时补齐 type / route，避免必须重跑建表脚本
+ * @description 存量库只建了基础列，运行时补齐 type / route，避免必须重跑建表脚本；
+ *   字段真实值以 hp_permissions 库表为唯一真源，不再从本地 JSON 快照回填
  */
 export const ensureRbacSchema = async (): Promise<void> => {
   const pool = getPool();
@@ -37,30 +36,11 @@ export const ensureRbacSchema = async (): Promise<void> => {
      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'hp_permissions'`,
   );
   const names = new Set(cols.map((col) => String(col.COLUMN_NAME)));
-  let added = false;
   if (!names.has('type')) {
     await pool.execute("ALTER TABLE `hp_permissions` ADD COLUMN `type` VARCHAR(10) NOT NULL DEFAULT 'view' COMMENT '权限类型 view/edit'");
-    added = true;
   }
   if (!names.has('route')) {
     await pool.execute("ALTER TABLE `hp_permissions` ADD COLUMN `route` VARCHAR(255) NULL COMMENT '页面路由（仅 view）'");
-    added = true;
-  }
-  // 存量行补列后默认都是 view，用原 JSON 快照回填真实类型与路由
-  if (added) {
-    try {
-      const legacy = JSON.parse(
-        fs.readFileSync(`${PROJECT_DIR}/.cache/permission_metas.json`, 'utf-8'),
-      ) as PermissionMeta[];
-      for (const meta of legacy) {
-        await pool.execute(
-          'UPDATE hp_permissions SET type = ?, route = ? WHERE code = ?',
-          [meta.type, meta.route ?? null, meta.code],
-        );
-      }
-    } catch (err) {
-      console.warn('[DB] 回填权限 type/route 失败，可在权限管理页重新编辑：', (err as Error).message);
-    }
   }
 };
 

@@ -1,15 +1,22 @@
-import path from 'path';
-import { CACHE_DIR } from '@/utils/paths';
 import type { AiSkillEffect } from './ai-chat-skill';
 
-/** AI 会话存储目录（按用户邮箱分子目录） */
-export const AI_CONVERSATIONS_DIR = path.join(CACHE_DIR, 'ai-conversations');
+/**
+ * AI 会话缓存键前缀
+ * @description 真源为 已有业务表，完整键形如 ai-conversations/<userEmail>/<convId>.json
+ */
+export const AI_CONVERSATIONS_PREFIX = 'ai-conversations/';
 
-/** AI 长期记忆存储目录（按用户邮箱一个 JSON 文件） */
-export const AI_MEMORY_DIR = path.join(CACHE_DIR, 'ai-memory');
+/**
+ * AI 长期记忆缓存键前缀
+ * @description 真源为 已有业务表，完整键形如 ai-memory/<userEmail>.json
+ */
+export const AI_MEMORY_PREFIX = 'ai-memory/';
 
-/** AI 副作用操作审批单文件 */
-export const AI_APPROVALS_FILE = path.join(CACHE_DIR, 'ai-approvals.json');
+/**
+ * AI 副作用操作审批单缓存键
+ * @description 真源为 已有业务表，值为审批单数组，全局共用一条记录
+ */
+export const AI_APPROVALS_KEY = 'ai-approvals.json';
 
 /** LLM 服务提供方（custom 为用户在配置页新增的自定义模型） */
 export type LlmProvider = 'zhipu' | 'custom';

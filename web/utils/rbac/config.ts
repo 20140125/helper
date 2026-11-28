@@ -1,19 +1,14 @@
-import fs from 'fs';
 import { Permission } from '@/types/permission';
 import type { RbacConfig } from '@/types/rbac';
 import { formatDate } from '@/utils/script';
-import { PROJECT_DIR } from '@/utils/paths';
 import { readAllPermissionCodes } from './permission-meta';
 import { readRbacConfigFromDb, writeRbacConfigToDb } from './db';
-
-/** RBAC 配置 JSON 快照路径（数据库不可用时的降级数据） */
-const RBAC_FILE = `${PROJECT_DIR}/.cache/rbac.json`;
 
 /** 内置角色 ID 集合，用于判断角色是否为内置角色 */
 const BUILTIN_ROLE_IDS = new Set(['super_admin', 'admin', 'viewer']);
 
 // ==============================
-// 默认配置与本地 JSON 降级
+// 默认配置与内置角色校正
 // ==============================
 
 /**
@@ -60,19 +55,6 @@ const createDefaultConfig = async (): Promise<RbacConfig> => {
 };
 
 /**
- * 读取本地 RBAC 配置快照
- * @returns {Promise<RbacConfig>} RBAC 配置
- */
-const readLegacyRbacConfig = async (): Promise<RbacConfig> => {
-  if (!fs.existsSync(RBAC_FILE)) return createDefaultConfig();
-  try {
-    return ensureBuiltinRoleIds(JSON.parse(fs.readFileSync(RBAC_FILE, 'utf-8')) as RbacConfig);
-  } catch {
-    return createDefaultConfig();
-  }
-};
-
-/**
  * 确保内置角色存在，并保证 super_admin 拥有全部权限
  * @param {RbacConfig} config - 待校正的配置
  * @returns {Promise<RbacConfig>} 校正后的配置
@@ -104,16 +86,10 @@ const ensureBuiltinRoleIds = async (config: RbacConfig): Promise<RbacConfig> => 
 /**
  * 读取 RBAC 配置
  * @returns {Promise<RbacConfig>} RBAC 配置数据
- * @description 优先查库；数据库不可用时降级读取本地 JSON 快照
+ * @description 直接查库并校正内置角色；数据库异常向上抛出，由路由转成 500，不再降级读本地 JSON
  */
-export const readRbacConfig = async (): Promise<RbacConfig> => {
-  try {
-    return await ensureBuiltinRoleIds(await readRbacConfigFromDb());
-  } catch (err) {
-    console.warn('[RBAC] 读取 hp_roles 失败，回退 JSON：', (err as Error).message);
-    return readLegacyRbacConfig();
-  }
-};
+export const readRbacConfig = async (): Promise<RbacConfig> =>
+  ensureBuiltinRoleIds(await readRbacConfigFromDb());
 
 /**
  * 写入 RBAC 配置

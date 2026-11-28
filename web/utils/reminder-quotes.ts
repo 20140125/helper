@@ -1,11 +1,13 @@
-import fs from 'fs';
 import type {
   ReminderQuoteItem,
   ReminderQuotesBucket,
   ReminderQuotesFile,
 } from '@/types/reminder-quotes';
-import { REMINDER_QUOTES_FILE, REMINDER_QUOTES_BUCKETS } from '@/types/reminder-quotes';
-import { CACHE_DIR } from './paths';
+import { REMINDER_QUOTES_BUCKETS } from '@/types/reminder-quotes';
+import { readCacheJson, writeCacheJson } from '@/utils/database/cache-store';
+
+/** 寄语缓存键（相对 .cache 的路径，真源为 已有业务表） */
+const REMINDER_QUOTES_KEY = 'reminder_quotes.json';
 
 const MEAL_KEYS: Array<'breakfast' | 'lunch' | 'dinner'> = ['breakfast', 'lunch', 'dinner'];
 const WEEKDAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'weekend'] as const;
@@ -26,49 +28,51 @@ const buildDefaultFile = (): ReminderQuotesFile => {
   };
 };
 
-/** 读取原始 JSON 文件（缺字段补默认值） */
-export const readReminderQuotesFile = (): ReminderQuotesFile => {
-  if (!fs.existsSync(REMINDER_QUOTES_FILE)) {
+/**
+ * 读取原始 JSON 数据（缺字段补默认值）
+ * @returns {Promise<ReminderQuotesFile>} 完整结构；缓存缺失或格式错误时返回默认结构
+ * @description 真源为缓存 KV，不再触碰磁盘文件
+ */
+export const readReminderQuotesFile = async (): Promise<ReminderQuotesFile> => {
+  const raw = await readCacheJson<Partial<ReminderQuotesFile>>(REMINDER_QUOTES_KEY);
+  if (!raw) {
     return buildDefaultFile();
   }
-  try {
-    const raw = JSON.parse(fs.readFileSync(REMINDER_QUOTES_FILE, 'utf-8')) as Partial<ReminderQuotesFile>;
-    const def = buildDefaultFile();
-    return {
-      weekend: { description: raw.weekend?.description ?? '', messages: raw.weekend?.messages ?? [] },
-      workday_adjust: {
-        description: raw.workday_adjust?.description ?? '',
-        advance_reminders: raw.workday_adjust?.advance_reminders ?? [],
-        today_reminders: raw.workday_adjust?.today_reminders ?? [],
-      },
-      quotes: { description: raw.quotes?.description ?? '', quotes: raw.quotes?.quotes ?? [] },
-      breakfast: {
-        description: raw.breakfast?.description ?? '',
-        tips: raw.breakfast?.tips ?? [],
-        nutrition_advice: { ...def.breakfast.nutrition_advice, ...(raw.breakfast?.nutrition_advice ?? {}) },
-      },
-      lunch: {
-        description: raw.lunch?.description ?? '',
-        tips: raw.lunch?.tips ?? [],
-        nutrition_advice: { ...def.lunch.nutrition_advice, ...(raw.lunch?.nutrition_advice ?? {}) },
-      },
-      dinner: {
-        description: raw.dinner?.description ?? '',
-        tips: raw.dinner?.tips ?? [],
-        nutrition_advice: { ...def.dinner.nutrition_advice, ...(raw.dinner?.nutrition_advice ?? {}) },
-      },
-    };
-  } catch {
-    return buildDefaultFile();
-  }
+  const def = buildDefaultFile();
+  return {
+    weekend: { description: raw.weekend?.description ?? '', messages: raw.weekend?.messages ?? [] },
+    workday_adjust: {
+      description: raw.workday_adjust?.description ?? '',
+      advance_reminders: raw.workday_adjust?.advance_reminders ?? [],
+      today_reminders: raw.workday_adjust?.today_reminders ?? [],
+    },
+    quotes: { description: raw.quotes?.description ?? '', quotes: raw.quotes?.quotes ?? [] },
+    breakfast: {
+      description: raw.breakfast?.description ?? '',
+      tips: raw.breakfast?.tips ?? [],
+      nutrition_advice: { ...def.breakfast.nutrition_advice, ...(raw.breakfast?.nutrition_advice ?? {}) },
+    },
+    lunch: {
+      description: raw.lunch?.description ?? '',
+      tips: raw.lunch?.tips ?? [],
+      nutrition_advice: { ...def.lunch.nutrition_advice, ...(raw.lunch?.nutrition_advice ?? {}) },
+    },
+    dinner: {
+      description: raw.dinner?.description ?? '',
+      tips: raw.dinner?.tips ?? [],
+      nutrition_advice: { ...def.dinner.nutrition_advice, ...(raw.dinner?.nutrition_advice ?? {}) },
+    },
+  };
 };
 
-/** 写入原始 JSON 文件 */
-export const writeReminderQuotesFile = (data: ReminderQuotesFile): void => {
-  if (!fs.existsSync(CACHE_DIR)) {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
-  }
-  fs.writeFileSync(REMINDER_QUOTES_FILE, JSON.stringify(data, null, 2), 'utf-8');
+/**
+ * 写入原始 JSON 数据
+ * @param {ReminderQuotesFile} data - 完整文件结构
+ * @returns {Promise<void>}
+ * @description 通过缓存 KV 全量覆盖，序列化格式与旧版一致（2 空格缩进）
+ */
+export const writeReminderQuotesFile = async (data: ReminderQuotesFile): Promise<void> => {
+  await writeCacheJson(REMINDER_QUOTES_KEY, data);
 };
 
 /** 从指定 bucket 读出字符串数组 */
@@ -156,5 +160,9 @@ export const rebuildReminderQuotesFile = (items: ReminderQuoteItem[], base: Remi
 export const isValidReminderBucket = (bucket: string): bucket is ReminderQuotesBucket =>
   (REMINDER_QUOTES_BUCKETS as string[]).includes(bucket);
 
-/** 读取并展开为扁平化条目（路由层便捷使用） */
-export const readReminderQuoteItems = (): ReminderQuoteItem[] => flattenReminderQuotes(readReminderQuotesFile());
+/**
+ * 读取并展开为扁平化条目（路由层便捷使用）
+ * @returns {Promise<ReminderQuoteItem[]>} 扁平化条目列表
+ */
+export const readReminderQuoteItems = async (): Promise<ReminderQuoteItem[]> =>
+  flattenReminderQuotes(await readReminderQuotesFile());

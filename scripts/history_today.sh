@@ -8,7 +8,7 @@
 #   1. 获取历史上今天发生的重要事件
 #   2. 使用维基百科API获取100%真实数据
 #   3. 支持生成企业微信消息格式（供 daily_data_manager.sh 调用缓存）
-#   4. 原始 JSON 归档到 .cache/api_responses/ (一月一文件)
+#   4. 原始 JSON 归档到 hp_cache_res_*（api_responses/ 下的单日 KV）
 # 
 # 使用方式：
 #   ./history_today.sh show          # 显示今天的历史事件

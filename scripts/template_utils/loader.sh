@@ -12,7 +12,7 @@
 #   不可单独执行，不设 SCRIPT_DIR / LOG_FILE
 #
 # 作者：智能提醒系统
-# 更新：2026-04-22
+# 更新：2026-11-28
 # ======================================
 
 # 加载指定类型和风格的模板
@@ -26,9 +26,9 @@ load_template() {
     local type="$1"
     local style="${2:-$MESSAGE_STYLE}"
 
-    # 检查模板文件是否存在
-    if [ ! -f "$TEMPLATE_FILE" ]; then
-        log_error "模板文件不存在: $TEMPLATE_FILE"
+    # 检查模板缓存键是否存在
+    if ! cache_db_exists "$TEMPLATE_KEY"; then
+        log_error "模板文件不存在: $TEMPLATE_KEY"
         return 1
     fi
 
@@ -41,12 +41,12 @@ load_template() {
 
     # 尝试读取指定风格的模板
     local template
-    template=$(jq -r ".templates.${type}.${style} // empty" "$TEMPLATE_FILE" 2>/dev/null)
+    template=$(cache_db_read "$TEMPLATE_KEY" | jq -r ".templates.${type}.${style} // empty" 2>/dev/null)
 
     # 如果指定风格不存在，回退到 default
     if [ -z "$template" ] || [ "$template" = "null" ]; then
         log_debug "风格 '$style' 不存在，回退到 default"
-        template=$(jq -r ".templates.${type}.default // empty" "$TEMPLATE_FILE" 2>/dev/null)
+        template=$(cache_db_read "$TEMPLATE_KEY" | jq -r ".templates.${type}.default // empty" 2>/dev/null)
     fi
 
     # 检查模板是否存在

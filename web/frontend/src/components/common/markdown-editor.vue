@@ -53,7 +53,7 @@
 import { computed, ref } from 'vue';
 import FileContent from '@/components/common/file-content.vue';
 import { buildMarkdownFullHtml } from '@/utils/greetings/markdown-preview';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import type { FileContentInstance } from '@/types/component-instances';
 
 /** 编辑/预览切换状态 */

@@ -1296,5 +1296,93 @@
     "enabled": true,
     "created_at": "2026-11-28 11:09:57",
     "updated_at": "2026-11-28 11:09:57"
+  },
+  {
+    "item_key": "api_ai_chat_skin_get",
+    "category_id": "cat_ai_chat",
+    "name": "读取皮肤配置",
+    "method": "GET",
+    "path": "/api/ai-chat/skin",
+    "description": "读取当前登录用户的贾维斯皮肤配置（预设 ID 与自定义背景图本体 data URL）",
+    "enabled": true,
+    "created_at": "2026-11-28 13:45:00",
+    "updated_at": "2026-11-28 13:45:00"
+  },
+  {
+    "item_key": "api_ai_chat_skin_save",
+    "category_id": "cat_ai_chat",
+    "name": "保存皮肤配置",
+    "method": "PUT",
+    "path": "/api/ai-chat/skin",
+    "description": "按当前登录用户 UPSERT 皮肤配置；预设 ID 查库校验，背景图本体直接存 LONGTEXT",
+    "enabled": true,
+    "created_at": "2026-11-28 13:45:00",
+    "updated_at": "2026-11-28 13:45:00"
+  },
+  {
+    "item_key": "api_ai_chat_skin_background_upload",
+    "category_id": "cat_ai_chat",
+    "name": "上传皮肤背景图",
+    "method": "POST",
+    "path": "/api/ai-chat/skin/background",
+    "description": "上传自定义皮肤背景图（JPG/PNG/WEBP/GIF，最大 5MB），返回图片本体 data URL 以便随配置入库",
+    "enabled": true,
+    "created_at": "2026-11-28 13:45:00",
+    "updated_at": "2026-11-28 13:45:00"
+  },
+  {
+    "item_key": "api_ai_chat_skin_presets_list",
+    "category_id": "cat_ai_chat",
+    "name": "读取皮肤预设",
+    "method": "GET",
+    "path": "/api/ai-chat/skin/presets",
+    "description": "列出数据库中已启用的贾维斯皮肤预设定义（名称、缩略图、背景与 CSS 变量）",
+    "enabled": true,
+    "created_at": "2026-11-28 14:30:00",
+    "updated_at": "2026-11-28 14:30:00"
+  },
+  {
+    "item_key": "api_ai_chat_skin_preset_save",
+    "category_id": "cat_ai_chat",
+    "name": "新增/更新皮肤预设",
+    "method": "PUT",
+    "path": "/api/ai-chat/skin/presets/:key",
+    "description": "按 skin_key UPSERT 一条皮肤预设定义，enabled=0 可作软删除；CSS 值与变量字典均做安全校验",
+    "enabled": true,
+    "created_at": "2026-11-28 14:30:00",
+    "updated_at": "2026-11-28 14:30:00"
+  },
+  {
+    "item_key": "api_i18n_translations_get",
+    "category_id": "cat_database",
+    "name": "读取语言包",
+    "method": "GET",
+    "path": "/api/i18n/translations",
+    "description": "一次读取全部语言（zh / en）的完整文案（公开接口，登录页与首屏使用）",
+    "enabled": true,
+    "created_at": "2026-11-28 14:05:00",
+    "updated_at": "2026-11-28 14:05:00"
+  },
+  {
+    "item_key": "api_i18n_messages_list",
+    "category_id": "cat_database",
+    "name": "语言条目列表",
+    "method": "GET",
+    "path": "/api/i18n/messages",
+    "description": "按语言、命名空间、关键字分页查询语言包条目（登录用户均可查看）",
+    "enabled": true,
+    "created_at": "2026-11-28 14:05:00",
+    "updated_at": "2026-11-28 14:05:00"
+  },
+  {
+    "item_key": "api_i18n_messages_update",
+    "category_id": "cat_database",
+    "name": "更新语言文案",
+    "method": "PUT",
+    "path": "/api/i18n/messages/:id",
+    "description": "更新单条静态文案；函数型条目只读，请在语言包源码中维护（database:edit）",
+    "enabled": true,
+    "created_at": "2026-11-28 14:05:00",
+    "updated_at": "2026-11-28 14:05:00"
   }
 ]

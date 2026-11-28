@@ -111,7 +111,7 @@
 
 <script setup lang="ts">
 import AiModelForm from './ai-model-form.vue';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import { computed } from 'vue';
 import type { AutoFormField } from '@/types/auto-form';
 import type { AiModelEntry, AiModelGroup, RemoteModelOption } from '@/types/ai-model-config';

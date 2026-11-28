@@ -9,7 +9,7 @@
 - 新建或修改 `web/frontend/src/` 下的页面、组件、Model、Service、Type、Store。
 - 新增或修改 `web/routes/`、`web/utils/`、`web/types/` 下的后端接口与工具函数。
 - 处理 i18n、`defineModel` 双向绑定、JSDoc 注释、代码风格巡检、脚手架生成。
-- 新增页面或接口时同步 `.cache/*.json` 配置。
+- 新增页面或接口时同步数据库配置（`hp_permissions` / `hp_roles` / `hp_api_categories` / `hp_api_items`）。
 
 如果只是想查完整细则，例如某种注释模板或脚本的全部参数，请直接读 `.codebuddy/skills/helper-web-spec/references/` 下对应文档。
 
@@ -26,16 +26,16 @@
 
 ## 新增页面完整流程
 
-前端顺序：`types → services → models → views → constants（如有） → locales → router`。
+前端顺序：`types → services → models → views → constants（如有） → router`（文案在数据库维护，不再改 locales）。
 
 后端顺序：`types → utils/<模块>.ts → routes/utils.ts barrel 重导出 → routes/<模块>.ts → server.ts 注册`。
 
-数据配置必须同步：新增权限或后端 API 时以数据库表为准（`hp_permissions` / `hp_roles` / `hp_api_categories` / `hp_api_items`），通过 Web 管理页或 `sql/` 种子维护；`.cache/*.json` 仅作降级快照，不再手工同步（分批迁移记录见 `CHANGELOG`）。
+数据配置必须同步：新增权限或后端 API 时以数据库表为准（`hp_permissions` / `hp_roles` / `hp_api_categories` / `hp_api_items`），通过 Web 管理页或 `sql/` 种子维护；运行时缓存数据全量入库、`.cache` 缓存文件已删除，无需手工同步 JSON（迁移记录见 `CHANGELOG`）。
 
 ## 前端关键约定
 
 - View 根节点使用 `<page-layout>`；表单使用 `<form-drawer>` + `<auto-form>`，不要裸用 `<t-dialog>` / `<t-form>`。
-- 文案走 `useLocaleStore().t.xxx`，禁止硬编码中文或英文；`zh.ts` 与 `en.ts` 必须同步新增 key。
+- 文案走 `useLocaleStore().t.xxx`，禁止硬编码中文或英文；新 key 登记到数据库 `hp_i18n_messages`，并重跑 `npm run i18n:sql` 导出类型与种子。
 - 常量、枚举、UI 映射统一放 `constants/<模块>.ts`，不要散落在 Model 或组件里。
 - 双向绑定使用 `defineModel<T>()` 或 `defineModel<T>('name')`，禁止写 `prop + update:xxx emit + computed get/set` 桥接三件套。
 - 代码编辑器采用双值：`xxxBody` 是热值，`xxxBodyInitial` 是冷值，分别绑定不同 ref。
@@ -88,7 +88,7 @@
 - `04-backend-routes-utils.md`：后端路由、utils barrel、utils 子目录、JWT 全局鉴权。
 - `05-styles-and-i18n.md`：代码风格、CSS 公共样式、i18n 硬编码治理。
 - `06-common-pitfalls-checklist.md`：踩坑汇总，改 web 代码前必读。
-- `07-cache-json-sync.md`：新增页面或接口的 4 个 `.cache/*.json` 同步清单。
+- `07-cache-json-sync.md`：新增页面或接口的权限/接口元数据配置清单（已迁库，含历史字段关系与迁移状态说明）。
 - `08-vue-defineModel-vmodel.md`：Vue 3.4+ `defineModel` 双向绑定重构细则。
 - `09-jsdoc-model-comments.md`：Model JSDoc 注释模板。
 - `10-jsdoc-service-comments.md`：Service JSDoc 注释模板。

@@ -18,8 +18,8 @@
 # 
 # 数据来源：
 #   - 节假日配置：holiday_config.sh
-#   - 周末寄语：${CACHE_DIR}/reminder_quotes.json（weekend 分类，98条寄语库）
-#   - 星座运势：${CACHE_DIR}/daily_data_YYYY-MM-DD.json
+#   - 周末寄语：reminder_quotes.json 对应的已有业务表（weekend 分类，98条寄语库）
+#   - 星座运势：daily_data_YYYY-MM-DD.json 对应的已有业务表
 # 
 # 作者：智能提醒系统
 # 更新：2026-02-13

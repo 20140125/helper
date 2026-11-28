@@ -49,7 +49,7 @@ export const requestApprovalTool: ToolImpl = {
     // 防重：同工具 + 同参数的待审批单已存在时直接复用，不重复建单
     // （用户没看到回复就重试是最常见的重复来源）
     const argsJson = JSON.stringify(toolArgs);
-    const duplicate = listApprovals().find(
+    const duplicate = (await listApprovals()).find(
       (a) => a.status === 'pending' && a.tool === tool && JSON.stringify(a.args ?? {}) === argsJson,
     );
     if (duplicate) {
@@ -60,7 +60,7 @@ export const requestApprovalTool: ToolImpl = {
       };
     }
 
-    const request = createApproval({
+    const request = await createApproval({
       user: ctx.userEmail,
       conversationId: ctx.conversationId ?? '',
       tool,

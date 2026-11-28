@@ -4,7 +4,7 @@ import { BootstrapService } from '@/services/bootstrap-service';
 import { useStatusStore } from '@/stores/status';
 import { useRulesStore } from '@/stores/rules';
 import { SYSTEM_STATUS_POLL_MS } from '@/constants/polling';
-import type { LogItem } from '@/types/log';
+import type { LogSourceInfo } from '@/types/log';
 
 /**
  * 首页首屏聚合数据 Store 类
@@ -13,15 +13,15 @@ import type { LogItem } from '@/types/log';
 export class BootstrapStore {
   /**
    * 日志来源列表
-   * @type {Ref<LogItem[]>}
-   * @description 聚合响应到达后写入，仪表盘初始化时直接复用，不再单独请求 /api/logs
+   * @type {Ref<LogSourceInfo[]>}
+   * @description 聚合响应到达后写入，保留供兼容入口使用
    */
-  logs = ref<LogItem[]>([]);
+  logs = ref<LogSourceInfo[]>([]);
 
   /**
    * 聚合数据是否已就绪
    * @type {Ref<boolean>}
-   * @description 为 true 时仪表盘不再重复请求规则与日志
+   * @description 为 true 时仪表盘不再重复请求规则
    */
   loaded = ref(false);
 
@@ -50,7 +50,7 @@ export class BootstrapStore {
    * 加载并分发首屏聚合数据
    * @returns {Promise<void>}
    * @description 路由守卫与登录成功后共用；成功后只启动状态轮询（统一 30s 周期），
-   *   失败时降级为原有的两个状态请求，让仪表盘按旧路径兜底拉取规则与日志
+   *   失败时降级为原有的两个状态请求，让仪表盘按旧路径兜底拉取规则
    */
   load = async (): Promise<void> => {
     if (this.loaded.value) {
@@ -71,7 +71,7 @@ export class BootstrapStore {
         this.loaded.value = true;
         statusStore.startPolling();
       } catch {
-        // 聚合接口不可用时降级：立即拉一次状态，仪表盘 init 会兜底拉规则与日志
+        // 聚合接口不可用时降级：立即拉一次状态，仪表盘 init 会兜底拉规则
         this.loaded.value = false;
         statusStore.startPolling(SYSTEM_STATUS_POLL_MS, true);
       } finally {
@@ -84,11 +84,11 @@ export class BootstrapStore {
 
   /**
    * 写入日志来源列表
-   * @param {LogItem[]} logs - 日志来源列表
+   * @param {LogSourceInfo[]} logs - 按 hp_run_logs.source 聚合出的来源列表
    * @returns {void}
-   * @description 聚合响应与仪表盘手动刷新共用同一份数据，避免切回首页时被旧快照覆盖
+   * @description 写入聚合响应中的日志来源，避免切回首页时被旧快照覆盖
    */
-  setLogs = (logs: LogItem[]): void => {
+  setLogs = (logs: LogSourceInfo[]): void => {
     this.logs.value = logs;
   };
 

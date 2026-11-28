@@ -79,7 +79,7 @@ import PermissionChecker from '@/components/rbac/permission-checker.vue';
 import CardPanel from '@/components/common/card-panel.vue';
 import type { AutoFormField } from '@/types/auto-form';
 import type { PermissionSelection } from '@/utils/rbac';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 defineProps<{
   /** i18n 翻译函数（由父组件通过 LocaleStore.t 传入，响应式） */

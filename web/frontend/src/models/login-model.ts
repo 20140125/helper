@@ -223,13 +223,16 @@ export class LoginModel extends BaseModel {
   // ==============================
 
   /**
-   * 构造函数：监听邮箱输入并拉取系统默认验证码
-   * @description watch 在 useLoginModel 的 setup 上下文中创建，随组件卸载自动停止
+   * 构造函数：监听邮箱输入，并在登录弹框可见时拉取系统默认验证码
+   * @description watch 在 useLoginModel 的 setup 上下文中创建，随组件卸载自动停止；
+   *   已登录时弹框不可见，不再发出无用的 admin-contact 请求
    */
   constructor() {
     super();
     watch(this.email, () => { this.syncDefaultAuthCode(); });
-    void this.loadDefaultAuthCode();
+    watch(this.visible, (show) => {
+      if (show) void this.loadDefaultAuthCode();
+    }, { immediate: true });
   }
 
   /**

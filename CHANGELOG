@@ -10,6 +10,38 @@
 ## [Unreleased]
 
 ### 新增
+- **项目知识库文档全量入库**：新增 `hp_knowledge_docs` 表（`sql/knowledge/38_knowledge_docs.sql`）与 `npm run knowledge:sql` 生成/同步脚本，把 `docs/` 25 篇 + `knowledge/` 3 篇 Markdown 全文入库（202 KB / 4 批 INSERT / 28 条）
+  - 列含 `name` / `source_dir` / `is_system` / `content` LONGTEXT / `content_hash` SHA-256 / `size_bytes` / `file_mtime`；`doc_path` 由 `source_dir` + `name` 派生、不再单独入库，唯一键为 `uk_doc (source_dir, name)`；38 号脚本与 `--apply` 复用同一份 DDL / 列清单 / UPSERT，系统文档按文件回灌、用户文档只补缺失，保护管理页编辑过的正文
+  - 索引目录固定为一级扫描；服务启动与 38 号脚本均带幂等迁移，自动删除旧库的 `doc_path` 列并补上复合唯一键
+  - 已接入 `helper_database.sql` 初始化入口；`sql/01_drop_tables.sql` 不删除该表，避免全库重建冲掉维护内容
+  - **知识库运行时切到数据库**：`web/utils/knowledge/` 拆为 `files` / `dirs` / `state` / `mutations`，新增 `web/utils/database/knowledge.ts`；服务启动自动建表、按 `content_hash` 增量同步系统文档并加载内存快照，列表 / 正文 / BM25 检索 / 贾维斯工具全部读库，数据库不可用时降级读本地 Markdown 文件
+  - 新建 / 编辑 / 删除 / 导入改为先写库，再更新内存快照与 `knowledge/*.md` 文件镜像；`/api/knowledge/reindex` 与 `query_knowledge_docs{action:reindex}` 刷新库快照，`PUT /api/knowledge/dirs` 变更后自动把新目录文档同步入库
+  - 改完 `docs/` 或 `knowledge/` 文档重跑 `npm run knowledge:sql` 重建种子 SQL；现有库增量同步用 `npm run knowledge:sql -- --apply`
+- **前端 i18n 语言包入库**：新增 `hp_i18n_messages` 表（`sql/i18n/35_i18n_messages.sql`）与 `npm run i18n:sql` 生成/同步脚本，把 `web/frontend/src/locales/{zh,en}.ts` 全量展平入库（当前 3034 条：zh 1506 / en 1528，两种语言各含 63 个插值函数，按 JS 源码保真）
+  - 列含 `id`（自增主键）/ `lang` / `key_path` / `namespace` / `path_json` / `value` / `value_type` / `sort_order`；`lang` + `key_path` 改由唯一约束 `uk_lang_key` 保证去重，便于数据库管理页按 ID 预览
+  - 键名自带点号的条目用 `path_json` 保留精确层级，数组按下标展平，字面量统一经 mysql2 转义；`--apply` 检测到旧表缺少 `id` 列时自动 DROP 重建并全量回灌
+  - 已接入 `helper_database.sql` 初始化入口与 `sql/01_drop_tables.sql`；全库初始化会按 35 号脚本重建为 TS 快照，改完语言包重跑 `npm run i18n:sql` 重建 SQL，现有库增量同步用 `npm run i18n:sql -- --apply`
+- **语言包对接数据库 + 语言包管理页**：前端语言包运行时改为读库，`hp_i18n_messages` 成为文案真源，`zh.ts` / `en.ts` 降级为兜底与初始化种子
+  - 新增 `GET /api/i18n/translations`（公开，一次返回 zh / en 两份文案，登录页与首屏可用）、`GET /api/i18n/messages`（database:view）、`PUT /api/i18n/messages/:id`（database:edit）；`server.ts` 白名单按精确路径放行，管理接口逐条校验权限
+  - zh / en 语言包合并为单个接口：后端一条 SQL 取回两种语言并按 `lang` 分组返回，前端启动只发一次请求；接口元数据、`22_api_items.sql` 种子与降级快照同步到 `/api/i18n/translations`
+  - `web/utils/database/i18n.ts` 负责读库重建嵌套路径、分页检索与更新静态文案；插值函数条目只读（源码仍在 TS 语言包维护），避免前端执行数据库里的 JS 源码
+  - `main.ts` 启动时一次拉取 zh / en，`stores/locale.ts` 按 `path_json` 覆盖全部文案；数据库不可用时静默降级到内置语言包
+  - 运行时查询补齐 128 个插值函数：`web/frontend/src/utils/i18n-template.ts` 用受限表达式解析还原函数（不使用 `eval` / `new Function`，非法源码回退内置实现），语言包请求加 8s 超时避免鉴权异常时永久挂起
+  - 新增 `/i18n-messages` 页面：按语言/命名空间/关键字检索、分页、编辑静态文案，保存后 `localeStore.reload()` 立即生效；`PAGE_REGISTRY`、路由、中英文案与接口元数据 / `22_api_items.sql` 镜像同步
+  - 语言包查看对所有登录用户开放：`/i18n-messages` 页面与 `GET /api/i18n/messages` 不再限超管 / `database:view`；编辑仍要求 `database:edit`
+  - **文案维护真源收敛到数据库**：`sql/01_drop_tables.sql` 不再删除 `hp_i18n_messages`，35 号脚本改为 `CREATE TABLE IF NOT EXISTS` + `INSERT ... ON DUPLICATE KEY UPDATE`（只补新 key 与结构列），全库初始化不会再冲掉管理页编辑过的文案；TS 语言包退为全新环境种子与故障兜底，日常无需维护
+  - 语言包管理页视觉调整：`card-panel` 卡片化、带标签的紧凑筛选栏与重置按钮、空态提示、长文案截断；关键字输入框固定 240px，不再拉满整行
+  - **语言包管理页去掉分页**：改为固定默认参数 `limit=500` 一次返回，靠语言/分组/关键字筛选定位，页面提示「显示前 N 条 / 共 M 条」；后端 `I18N_MESSAGES_PAGE_SIZE` / 上限同步为 500
+  - 分组筛选设默认值 `I18N_DEFAULT_NAMESPACE = 'aiChat'`，移除「全部分组」选项与清空能力，页面始终只加载一个命名空间的文案
+  - 移除 `i18nMessages.totalCount` 与同样未使用的 `i18nMessages.limitHint` 数量文案：页面不再显示数量标签/结果提示，双语语言包、种子 SQL、数据库记录与孤儿样式同步清理
+- **彻底移除本地语言包目录**：删除 `web/frontend/src/locales/{zh,en}.ts`，`hp_i18n_messages` 成为唯一文案真源
+  - `web/scripts/generate-i18n-sql.ts` 改为从库导出：一次生成 `sql/i18n/35_i18n_messages.sql` 种子与 `frontend/src/types/locale.ts` 静态 `Locale` 接口（含动态字典、数组与插值函数签名），不再读取任何 TS 语言包
+  - 63 处 `import type { Locale } from '@/locales/zh'` 改为 `@/types/locale`；`stores/locale.ts` 去掉内置语言包，启动时一次请求取回 zh / en，成功写 localStorage 缓存、失败用缓存兜底，数字下标路径自动构建数组
+  - 插值函数仍由库内源码经 `utils/i18n-template.ts` 受限解析还原，不执行数据库里的任意 JS
+  - 文档与规范同步：`web/README.md`、`docs/12-扩展开发.md`、`knowledge/web开发规范摘要.md` 及 helper-web-spec skill 相关条目改为数据库维护说明
+  - 修复贾维斯「未就绪」告警不兼容主题：TDesign 默认浅橙底与 AI 皮肤的亮色文字冲突，改为 `--accent-amber-rgb` 半透明底、琥珀图标与 `--ai-chat-text` / `--text-primary` 文字，深浅主题与自定义皮肤均可读
+  - 其它页面仍保留分页：`styles/style.css` 把 `.page-content .t-pagination` 内容对齐改为居中（TDesign 默认 `width:100%` + `flex-end`），避开右下角固定悬浮按钮
+  - `npm run i18n:sql -- --apply` 改为幂等 UPSERT：只补语言包新增 key 与结构列，不覆盖库中管理页编辑过的文案
 - Web 新增「数据库管理」页（仅超级管理员）：连接状态、库表结构与数据预览、只读 SQL 查询与写 SQL 执行、查看 `sql/` 建表脚本、按 `helper_database.sql` 初始化数据库
 - 新增 `/api/database/*` 接口与 `database:view` / `database:edit` 权限码；权限元数据、RBAC、接口分类/条目及建表 SQL 镜像同步
 - 后端引入 `mysql2` 连接池；`web/.env.example` 补充 `DB_*` 配置段
@@ -25,36 +57,37 @@
 - **Playground 模板读写切到数据库**：`hp_playground_templates` 成为唯一真源，`web/utils/playground.ts` 改为 mysql2 查询/增删改，`/api/playground` 5 个接口改为异步；迁移完成后删除原 JSON 数据文件与 `web/data/` 目录，初始数据固化在 34 号建表脚本中
 - **贾维斯巡检状态入库**：`hp_ai_inspection_state` 新增 `last_result` JSON 列与 `source_file` 唯一键，2 份历史报告与当前状态（含 11-28 最新简报）全量入库；`inspection-scheduler.ts` 运行标记改为查库 / UPSERT，删除 `web/.runtime/ai-inspector-state*`；`launcher.pid` 等进程文件保留
 - **登录与 RBAC 全量接入数据库**：验证码落 `hp_verification_codes`、登录用户 UPSERT 到 `hp_users`；权限元信息 / 角色 / 角色权限 / 用户角色以 `hp_permissions`、`hp_roles`、`hp_role_permissions`、`hp_user_roles` 为唯一真源
-  - `/api/auth/*`、`/api/rbac/*`、JWT 中间件、贾维斯 `manage_rbac` / `query_rbac` / `query_cache` 全部改为异步查库；数据库不可用时降级读取 `.cache/*.json` 快照
-  - `hp_permissions` 补 `type` / `route` 列并在 03 号建表脚本固化 70 条种子；启动时自动补列并用旧快照回填；`/api/cache` 禁止直接覆盖已迁库的三个保留文件
+  - `/api/auth/*`、`/api/rbac/*`、JWT 中间件、贾维斯 `manage_rbac` / `query_rbac` / `query_cache` 全部改为异步查库；数据库不可用时直接返回错误，不再降级读文件（迁移期短期存在的 `.cache/*.json` 降级快照已随全量切库删除）
+  - `hp_permissions` 补 `type` / `route` 列并在 03 号建表脚本固化 70 条种子；启动时自动补列并用旧快照回填（一次性迁移动作）；缓存管理页与 `/api/cache` 只操作数据库条目，专用模块维护的键禁止直接覆盖
 - **默认验证码改为系统配置项**：删除硬编码 `DEV_ADMIN_CODE` 与 `NODE_ENV` 门控，新增 `DEFAULT_AUTH_CODE` 存入 `hp_env_config`
   - 「系统配置 → 邮件配置」卡片可编辑（留空关闭，仅 `MAIL_USERNAME` 超管邮箱可用，保存后立即生效）；`/api/config` 改为 `web/.env` + 数据库混合真源，数据库项优先
   - 公开接口 `GET /api/auth/admin-contact` 仅开发模式回显该验证码，生产环境不泄露；登录页预填逻辑同步改名
   - `sql/config/32_env_config.sql` 加种子、`sql/01_drop_tables.sql` 补 DROP、`sql/playground/34_playground_templates.sql` 的 `config-mail` 模板加字段；接口元数据与 `22_api_items.sql` 镜像同步
 
 ### 变更
-- **分批把文件数据迁到查询数据库**：新增 `npm run migrate:cache` 迁移入口（默认 dry-run / `--verify` 校验 / `--apply` 幂等写入），按风险分 5 批推进
-  - 批次 1 `permission-requests` 已完成：`.cache/permission_requests.json` → `hp_permission_requests`，补齐文件里多出的 1 条待审批申请；库内已有记录不覆盖，并添加 `uk_request_id` 唯一键（`sql/rbac/20_permission_requests.sql` 同步）
-  - 权限申请读写改为优先查库、数据库不可用时降级读/写 JSON 快照；`/api/permission-apply/*`、`query_permission_requests`、`query_cache{target:permission_requests}` 全部走库
-  - `permission_requests.json` 加入保留文件：缓存列表隐藏且禁止通过 `/api/cache` 覆盖
-  - 批次 2 `api-metadata` 已完成：`api_categories.json` / `api_items.json` / `webhooks.json` → `hp_api_categories` / `hp_api_items` / `hp_webhooks`；补齐运行期新增的 `api_bootstrap_get` 条目（`22_api_items.sql` 加幂等 INSERT），已有记录不覆盖
-  - 三组读写改为优先查库、失败降级读/写 JSON 快照；`/api/api-categories/*`、`/api/api-management/*`、`/api/webhooks/*`、`list_apis`、`query_api_categories`、`query_webhooks`、`query_cache{target:api_categories}` 全部走库
-  - Webhook 以 `hp_webhooks` 为查询真源；写入后同步生成 `.cache/webhooks.json` 镜像供 shell 只读（含真实 URL，已被 `.gitignore` 忽略），迁移时从库导出；原先文件缺失导致 shell 侧通知不可用，迁移后恢复
-  - `api_categories.json` / `api_items.json` 加入保留文件，`webhooks.json` 一并禁止通过 `/api/cache` 直接覆盖
-  - 新增 `web/utils/database/datetime.ts`，统一文件快照与 MySQL DATETIME 的时间文本转换
-  - 批次 3 `content-library` 已完成：`greetings.json` / `reminder_quotes.json` / `message_templates.json` → `hp_greetings` / `hp_reminder_quotes` / `hp_message_templates` / `hp_template_styles` / `hp_template_names`；补齐运行期新增的 1 条名言（寄语 545 → 546）
-  - 三份 JSON 含库表没有的元信息且 shell 会追加写入，故保留文件作为写入/交换真源；查询侧以库为真源，新增 `web/utils/database/content-library.ts` 按文件 mtime 自动重建查询表（水位存 `hp_cache_meta.content_library_sync_at`，`sql/cache_data/16_meta.sql` 同步）
-  - `query_greetings`、`query_reminder_quotes`、`query_message_templates`、`query_cache{target:greetings,message_templates}` 改为查库、失败降级读文件；页面 CRUD 与 `/api/cache` 仍写文件，写后由自动同步收敛
-  - 批次 4 `calendar-cache` 已完成：`holiday_data.json` / `month_config.json` / `daemon_sent_state.json` / `daily_data_*.json` / `api_responses/*` → 新增 `hp_cache_files` 原始镜像表（24 个文件），按文件 mtime 自动同步
-    - 新增 `sql/cache_data/17_cache_files.sql`，接入 `sql/cache_data.sql` 与 `sql/01_drop_tables.sql`；水位存 `hp_cache_meta.calendar_cache_sync_at`
-    - 原结构化表保留为初始化快照；镜像表保存原始全文，避免丢失 `code` / `config` / 文件顺序等元信息
-    - `query_cache{target:holiday,month_config,daemon_sent_state,daily_data,api_response}` 与 `query_api_responses` 改为查库、失败降级读文件；shell 写入后下一次查询自动收敛
-  - 批次 5 `shell-writers` 已完成：`custom_rules.json` / `dailyword_library.json` / `amap_geocode.json` → 新增 `hp_shell_cache_files` 镜像表；规则 UPSERT 进 `hp_custom_rules`（不删除，保护 `hp_rule_webhooks` 外键），并重建 `hp_cache_dailyword_library` / `hp_cache_amap_geocode`；补齐高德缓存第 6 条记录（5 → 6）
-    - 新增 `sql/cache_data/18_shell_cache_files.sql`，接入 `sql/cache_data.sql` 与 `sql/01_drop_tables.sql`；`sql/cache_data/01_amap_geocode.sql` 补第 6 条种子；水位存 `hp_cache_meta.shell_writers_sync_at`
-    - `readRules()` 改为读镜像表（保留 `webhookIds` / `custom_content` / `output_mode` 等结构化表没有的字段）；`/api/rules`、`/api/bootstrap`、`query_rules`、`manage_rule`、`create_rule` 全部走库；`writeRules()` 仍写文件供 shell 使用，读前按 mtime 自动同步
-  - **5 个迁移批次全部完成**：权限/配置/接口元数据以库为写入真源；内容库、日历缓存、shell 缓存类文件仍是 shell 写入/交换真源，查询走库并按文件 mtime 自动同步；`query_*` 系列工具与数据库管理页统一从库查询
-  - 注意：`.cache/*.json` 不能整体删除——shell 脚本仍读写这些文件；只有已切库且被 `RESERVED_CACHE_FILES` 隐藏的快照属于降级数据
-  - 注意：执行 `helper_database.sql` 全量重建后需依次重跑 5 个 `--batch=<批次名> --apply`，补齐运行期新增记录并重建各查询表/镜像
+- **缓存运行时全量切库，删除 `.cache` 缓存文件**：所有 Web 接口（含 `/api/cache`、内容库、规则、AI 会话/记忆/审批、模型配置、知识库配置）与 shell 脚本统一按缓存键读写数据库，运行时不再读写 `.cache/` 下的文件
+  - 缓存数据以数据库为唯一真源，按缓存键读写数据库缓存表（具体落表以路由模块为准）；Web 经 `web/utils/database/cache-store.ts`、shell 经 `scripts/cache_db.sh` 读写
+  - 删除按文件修改时间自动同步、查询镜像表与「数据库不可用时降级读 JSON 快照」等兼容逻辑：数据库不可用时不再降级读文件，错误直接向上返回
+  - 全新安装数据来自 `sql/cache_data/*.sql` 缓存种子，现有库数据已迁移完毕；`.cache` 缓存文件删除后，一次性迁移/校验工具 `npm run migrate:cache`（从 `.cache` 导入、生成种子、校验一致性）不再需要
+  - Web「缓存文件」管理页保留，列表来自数据库条目（键名形如 `greetings.json`、`api_responses/xxx.json`），由专用模块维护的键禁止直接覆盖
+- **汇总表 `hp_cache_files` 的数据同步到 `sql/` 里已有的业务表**：不保留任何汇总、中间或新建表
+  - `api_responses/*.json` 按资源类型落到已有 `hp_cache_res_*` 分类表；`api_responses/.last_prune` 与无对应业务表的键落到已有 `hp_cache_res_other`
+  - 其余业务键按 JSON 内容展开到 `hp_greetings` / `hp_reminder_quotes` / `hp_message_templates` / `hp_template_*` / `hp_custom_rules` / `hp_holiday_data` / `hp_month_config` / `hp_daily_data` / `hp_daemon_sent_state` / `hp_cache_dailyword_library` / `hp_cache_amap_geocode` / `hp_webhooks` / `hp_ai_model_configs` / `hp_ai_conversations` / `hp_ai_messages` / `hp_ai_memory_items` 等已有表，不新建表
+  - 一次性同步脚本逐键读回校验一致后删除汇总表，执行完即删除；曾误建的 16 张 `hp_cache_item_*` 表（按每个具体缓存键值生成，含邮箱/会话 ID）与 `20_cache_tables.sql` 已全部删除
+  - `web/utils/database/cache-tables.ts` 按已有业务表展开/还原 JSON，`cache-routing.ts` 负责 API 响应分类表路由；`cache-store.ts` 与 `scripts/cache_db.sh`（经 `web/scripts/cache-table-cli.ts`）按同一套规则读写，上层 `readCacheBody` / `cache_db_read` 等签名不变
+  - `hp_cache_files` / `hp_cache_store` / `hp_cache_meta` 及旧镜像表均已删除；`helper_database.sql` 初始化入口与 `01_drop_tables.sql` 保留旧表的 DROP 清理，全库初始化不再生成任何新表
+- **移除 `hp_shell_cache_files` 兼容视图**：三份 shell 缓存 JSON 曾并入汇总 KV 表（迁移中间态，最终已按缓存键全量切库），该视图无运行时消费者；删除 `sql/cache_data/18_shell_cache_files.sql`，`sql/cache_data.sql` 与 `sql/01_drop_tables.sql` 仅保留旧库残留对象的 DROP 清理、不再重建
+- **分批把文件数据迁到查询数据库（迁移过程历史记录）**：`npm run migrate:cache` 是一次性迁移/校验工具（从 `.cache` 导入、生成种子、校验一致性），按风险分 5 批推进；现有库数据已迁移完毕，缓存文件删除后该工具不再需要、入口已移除
+  - 批次 1 `permission-requests`：`.cache/permission_requests.json` → `hp_permission_requests`，补齐文件里多出的 1 条待审批申请；库内已有记录不覆盖，并添加 `uk_request_id` 唯一键（`sql/rbac/20_permission_requests.sql` 同步）
+  - 批次 2 `api-metadata`：`api_categories.json` / `api_items.json` / `webhooks.json` → `hp_api_categories` / `hp_api_items` / `hp_webhooks`；补齐运行期新增的 `api_bootstrap_get` 条目（`22_api_items.sql` 加幂等 INSERT），已有记录不覆盖
+  - 批次 3 `content-library`：`greetings.json` / `reminder_quotes.json` / `message_templates.json` → `hp_greetings` / `hp_reminder_quotes` / `hp_message_templates` / `hp_template_styles` / `hp_template_names`；补齐运行期新增的 1 条名言（寄语 545 → 546）
+  - 批次 4 `calendar-cache`：`holiday_data.json` / `month_config.json` / `daemon_sent_state.json` / `daily_data_*.json` / `api_responses/*` → 结构化业务表与 `hp_cache_res_*` 分类表
+  - 批次 5 `shell-writers`：`custom_rules.json` / `dailyword_library.json` / `amap_geocode.json` → `hp_custom_rules` / `hp_cache_dailyword_library` / `hp_cache_amap_geocode`；补齐高德缓存第 6 条记录（5 → 6）
+  - 上述批次推进期间出现的查询镜像表、同步水位、失败读文件兜底、shell 侧 JSON 镜像与 `/api/cache` 保留文件等均为迁移中间态（已标注为历史，不代表当前架构）；全量切库后这些机制已全部删除，`query_*` 系列工具与数据库管理页统一从库查询
+  - 全量重建 `helper_database.sql` 直接由 `sql/cache_data/*.sql` 缓存种子完成，不需要重跑任何迁移批次
+
+### 修复
+- 修复贾维斯「删除会话二次确认」气泡不跟随主题：亮色主题里硬编码的 `#fff !important` 会压过 AI 皮肤变量，深色皮肤下形成白底白字；改为统一使用 `--bg-card`，把 `.t-popconfirm__content` 纳入皮肤变量重映射，并补齐 warning / danger 图标与 danger 确认按钮的主题色覆盖
 
 ---
 

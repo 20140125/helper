@@ -20,7 +20,7 @@
 #   - 工作日判断：基于公司HR节假日安排
 # 
 # 作者：智能提醒系统
-# 更新：2026-02-13
+# 更新：2026-11-28
 # ======================================
 
 # ======================================
@@ -30,6 +30,8 @@
 # 获取脚本所在目录，加载项目路径配置
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/project_config.sh"
+# 按需加载缓存数据库通道（month_config.json 改从库内读取）
+source "${PROJECT_DIR}/cache_db.sh"
 
 # 加载统一配置（包含 TZ 和 WECOM_WEBHOOK）
 source "${PROJECT_DIR}/weather_config.sh" 2>/dev/null
@@ -115,8 +117,8 @@ load_month_config() {
     local month="$1"
     local year="$2"
     
-    # 检查JSON配置文件是否存在
-    if [ ! -f "${CACHE_DIR}/month_config.json" ]; then
+    # 检查月份配置缓存键是否存在
+    if ! cache_db_exists 'month_config.json'; then
         log_error "月份配置文件不存在，使用默认配置"
         month_name="Unknown"
         last_day="30"
@@ -124,7 +126,7 @@ load_month_config() {
     fi
     
     # 使用jq解析JSON配置
-    local month_info=$(jq -r ".months.\"$month\"" "${CACHE_DIR}/month_config.json" 2>/dev/null)
+    local month_info=$(cache_db_read 'month_config.json' | jq -r ".months.\"$month\"" 2>/dev/null)
     
     if [ "$month_info" = "null" ] || [ -z "$month_info" ]; then
         log_error "月份 $month 配置不存在，使用默认配置"

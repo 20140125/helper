@@ -29,7 +29,7 @@
 
 <script setup lang="ts">
 import MarkdownEditor from '@/components/common/markdown-editor.vue';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 withDefaults(defineProps<{
   /** i18n 翻译对象（由父组件传入 LocaleStore.t，响应式） */

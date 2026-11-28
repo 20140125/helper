@@ -35,7 +35,7 @@ description: "helper 项目 web/ 目录全栈开发规范 + 配套自动化工�
 | `references/04-backend-routes-utils.md` | 后端路由、utils barrel、utils 子目录组织、JWT 全局鉴权 | 改后端 / 重构 utils |
 | `references/05-styles-and-i18n.md` | 代码风格、CSS 公共样式组织、i18n 硬编码治理 | 改样式 / 拆组件 / 加 i18n |
 | `references/06-common-pitfalls-checklist.md` | 踩坑汇总（i18n/常量/编辑器双值/校验/拆分/utils 组织） | **每次必读** |
-| `references/07-cache-json-sync.md` | 新建页面·4 个 .cache JSON 同步清单（权限元数据/rbac/接口分类/接口条目） | **新建页面 / 加后端 API 必读** |
+| `references/07-cache-json-sync.md` | 新建页面·权限/接口元数据配置清单（已迁库，含历史 .cache JSON 字段关系与迁移状态） | **新建页面 / 加后端 API 必读** |
 | `references/08-vue-defineModel-vmodel.md` | Vue 3.4+ `defineModel` 双向绑定重构（4 式反模式治理 + 父组件兼容性 + 何时不改） | 改组件 v-model / 消除 computed 桥接 |
 | `references/09-jsdoc-model-comments.md` | Model 文件 JSDoc 注释统一（以 home-model.ts 为基准：类成员三行 JSDoc + getter @returns + 包装函数模板 + 中文分节标题 + 重构陷阱） | **改 model 注释 / 统一注释风格** |
 | `references/10-jsdoc-service-comments.md` | Service 文件 JSDoc 注释统一（以 status-service.ts 为基准：类描述+@description / 方法三件套 / 工厂函数双注释固定模板 / @param 必带{类型} / 重构陷阱） | **改 service 注释 / 统一注释风格** |
@@ -50,7 +50,7 @@ description: "helper 项目 web/ 目录全栈开发规范 + 配套自动化工�
 
 **关键约定**（每条的「为什么 + 反例」在对应 reference 里）：
 - View 根节点 `<page-layout>`；表单用 `<form-drawer>` + `<auto-form>`，不用裸 `<t-dialog>` / `<t-form>`
-- 文案走 `useLocaleStore().t.xxx`，不硬编码中文/英文；`zh.ts` 与 `en.ts` 同步新增 key
+- 文案走 `useLocaleStore().t.xxx`，不硬编码中文/英文；新 key 登记到数据库 `hp_i18n_messages` 并重跑 `npm run i18n:sql` 导出静态类型
 - 常量/枚举/UI 映射归 `constants/<模块>.ts`，不放 Model
 - 双向绑定统一用 `defineModel<T>()` / `defineModel<T>('name')`，禁止写 `prop + update:xxx emit + computed get/set` 桥接三件套（细则与跳过场景见 `references/08-vue-defineModel-vmodel.md`）
 - 代码编辑器双值：`xxxBody`(热) / `xxxBodyInitial`(冷)，不同 ref 双绑
@@ -67,9 +67,9 @@ description: "helper 项目 web/ 目录全栈开发规范 + 配套自动化工�
 
 ## 新增页面流程
 
-**前端**：`types/ → services/ → models/ → views/ → constants/(如有) → locales/ → router/`
+**前端**：`types/ → services/ → models/ → views/ → constants/(如有) → router/`（文案在数据库维护，静态类型见 `types/locale.ts`）
 **后端**：`types/ → utils/<模块>.ts → routes/utils.ts barrel 重导出 → routes/<模块>.ts → server.ts 注册`
-**数据配置（容易漏！）**：权限与接口元数据现已迁库，以 `hp_permissions` / `hp_roles` / `hp_api_categories` / `hp_api_items` 为唯一真源，通过 Web 管理页或 `sql/` 种子维护；`.cache/*.json` 仅作降级快照，禁止直接覆盖。字段关系与历史脚本见 `07-cache-json-sync.md`（顶部有迁移状态说明）
+**数据配置（容易漏！）**：权限与接口元数据现已迁库，以 `hp_permissions` / `hp_roles` / `hp_api_categories` / `hp_api_items` 为唯一真源，通过 Web 管理页或 `sql/` 种子维护；缓存数据已全量入库、`.cache` 缓存文件已删除，运行时不再读写 `.cache/*.json`，无需手工同步 JSON。字段关系与历史脚本见 `07-cache-json-sync.md`（顶部有迁移状态说明）
 
 骨架代码见 `references/01-architecture-overview.md`《最小骨架》。
 
@@ -83,7 +83,8 @@ description: "helper 项目 web/ 目录全栈开发规范 + 配套自动化工�
 | 后端入口 | `web/server.ts` |
 | 通用组件 | `frontend/src/components/common/` |
 | 公共样式 | `frontend/src/styles/` |
-| i18n 语言包 | `frontend/src/locales/{zh,en}.ts` |
+| i18n 文案真源 | MySQL `hp_i18n_messages`（`/i18n-messages` 管理页维护） |
+| i18n 静态类型 | `frontend/src/types/locale.ts`（`npm run i18n:sql` 导出） |
 | 前端 utils | `frontend/src/utils/<模块>/index.ts`（只含函数） |
 | 后端 utils | `web/utils/<模块>/index.ts`（只含函数） |
 | 前端 types | `frontend/src/types/<模块>.ts` |
@@ -98,7 +99,7 @@ description: "helper 项目 web/ 目录全栈开发规范 + 配套自动化工�
 | `scripts/generate-component.ts` | 生成 Vue 组件 / Model / Service 脚手架（自动遵循上面所有规范） | 新建页面/组件/模型/服务 |
 | `scripts/check-code-style.ts` | 检查 `defineProps` 内联泛型、`defineEmits` 长签名、JSDoc 注释 | 提交前规范巡检 |
 | `scripts/auto-fix.ts` | 调用项目自身 ESLint 执行 `--fix`（规则来自 `web/eslint.config.mjs`，前后端同源），ESLint 修不了的问题如实报出 | 批量修复 lint 问题 |
-| `scripts/add-i18n.ts` | 扫描中文硬编码并按文件归类，输出 i18n key 建议 | 国际化清理、locales 同步 |
+| `scripts/add-i18n.ts` | 扫描中文硬编码并按文件归类，输出 i18n key 建议 | 国际化清理、输出待入库 key 建议 |
 | `scripts/check-unused.ts` | 基于 TypeScript AST 检查未使用的 import（**前端 + 后端全覆盖**） | 清理冗余、瘦身 bundle |
 
 脚本同目录的 `tsconfig.json` 为 ts-node 专用配置（CommonJS + transpileOnly），**不要**使用项目根 tsconfig。
@@ -140,7 +141,7 @@ npm run lint:style
 npm run auto-fix -- --dry-run
 npm run auto-fix
 
-# 3. 扫描中文硬编码（输出可直接粘到 locales/{zh,en}.ts 的 key 建议）
+# 3. 扫描中文硬编码（输出待登记到 hp_i18n_messages 的 key 建议）
 npm run lint:i18n
 
 # 4. 检查未使用 import（web/devDependencies 已含 typescript，无须额外安装）

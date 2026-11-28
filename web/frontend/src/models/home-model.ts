@@ -330,18 +330,19 @@ export class HomeModel extends BaseModel {
   };
 
   /**
-   * 颜色选择器输入（实时预览）
-   * @param {Event} event - 输入事件
+   * 颜色选择器选色（松开选择器后一次性提交）
+   * @param {Event} event - 颜色选择事件
    * @returns {void}
+   * @description 不使用 input 事件，避免拖动过程中反复触发主题应用
    */
-  handleColorInput = (event: Event): void => {
+  handleColorChange = (event: Event): void => {
     const input = event.target as HTMLInputElement;
     this.themeStore.applyCustomColor(input.value, this.themeStore.customColor.isLight);
   };
 
   /**
    * 切换亮/暗背景模式
-   * @param {MouseEvent} [event] - 鼠标事件（用于 View Transitions 动画起始坐标）
+   * @param {MouseEvent} [event] - 鼠标事件（用于动画起始坐标）
    * @returns {void}
    * @description 在当前风格的亮/暗模式之间切换
    */
@@ -370,11 +371,10 @@ export class HomeModel extends BaseModel {
 
   /**
    * 开启/关闭按时间自动切换主题
-   * @param {MouseEvent} [event] - 鼠标事件（用于 View Transitions 动画起始坐标）
+   * @returns {void}
    */
-  handleAutoModeToggle = (event?: MouseEvent): void => {
-    const origin = event ? { x: event.clientX, y: event.clientY } : undefined;
-    this.themeStore.setAutoMode(!this.themeStore.autoMode, origin);
+  handleAutoModeToggle = (): void => {
+    this.themeStore.setAutoMode(!this.themeStore.autoMode);
   };
 
   /**

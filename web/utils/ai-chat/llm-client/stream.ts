@@ -158,7 +158,7 @@ export async function* chatCompletionStream(
   modelOverride?: string,
   onRetry?: (attempt: number, delayMs: number, reason: RetryReason) => void,
 ): AsyncGenerator<StreamYield> {
-  const body = buildRequestBody(messages, tools, modelOverride, true);
+  const body = await buildRequestBody(messages, tools, modelOverride, true);
   const resp = await requestChatCompletion(body, true, signal, onRetry);
   yield* readSseStream(resp.body!.getReader());
 }

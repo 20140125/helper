@@ -73,9 +73,9 @@ export const queryConversationsTool: ToolImpl = {
     // ── 读取单个会话 ──
     const convId = typeof args.conversation_id === 'string' ? args.conversation_id.trim() : '';
     if (convId) {
-      const conv = readConversation(email, convId);
+      const conv = await readConversation(email, convId);
       if (!conv) {
-        const own = listConversations(email);
+        const own = await listConversations(email);
         return {
           ok: false,
           data: `会话不存在或无权限：${convId}。你的会话共 ${own.length} 个，不传 conversation_id 可列清单`,
@@ -103,7 +103,7 @@ export const queryConversationsTool: ToolImpl = {
     const kw = typeof args.keyword === 'string' ? args.keyword.toLowerCase().trim() : '';
     const limit = Math.min(Math.max(Number(args.limit) || DEFAULT_LIMIT, 1), MAX_LIMIT);
 
-    const all = listConversations(email);
+    const all = await listConversations(email);
     const matched = all.filter((c) => (kw ? (c.title ?? '').toLowerCase().includes(kw) : true));
     const list = matched.slice(0, limit).map((c) => ({
       id: c.id,

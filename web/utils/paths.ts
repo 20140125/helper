@@ -16,5 +16,5 @@ export const SCRIPTS_DIR = path.join(PROJECT_DIR, 'scripts');
  */
 export const RUNTIME_DIR = path.join(WEB_DIR, '.runtime');
 
-/** 缓存目录路径 */
+/** 缓存目录路径（仅迁移/兼容用途，运行时不再读写） */
 export const CACHE_DIR = path.join(PROJECT_DIR, '.cache');

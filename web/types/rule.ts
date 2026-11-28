@@ -1,8 +1,3 @@
-import { PROJECT_DIR } from '@/utils/paths';
-
-/** 自定义规则数据文件路径 */
-export const RULES_FILE = `${PROJECT_DIR}/.cache/custom_rules.json`;
-
 /** 支持的规则类型枚举 */
 export const VALID_TYPES = ['date', 'weekday', 'lunar_date', 'countdown', 'monthly', 'daily', 'workday'] as const;
 

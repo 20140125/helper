@@ -29,7 +29,7 @@ export const imageGeneration = async (
   model: string,
   signal?: AbortSignal,
 ): Promise<ImageGenerationResult> => {
-  const cfg = getLlmConfigForModel(model);
+  const cfg = await getLlmConfigForModel(model);
   const resp = await fetch(`${cfg.baseUrl}/images/generations`, {
     method: 'POST',
     headers: {

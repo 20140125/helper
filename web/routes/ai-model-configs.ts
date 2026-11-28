@@ -20,9 +20,13 @@ const router = Router();
  * @route GET /api/ai-model-configs
  * @returns {{ groups: AiModelGroup[] }} API Key 已脱敏的配置组列表
  */
-router.get('/', (_req, res) => {
-  const groups = readAiModelGroups().map(maskAiModelGroup);
-  return returnResponse(res, ErrorCode.SUCCESS, { groups }, 'success');
+router.get('/', async (_req, res) => {
+  try {
+    const groups = await readAiModelGroups();
+    return returnResponse(res, ErrorCode.SUCCESS, { groups: groups.map(maskAiModelGroup) }, 'success');
+  } catch (error) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, error instanceof Error ? error.message : '读取模型配置失败');
+  }
 });
 
 /**
@@ -31,15 +35,19 @@ router.get('/', (_req, res) => {
  * @body {AiModelGroupBody} 配置组（同一接口与 Key 下可带多个模型）
  * @returns {{ group: AiModelGroup }} 新建的配置组（API Key 已脱敏）
  */
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const body = (req.body ?? {}) as AiModelGroupBody;
-  const groups = readAiModelGroups();
-  const error = validateAiModelGroupBody(body, true, groups);
-  if (error) return returnResponse(res, ErrorCode.BAD_REQUEST, {}, error);
+  try {
+    const groups = await readAiModelGroups();
+    const error = validateAiModelGroupBody(body, true, groups);
+    if (error) return returnResponse(res, ErrorCode.BAD_REQUEST, {}, error);
 
-  const group = buildAiModelGroup(body);
-  writeAiModelGroups(ensureSingleDefaultModel([...groups, group], group.id));
-  return returnResponse(res, ErrorCode.SUCCESS, { group: maskAiModelGroup(group) }, 'success');
+    const group = buildAiModelGroup(body);
+    await writeAiModelGroups(ensureSingleDefaultModel([...groups, group], group.id));
+    return returnResponse(res, ErrorCode.SUCCESS, { group: maskAiModelGroup(group) }, 'success');
+  } catch (error) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, error instanceof Error ? error.message : '新增模型配置失败');
+  }
 });
 
 /**
@@ -82,22 +90,26 @@ router.post('/test-model', async (req, res) => {
  * @body {AiModelGroupBody} 配置组（API Key 传脱敏串时保持原值）
  * @returns {{ group: AiModelGroup }} 更新后的配置组（API Key 已脱敏）
  */
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const groups = readAiModelGroups();
-  const idx = groups.findIndex((g) => g.id === id);
-  if (idx === -1) {
-    return returnResponse(res, ErrorCode.NOT_FOUND, {}, '模型配置组不存在');
-  }
-
   const body = (req.body ?? {}) as AiModelGroupBody;
-  const error = validateAiModelGroupBody(body, false, groups, id);
-  if (error) return returnResponse(res, ErrorCode.BAD_REQUEST, {}, error);
+  try {
+    const groups = await readAiModelGroups();
+    const idx = groups.findIndex((g) => g.id === id);
+    if (idx === -1) {
+      return returnResponse(res, ErrorCode.NOT_FOUND, {}, '模型配置组不存在');
+    }
 
-  const group = buildAiModelGroup(body, groups[idx]);
-  groups[idx] = group;
-  writeAiModelGroups(ensureSingleDefaultModel(groups, id));
-  return returnResponse(res, ErrorCode.SUCCESS, { group: maskAiModelGroup(group) }, 'success');
+    const error = validateAiModelGroupBody(body, false, groups, id);
+    if (error) return returnResponse(res, ErrorCode.BAD_REQUEST, {}, error);
+
+    const group = buildAiModelGroup(body, groups[idx]);
+    groups[idx] = group;
+    await writeAiModelGroups(ensureSingleDefaultModel(groups, id));
+    return returnResponse(res, ErrorCode.SUCCESS, { group: maskAiModelGroup(group) }, 'success');
+  } catch (error) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, error instanceof Error ? error.message : '更新模型配置失败');
+  }
 });
 
 /**
@@ -105,15 +117,19 @@ router.put('/:id', (req, res) => {
  * @route DELETE /api/ai-model-configs/:id
  * @returns {{}} 删除结果
  */
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   const { id } = req.params;
-  const groups = readAiModelGroups();
-  const filtered = groups.filter((g) => g.id !== id);
-  if (filtered.length === groups.length) {
-    return returnResponse(res, ErrorCode.NOT_FOUND, {}, '模型配置组不存在');
+  try {
+    const groups = await readAiModelGroups();
+    const filtered = groups.filter((g) => g.id !== id);
+    if (filtered.length === groups.length) {
+      return returnResponse(res, ErrorCode.NOT_FOUND, {}, '模型配置组不存在');
+    }
+    await writeAiModelGroups(filtered);
+    return returnResponse(res, ErrorCode.SUCCESS, {}, '模型配置组已删除');
+  } catch (error) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, error instanceof Error ? error.message : '删除模型配置失败');
   }
-  writeAiModelGroups(filtered);
-  return returnResponse(res, ErrorCode.SUCCESS, {}, '模型配置组已删除');
 });
 
 export default router;

@@ -4,7 +4,6 @@ import Trigger from '@/views/trigger.vue';
 import Config from '@/views/config.vue';
 import Logs from '@/views/logs.vue';
 import Rules from '@/views/rules.vue';
-import Cache from '@/views/cache.vue';
 import RbacRoles from '@/views/rbac-roles.vue';
 import RbacUsers from '@/views/rbac-users.vue';
 import RbacPermissions from '@/views/rbac-permissions.vue';
@@ -20,6 +19,7 @@ import AiCost from '@/views/ai-cost.vue';
 import AiModels from '@/views/ai-models.vue';
 import Knowledge from '@/views/knowledge.vue';
 import Database from '@/views/database.vue';
+import I18nMessages from '@/views/i18n-messages.vue';
 import Forbidden from '@/views/forbidden.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useBootstrapStore } from '@/stores/bootstrap';
@@ -174,10 +174,15 @@ const router = createRouter({
       } satisfies RouteMeta,
     },
     {
-      path: '/cache',
-      name: 'cache',
-      component: Cache,
-      meta: { label: 'menu.cache', icon: 'file-code', inMenu: false, menuGroup: 'operations', permissions: [Permission.CACHE_VIEW] } satisfies RouteMeta,
+      path: '/i18n-messages',
+      name: 'i18n-messages',
+      component: I18nMessages,
+      meta: {
+        label: 'menu.i18nMessages',
+        icon: 'file-code',
+        inMenu: true,
+        menuGroup: 'operations',
+      } satisfies RouteMeta,
     },
     // ---- 开发工具 ----
     {

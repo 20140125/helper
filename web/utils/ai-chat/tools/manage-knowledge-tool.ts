@@ -7,7 +7,7 @@ import {
   normalizeDocName,
   readKnowledgeDoc,
   writeKnowledgeDoc,
-} from '@/utils/knowledge/storage';
+} from '@/utils/knowledge';
 import { buildKnowledgeIndex, resetKnowledgeIndex } from '../knowledge';
 
 /**
@@ -26,11 +26,11 @@ const validateContent = (content: string): string | null => {
 
 /**
  * 写入用户文档后立即重建 RAG 索引，保证本轮回答里新内容可检索
- * @returns {number} 重建后的片段数
+ * @returns {Promise<number>} 重建后的片段数
  */
-const refreshIndex = (): number => {
+const refreshIndex = async (): Promise<number> => {
   resetKnowledgeIndex();
-  return buildKnowledgeIndex().length;
+  return (await buildKnowledgeIndex()).length;
 };
 
 /**
@@ -90,9 +90,9 @@ export const manageKnowledgeTool: ToolImpl = {
       if (isUserDocPath(docPath)) {
         return { ok: false, data: 'import 只能导入系统文档；用户文档无需导入' };
       }
-      const doc = importSystemDoc(docPath);
+      const doc = await importSystemDoc(docPath);
       if (!doc) return { ok: false, data: `导入失败：${docPath} 不存在、不可访问或 knowledge/ 下已有同名文档` };
-      const chunkCount = refreshIndex();
+      const chunkCount = await refreshIndex();
       return {
         ok: true,
         data: { doc, chunkCount },
@@ -109,8 +109,8 @@ export const manageKnowledgeTool: ToolImpl = {
     if (action === 'delete') {
       const existed = readKnowledgeDoc(name) !== null;
       if (!existed) return { ok: false, data: `用户文档不存在：${name}.md` };
-      deleteKnowledgeDoc(name);
-      const chunkCount = refreshIndex();
+      await deleteKnowledgeDoc(name);
+      const chunkCount = await refreshIndex();
       return {
         ok: true,
         data: { name, chunkCount },
@@ -131,8 +131,8 @@ export const manageKnowledgeTool: ToolImpl = {
         return { ok: false, data: `用户文档不存在：${name}.md；如需新建请改用 create` };
       }
 
-      writeKnowledgeDoc(name, content);
-      const chunkCount = refreshIndex();
+      await writeKnowledgeDoc(name, content);
+      const chunkCount = await refreshIndex();
       return {
         ok: true,
         data: { name, path: `knowledge/${name}.md`, bytes: Buffer.byteLength(content, 'utf-8'), chunkCount },

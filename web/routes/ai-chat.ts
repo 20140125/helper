@@ -41,6 +41,15 @@ import {
   listSkillMetas,
   findSkillDoc,
   findSkillDocByTool,
+  validateAiChatSkinBody,
+  readAiChatSkin,
+  upsertAiChatSkin,
+  handleSkinBackgroundUpload,
+  isValidAiChatSkinKey,
+  validateAiChatSkinPresetBody,
+  normalizeAiChatSkinPresetVars,
+  listAiChatSkinPresets,
+  upsertAiChatSkinPreset,
 } from './utils';
 import { Permission } from '@/types/permission';
 import {
@@ -54,6 +63,11 @@ import type {
   CreateConversationBody,
   SendMessageBody,
 } from '@/types/ai-chat';
+import type {
+  AiChatSkinBody,
+  AiChatSkinPreset,
+  AiChatSkinPresetBody,
+} from '@/types/ai-chat-skin';
 
 const router = Router();
 
@@ -124,12 +138,12 @@ const getUser = (req: Request): { email: string; permissions: string[] } => {
  * 获取当前用户的会话列表
  * @route GET /conversations
  */
-router.get('/conversations', (req: Request, res: Response) => {
+router.get('/conversations', async (req: Request, res: Response) => {
   const { email } = getUser(req);
   if (!email) {
     return returnResponse(res, ErrorCode.UNAUTHORIZED, {}, '未识别到用户身份');
   }
-  const summaries = listConversations(email);
+  const summaries = await listConversations(email);
   return returnResponse(
     res,
     ErrorCode.SUCCESS,
@@ -146,12 +160,12 @@ router.get('/conversations', (req: Request, res: Response) => {
  * 获取指定会话的完整消息列表
  * @route GET /conversations/:id
  */
-router.get('/conversations/:id', (req: Request, res: Response) => {
+router.get('/conversations/:id', async (req: Request, res: Response) => {
   const { email } = getUser(req);
   if (!email) {
     return returnResponse(res, ErrorCode.UNAUTHORIZED, {}, '未识别到用户身份');
   }
-  const conv = readConversation(email, req.params.id);
+  const conv = await readConversation(email, req.params.id);
   if (!conv) {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, '会话不存在');
   }
@@ -167,13 +181,13 @@ router.get('/conversations/:id', (req: Request, res: Response) => {
  * @route POST /conversations
  * @body {CreateConversationBody}
  */
-router.post('/conversations', (req: Request, res: Response) => {
+router.post('/conversations', async (req: Request, res: Response) => {
   const { email } = getUser(req);
   if (!email) {
     return returnResponse(res, ErrorCode.UNAUTHORIZED, {}, '未识别到用户身份');
   }
   const { title } = (req.body ?? {}) as CreateConversationBody;
-  const conv = createConversation(email, title);
+  const conv = await createConversation(email, title);
   return returnResponse(res, ErrorCode.SUCCESS, { conversation: conv } as Record<string, unknown>, '创建成功');
 });
 
@@ -185,12 +199,12 @@ router.post('/conversations', (req: Request, res: Response) => {
  * 删除指定会话
  * @route DELETE /conversations/:id
  */
-router.delete('/conversations/:id', (req: Request, res: Response) => {
+router.delete('/conversations/:id', async (req: Request, res: Response) => {
   const { email } = getUser(req);
   if (!email) {
     return returnResponse(res, ErrorCode.UNAUTHORIZED, {}, '未识别到用户身份');
   }
-  const ok = deleteConversation(email, req.params.id);
+  const ok = await deleteConversation(email, req.params.id);
   if (!ok) {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, '会话不存在');
   }
@@ -208,12 +222,12 @@ router.delete('/conversations/:id', (req: Request, res: Response) => {
  * @description 复制原会话前 at 条消息到新会话（默认全部），用于「从这里换个问法试试」：
  *   保留上文、丢弃后续走向，避免为了试另一种思路而重开一轮把上下文全丢了。
  */
-router.post('/conversations/:id/fork', (req: Request, res: Response) => {
+router.post('/conversations/:id/fork', async (req: Request, res: Response) => {
   const { email } = getUser(req);
   if (!email) {
     return returnResponse(res, ErrorCode.UNAUTHORIZED, {}, '未识别到用户身份');
   }
-  const source = readConversation(email, req.params.id);
+  const source = await readConversation(email, req.params.id);
   if (!source) {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, '会话不存在');
   }
@@ -230,9 +244,9 @@ router.post('/conversations/:id/fork', (req: Request, res: Response) => {
     ? source.messages.length
     : source.messages.indexOf(visible[at]);
 
-  const forked = createConversation(email, `${source.title}（分支）`);
+  const forked = await createConversation(email, `${source.title}（分支）`);
   forked.messages = source.messages.slice(0, cutIndex);
-  writeConversation(forked);
+  await writeConversation(forked);
 
   return returnResponse(
     res,
@@ -250,8 +264,8 @@ router.post('/conversations/:id/fork', (req: Request, res: Response) => {
  * AI Chat 配置健康检查
  * @route GET /health
  */
-router.get('/health', (_req: Request, res: Response) => {
-  const err = validateLlmConfig();
+router.get('/health', async (_req: Request, res: Response) => {
+  const err = await validateLlmConfig();
   return returnResponse(
     res,
     ErrorCode.SUCCESS,
@@ -268,8 +282,8 @@ router.get('/health', (_req: Request, res: Response) => {
  * 获取可选模型列表
  * @route GET /models
  */
-router.get('/models', (_req: Request, res: Response) => {
-  const { models, default: defaultModel } = getAvailableModels();
+router.get('/models', async (_req: Request, res: Response) => {
+  const { models, default: defaultModel } = await getAvailableModels();
   return returnResponse(
     res,
     ErrorCode.SUCCESS,
@@ -400,7 +414,7 @@ router.get('/inspect/status', (req: Request, res: Response) => {
  * @description 记忆由每轮对话结束后自动沉淀；这里暴露出来是为了可审计——
  *   用户有权知道模型记住了自己什么，也有权一键清空。
  */
-router.get('/memory', (req: Request, res: Response) => {
+router.get('/memory', async (req: Request, res: Response) => {
   const { email } = getUser(req);
   if (!email) {
     return returnResponse(res, ErrorCode.UNAUTHORIZED, {}, '未识别到用户身份');
@@ -408,7 +422,7 @@ router.get('/memory', (req: Request, res: Response) => {
   return returnResponse(
     res,
     ErrorCode.SUCCESS,
-    { memory: readMemory(email) } as Record<string, unknown>,
+    { memory: await readMemory(email) } as Record<string, unknown>,
     '',
   );
 });
@@ -421,7 +435,7 @@ router.get('/memory', (req: Request, res: Response) => {
  * 查看审批单列表
  * @route GET /approvals?status=pending
  */
-router.get('/approvals', (req: Request, res: Response) => {
+router.get('/approvals', async (req: Request, res: Response) => {
   const { email, permissions } = getUser(req);
   if (!email) {
     return returnResponse(res, ErrorCode.UNAUTHORIZED, {}, '未识别到用户身份');
@@ -430,7 +444,7 @@ router.get('/approvals', (req: Request, res: Response) => {
     return returnResponse(res, ErrorCode.FORBIDDEN, {}, '权限不足：查看审批单需要 ai-approvals:view 权限');
   }
   const status = typeof req.query.status === 'string' ? req.query.status : '';
-  const approvals = listApprovals().filter((a) => (status ? a.status === status : true));
+  const approvals = (await listApprovals()).filter((a) => (status ? a.status === status : true));
   return returnResponse(
     res,
     ErrorCode.SUCCESS,
@@ -473,7 +487,7 @@ router.post('/approvals/:id/approve', async (req: Request, res: Response) => {
  * 驳回一张审批单
  * @route POST /approvals/:id/reject
  */
-router.post('/approvals/:id/reject', (req: Request, res: Response) => {
+router.post('/approvals/:id/reject', async (req: Request, res: Response) => {
   const { email, permissions } = getUser(req);
   if (!email) {
     return returnResponse(res, ErrorCode.UNAUTHORIZED, {}, '未识别到用户身份');
@@ -485,7 +499,7 @@ router.post('/approvals/:id/reject', (req: Request, res: Response) => {
   if (!isAdminEmail(email)) {
     return returnResponse(res, ErrorCode.FORBIDDEN, {}, '仅超级管理员可审批');
   }
-  const updated = updateApproval(req.params.id, {
+  const updated = await updateApproval(req.params.id, {
     status: 'rejected',
     decided_by: email,
     decided_at: Date.now(),
@@ -494,7 +508,7 @@ router.post('/approvals/:id/reject', (req: Request, res: Response) => {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, '审批单不存在');
   }
   // 回写到发起人的会话：驳回也是结论，不告诉发起人他同样会一直重试
-  notifyApprovalResult(updated, 'rejected', email, '审批未通过');
+  await notifyApprovalResult(updated, 'rejected', email, '审批未通过');
   return returnResponse(res, ErrorCode.SUCCESS, { approval: updated } as Record<string, unknown>, '已驳回');
 });
 
@@ -502,12 +516,12 @@ router.post('/approvals/:id/reject', (req: Request, res: Response) => {
  * 清空当前用户的长期记忆
  * @route DELETE /memory
  */
-router.delete('/memory', (req: Request, res: Response) => {
+router.delete('/memory', async (req: Request, res: Response) => {
   const { email } = getUser(req);
   if (!email) {
     return returnResponse(res, ErrorCode.UNAUTHORIZED, {}, '未识别到用户身份');
   }
-  clearMemory(email);
+  await clearMemory(email);
   return returnResponse(res, ErrorCode.SUCCESS, {} as Record<string, unknown>, '已清空');
 });
 
@@ -712,8 +726,8 @@ router.post('/send', async (req: Request, res: Response) => {
   // 上传了图片但当前模型不支持看图 → 自动切到配置里首个支持看图的模型，并告知前端
   let model = parsed.body.model;
   let visionSwitched = false;
-  if (images.length > 0 && !isVisionModel(model)) {
-    const visionModel = getAvailableModels().models.find((m) => m.vision)?.id;
+  if (images.length > 0 && !(await isVisionModel(model))) {
+    const visionModel = (await getAvailableModels()).models.find((m) => m.vision)?.id;
     if (visionModel) {
       model = visionModel;
       visionSwitched = true;
@@ -721,22 +735,22 @@ router.post('/send', async (req: Request, res: Response) => {
   }
 
   // 校验 LLM_API_KEY 是否已配置
-  const llmErr = validateLlmConfig(model);
+  const llmErr = await validateLlmConfig(model);
   if (llmErr) {
     return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, llmErr);
   }
 
   // 检查是否为文生图/文生视频模型，走专用业务流程（不进 Agent Loop）
-  if (isGenerativeModel(model)) {
+  if (await isGenerativeModel(model)) {
     setupSseResponse(res);
     await handleGenerativeModel(res, email, convId, message, model);
     return;
   }
 
   // 1) 获取或创建会话
-  let conv = convId ? readConversation(email, convId) : null;
+  let conv = convId ? await readConversation(email, convId) : null;
   if (!conv) {
-    conv = createConversation(email);
+    conv = await createConversation(email);
   }
 
   // 2) 将用户消息追加到会话（有图片时组装成多模态内容：文本片段 + 图片片段）
@@ -793,7 +807,7 @@ router.post('/send', async (req: Request, res: Response) => {
   const scopedTools = toolScope.tools;
 
   // 长期记忆：取本用户热度最高的若干条注入 system prompt（内部会计一次命中）
-  const memories = pickMemoryForPrompt(email);
+  const memories = await pickMemoryForPrompt(email);
   // md 技能索引：主会话按用户权限全量注入（含 action / mutation 类说明书）。
   // pinned 场景工具列表被裁到只剩一个，load_skill 已不在其中，此时不注入索引（否则模型会去调不存在的工具）
   const basePrompt = buildSystemPrompt(
@@ -852,9 +866,9 @@ router.post('/send', async (req: Request, res: Response) => {
     });
     const { finalMessages, trace } = await pumpAgentEventsToSse(res, generator);
 
-    // 7) 落盘：把 system 之外的最终消息列表写回会话（去掉 system prompt）
+    // 7) 落库：把 system 之外的最终消息列表写回会话（去掉 system prompt）
     if (finalMessages) {
-      replaceMessages(email, conv.id, finalMessages.filter((m) => m.role !== 'system'));
+      await replaceMessages(email, conv.id, finalMessages.filter((m) => m.role !== 'system'));
     }
     // 8) Trace 落盘：成本 / 延迟 / 工具失败率的可观测数据源（失败不影响响应）
     if (trace) {
@@ -877,6 +891,110 @@ router.post('/send', async (req: Request, res: Response) => {
   } finally {
     res.end();
   }
+});
+
+// ──────────────────────────
+// 皮肤设置（预设定义 hp_ai_chat_skin_presets + 按用户配置 hp_ai_chat_skins）
+// ──────────────────────────
+
+/**
+ * 列出已启用的内置皮肤预设
+ * @route GET /skin/presets
+ */
+router.get('/skin/presets', async (_req: Request, res: Response) => {
+  const presets = await listAiChatSkinPresets();
+  return returnResponse(
+    res,
+    ErrorCode.SUCCESS,
+    { presets: presets.map((item) => ({ ...item })) },
+    '',
+  );
+});
+
+/**
+ * 新增或更新一条内置皮肤预设（供接口管理页调用）
+ * @route PUT /skin/presets/:key
+ */
+router.put('/skin/presets/:key', async (req: Request, res: Response) => {
+  const { key } = req.params;
+  if (!isValidAiChatSkinKey(key)) {
+    return returnResponse(res, ErrorCode.BAD_REQUEST, {}, 'skinKey 只能包含字母、数字、下划线与连字符');
+  }
+  const body = (req.body ?? {}) as AiChatSkinPresetBody;
+  const error = validateAiChatSkinPresetBody(body);
+  if (error) {
+    return returnResponse(res, ErrorCode.BAD_REQUEST, {}, error);
+  }
+  const all = await listAiChatSkinPresets(true);
+  const previous = all.find((item) => item.skinKey === key);
+  const preset: AiChatSkinPreset = {
+    skinKey: key,
+    labelZh: String(body.labelZh).trim(),
+    labelEn: String(body.labelEn).trim(),
+    swatch: String(body.swatch),
+    bgImage: String(body.bgImage),
+    vars: normalizeAiChatSkinPresetVars(body.vars ?? previous?.vars ?? {}),
+    sortOrder: typeof body.sortOrder === 'number'
+      ? Number(body.sortOrder)
+      : (previous?.sortOrder ?? all.length + 1),
+    enabled: typeof body.enabled === 'boolean' ? body.enabled : (previous?.enabled ?? true),
+  };
+  try {
+    await upsertAiChatSkinPreset(preset);
+    return returnResponse(res, ErrorCode.SUCCESS, { preset: { ...preset } }, 'success');
+  } catch (err) {
+    console.error('[ai-chat-skin] 保存预设定义失败：', err);
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, '皮肤预设保存失败，请稍后重试');
+  }
+});
+
+/**
+ * 读取当前用户的贾维斯皮肤配置
+ * @route GET /skin
+ */
+router.get('/skin', async (req: Request, res: Response) => {
+  const { email } = getUser(req);
+  if (!email) {
+    return returnResponse(res, ErrorCode.UNAUTHORIZED, {}, '未识别到用户身份');
+  }
+  const skin = await readAiChatSkin(email);
+  return returnResponse(res, ErrorCode.SUCCESS, { skin: { ...skin } }, '');
+});
+
+/**
+ * 保存当前用户的贾维斯皮肤配置
+ * @route PUT /skin
+ */
+router.put('/skin', async (req: Request, res: Response) => {
+  const { email } = getUser(req);
+  if (!email) {
+    return returnResponse(res, ErrorCode.UNAUTHORIZED, {}, '未识别到用户身份');
+  }
+  const body = (req.body ?? {}) as AiChatSkinBody;
+  const error = await validateAiChatSkinBody(body);
+  if (error) {
+    return returnResponse(res, ErrorCode.BAD_REQUEST, {}, error);
+  }
+  const skin = {
+    skinId: String(body.skinId),
+    backgroundUrl: String(body.backgroundUrl),
+  };
+  try {
+    await upsertAiChatSkin(email, skin);
+    return returnResponse(res, ErrorCode.SUCCESS, { skin }, 'success');
+  } catch (err) {
+    console.error('[ai-chat-skin] 保存皮肤配置失败：', err);
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, '皮肤保存失败，请稍后重试');
+  }
+});
+
+/**
+ * 上传自定义皮肤背景图（仅图片，最大 5MB）
+ * @route POST /skin/background
+ * @description 返回图片本体 data URL，由前端随配置写入数据库，不再落磁盘
+ */
+router.post('/skin/background', (req: Request, res: Response) => {
+  handleSkinBackgroundUpload(req, res);
 });
 
 export default router;

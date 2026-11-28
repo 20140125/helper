@@ -114,7 +114,7 @@ bash scripts/start_web.sh status    # 查看状态
 | 运行日志 | 查看/清空 `hp_run_logs` 里的各来源日志 |
 | 自定义规则 | 规则 CRUD 与测试 |
 | AI 审批 | 贾维斯增删改审批单：通过执行 / 驳回（仅超级管理员） |
-| 缓存文件 | 查看/编辑 JSON 缓存 |
+| 缓存文件 | 查看/编辑数据库中的缓存条目（缓存键） |
 | 数据库管理 | MySQL 连接状态、库表结构与数据预览、SQL 执行、建表脚本初始化（仅超级管理员） |
 
 ---
@@ -168,9 +168,11 @@ helper/
 │   └── start_web.sh           # Web 服务管理
 ├── web/                       # Web 管理界面（详见 web/README.md）
 ├── helper_database.sql        # 数据库初始化入口（SOURCE 聚合器）
-├── sql/                       # 模块化建表 SQL（按业务模块分目录）
+├── sql/                       # 模块化建表 SQL（按业务模块分目录，含缓存种子）
 ├── docs/                      # 文档（14 章教程 + 1 篇使用说明，共 25 个文件）
-└── .cache/                    # JSON 数据缓存
+└── knowledge/                 # 开发规范摘要（供贾维斯检索）
 ```
+
+> 运行时缓存、规则、RBAC 等数据全部以 MySQL 为唯一真源，全新安装由 `sql/cache_data/*.sql` 种子初始化，项目不再有 `.cache/` 缓存文件。
 
 > **开发规范**：见 `.codebuddy/skills/` 下的 [Shell 脚本规范](/.codebuddy/skills/helper-scripts-spec/SKILL.md) 和 [全栈开发规范](/.codebuddy/skills/helper-web-spec/SKILL.md)。

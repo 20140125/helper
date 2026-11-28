@@ -63,6 +63,35 @@ FROM `hp_holiday_data`
 WHERE year = 2026
 ORDER BY date;
 
+-- 视图：各站各榜最新一批热搜 Top10（在 /database 直接预览此视图即可看到数据长什么样）
+CREATE OR REPLACE VIEW `hp_v_hot_search_latest` AS
+SELECT
+  i.source,
+  i.source_name,
+  i.channel_name,
+  i.snapshot_at,
+  i.rank_no,
+  i.title,
+  i.subtitle,
+  i.hot_value,
+  CASE
+    WHEN i.hot_value IS NULL THEN NULL
+    WHEN i.hot_value >= 10000 THEN CONCAT(ROUND(i.hot_value / 10000, 1), '万')
+    ELSE CAST(i.hot_value AS CHAR)
+  END AS hot_display,
+  CASE i.trend WHEN 1 THEN '上升' WHEN -1 THEN '下降' WHEN 0 THEN '持平' ELSE NULL END AS trend_cn,
+  i.item_id,
+  i.item_type,
+  i.image_url,
+  i.total_num
+FROM `hp_hot_search_item` i
+WHERE i.rank_no <= 10
+  AND i.snapshot_at = (
+    SELECT MAX(s.snapshot_at) FROM `hp_hot_search_snapshot` s
+    WHERE s.source = i.source AND s.channel_id = i.channel_id
+  )
+ORDER BY i.source, i.channel_name, i.rank_no;
+
 -- ============================================================
 -- 完成
 -- ============================================================

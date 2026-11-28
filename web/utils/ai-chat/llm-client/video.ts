@@ -31,7 +31,7 @@ const submitVideoTask = async (
   model: string,
   signal?: AbortSignal,
 ): Promise<string> => {
-  const cfg = getLlmConfigForModel(model);
+  const cfg = await getLlmConfigForModel(model);
   const resp = await fetch(`${cfg.baseUrl}/videos/generations`, {
     method: 'POST',
     headers: {
@@ -62,7 +62,7 @@ const queryVideoTask = async (
   taskId: string,
   signal?: AbortSignal,
 ): Promise<VideoTaskQueryResponse> => {
-  const cfg = getLlmConfigForModel(undefined);
+  const cfg = await getLlmConfigForModel(undefined);
   const resp = await fetch(`${cfg.baseUrl}/async-result/${taskId}`, {
     method: 'GET',
     headers: {

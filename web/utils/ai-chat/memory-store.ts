@@ -1,65 +1,64 @@
-import fs from 'fs';
-import path from 'path';
 import {
-  AI_MEMORY_DIR,
+  AI_MEMORY_PREFIX,
   MAX_MEMORY_ITEMS,
   type MemoryItem,
   type UserMemory,
 } from '@/types/ai-chat';
+import {
+  cacheKeyExists,
+  deleteCacheKey,
+  readCacheJson,
+  writeCacheJson,
+} from '@/utils/database/cache-store';
 
 /**
  * 长期记忆读写
- * @description 一个用户一个 JSON 文件（.cache/ai-memory/<email>.json）。
- *   选 JSON 而非数据库的原因与会话存储一致：体量小（≤50 条/人）、单机、需要能手工查看与编辑。
+ * @description 一个用户一个缓存键（ai-memory/<email>.json），真源为 已有业务表。
+ *   体量小（≤50 条/人）、单机、按用户整体读写，故用 KV 存整个 JSON。
  */
 
 /**
- * 用户记忆文件路径
+ * 清洗用户邮箱，生成安全的缓存键片段
  * @param {string} userEmail - 用户邮箱
- * @returns {string} 文件绝对路径
+ * @returns {string} 不含路径分隔符与连续点的键片段
  */
-const memoryFile = (userEmail: string): string => {
-  const safe = userEmail.replace(/[^a-zA-Z0-9_.@-]/g, '_');
-  return path.join(AI_MEMORY_DIR, `${safe}.json`);
-};
+const safeUser = (userEmail: string): string =>
+  userEmail.replace(/[^a-zA-Z0-9_.@-]/g, '_').replace(/\.{2,}/g, '.');
 
 /**
- * 确保记忆目录存在
- * @returns {void}
- */
-const ensureDir = (): void => {
-  if (!fs.existsSync(AI_MEMORY_DIR)) {
-    fs.mkdirSync(AI_MEMORY_DIR, { recursive: true });
-  }
-};
-
-/**
- * 读取用户长期记忆（无文件时返回空集合）
+ * 用户记忆缓存键
  * @param {string} userEmail - 用户邮箱
- * @returns {UserMemory} 记忆集合
+ * @returns {string} 形如 ai-memory/<email>.json 的缓存键
  */
-export const readMemory = (userEmail: string): UserMemory => {
-  const file = memoryFile(userEmail);
-  if (!fs.existsSync(file)) {
-    return { user: userEmail, items: [], updated_at: 0 };
-  }
+const memoryKey = (userEmail: string): string =>
+  `${AI_MEMORY_PREFIX}${safeUser(userEmail)}.json`;
+
+/**
+ * 读取用户长期记忆（无记录时返回空集合）
+ * @param {string} userEmail - 用户邮箱
+ * @returns {Promise<UserMemory>} 记忆集合
+ */
+export const readMemory = async (userEmail: string): Promise<UserMemory> => {
+  const empty = (): UserMemory => ({ user: userEmail, items: [], updated_at: 0 });
   try {
-    return JSON.parse(fs.readFileSync(file, 'utf-8')) as UserMemory;
-  } catch {
-    return { user: userEmail, items: [], updated_at: 0 };
+    const memory = await readCacheJson<UserMemory>(memoryKey(userEmail));
+    if (!memory || !Array.isArray(memory.items)) return empty();
+    return memory;
+  } catch (err) {
+    console.warn(`[ai-memory] 读取失败：${(err as Error).message}`);
+    return empty();
   }
 };
 
 /**
  * 写入用户长期记忆
  * @param {UserMemory} memory - 记忆集合
- * @returns {void}
+ * @returns {Promise<void>}
  */
-export const writeMemory = (memory: UserMemory): void => {
+export const writeMemory = async (memory: UserMemory): Promise<void> => {
   try {
-    ensureDir();
     memory.updated_at = Date.now();
-    fs.writeFileSync(memoryFile(memory.user), JSON.stringify(memory, null, 2), 'utf-8');
+    await writeCacheJson(memoryKey(memory.user), memory);
   } catch (err) {
     console.warn(`[ai-memory] 写入失败：${(err as Error).message}`);
   }
@@ -84,15 +83,15 @@ export const pruneMemoryItems = (items: MemoryItem[]): MemoryItem[] => {
  * @param {string} userEmail - 用户邮箱
  * @param {string[]} contents - 新增记忆正文列表
  * @param {string} source - 来源会话 ID
- * @returns {MemoryItem[]} 追加后的全部记忆条目
+ * @returns {Promise<MemoryItem[]>} 追加后的全部记忆条目
  * @description 去重按正文精确匹配：内容相同则只刷新 updated_at，避免同一事实反复堆积。
  */
-export const addMemoryItems = (
+export const addMemoryItems = async (
   userEmail: string,
   contents: string[],
   source: string,
-): MemoryItem[] => {
-  const memory = readMemory(userEmail);
+): Promise<MemoryItem[]> => {
+  const memory = await readMemory(userEmail);
   const now = Date.now();
   const existing = new Map(memory.items.map((i) => [i.content, i]));
 
@@ -117,19 +116,19 @@ export const addMemoryItems = (
   }
 
   memory.items = pruneMemoryItems(memory.items);
-  writeMemory(memory);
+  await writeMemory(memory);
   return memory.items;
 };
 
 /**
  * 清空用户长期记忆
  * @param {string} userEmail - 用户邮箱
- * @returns {boolean} 是否删除成功（原本没有记忆文件返回 false）
+ * @returns {Promise<boolean>} 是否删除成功（原本没有记忆记录返回 false）
  */
-export const clearMemory = (userEmail: string): boolean => {
-  const file = memoryFile(userEmail);
-  if (!fs.existsSync(file)) return false;
-  fs.unlinkSync(file);
+export const clearMemory = async (userEmail: string): Promise<boolean> => {
+  const key = memoryKey(userEmail);
+  if (!(await cacheKeyExists(key))) return false;
+  await deleteCacheKey(key);
   return true;
 };
 
@@ -137,17 +136,17 @@ export const clearMemory = (userEmail: string): boolean => {
  * 取用于注入提示词的记忆正文（按热度取前 N 条）
  * @param {string} userEmail - 用户邮箱
  * @param {number} [limit] - 最多注入条数
- * @returns {string[]} 记忆正文列表
+ * @returns {Promise<string[]>} 记忆正文列表
  * @description 注入是「读取」也算一次命中：hits 反映「它出现过多少轮」，是淘汰策略的输入。
  */
-export const pickMemoryForPrompt = (userEmail: string, limit = 10): string[] => {
-  const memory = readMemory(userEmail);
+export const pickMemoryForPrompt = async (userEmail: string, limit = 10): Promise<string[]> => {
+  const memory = await readMemory(userEmail);
   if (memory.items.length === 0) return [];
   const now = Date.now();
   const picked = [...memory.items]
     .sort((a, b) => b.hits - a.hits || b.updated_at - a.updated_at)
     .slice(0, limit);
   picked.forEach((i) => { i.hits += 1; i.updated_at = now; });
-  writeMemory(memory);
+  await writeMemory(memory);
   return picked.map((i) => i.content);
 };

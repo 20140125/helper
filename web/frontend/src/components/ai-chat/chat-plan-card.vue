@@ -61,7 +61,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { PlanStepStatus, UiPlan, UiReflection } from '@/types/ai-chat';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 const props = defineProps<{
   /** 执行计划 */

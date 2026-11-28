@@ -68,7 +68,7 @@
 <script setup lang="ts">
 import StatCard from '@/components/common/stat-card.vue';
 import type { PidItem } from '@/types/web-service';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 withDefaults(defineProps<{
   /** i18n 翻译函数（由父组件通过 LocaleStore.t 传入，响应式） */

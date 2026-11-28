@@ -1,8 +1,6 @@
-import path from 'path';
-import { CACHE_DIR } from '@/utils/paths';
+import { readCacheJson } from '@/utils/database/cache-store';
 import {
   getDayOfYear,
-  readJsonFile,
   pickByDaySeed,
   getWeekdayKey,
   unescapePipe,
@@ -58,12 +56,12 @@ export const loadDailyPlaceholders = async (type?: string): Promise<Record<strin
   const tomorrowStr = `${tomorrow.getFullYear()}年${String(tomorrow.getMonth() + 1).padStart(2, '0')}月${String(tomorrow.getDate()).padStart(2, '0')}日（${weekdays[tomorrow.getDay()]}）`;
 
   // ══════════════════════════════════════
-  // 并行读取所有缓存文件
+  // 并行读取所有缓存条目（真源为 已有业务表，不再触碰磁盘）
   // ══════════════════════════════════════
   const [dailyData, quotesData, greetingsData, holidayConfig] = await Promise.all([
-    readJsonFile<Record<string, string>>(path.join(CACHE_DIR, `daily_data_${today}.json`)),
-    readJsonFile<QuotesData>(path.join(CACHE_DIR, 'reminder_quotes.json')),
-    readJsonFile<GreetingsData>(path.join(CACHE_DIR, 'greetings.json')),
+    readCacheJson<Record<string, string>>(`daily_data_${today}.json`),
+    readCacheJson<QuotesData>('reminder_quotes.json'),
+    readCacheJson<GreetingsData>('greetings.json'),
     parseHolidayConfig(),
   ]);
   const holidayList = holidayConfig.holidays;

@@ -106,6 +106,8 @@
           v-model="page"
           :total="total"
           :page-size="pageSize"
+          :total-content="false"
+          :show-page-size="false"
           size="small"
           @change="onPageChange"
         />
@@ -191,7 +193,7 @@ const {
 
 .pr-pagination {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   padding-top: 16px;
 }
 

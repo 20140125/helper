@@ -19,8 +19,16 @@ DROP TABLE IF EXISTS `hp_holiday_data`;
 DROP TABLE IF EXISTS `hp_month_config`;
 DROP TABLE IF EXISTS `hp_daemon_sent_state`;
 DROP TABLE IF EXISTS `hp_daily_data`;
-DROP TABLE IF EXISTS `hp_cache_files`;
+-- 旧库遗留：hp_shell_cache_files 兼容视图 / 镜像表已移除，先删依赖视图再删基表，初始化只清理、不再重建
+DROP VIEW IF EXISTS `hp_shell_cache_files`;
 DROP TABLE IF EXISTS `hp_shell_cache_files`;
+-- 旧库遗留：hp_cache_files / hp_cache_store 汇总表与 hp_cache_meta 元信息表均已下线，初始化时一并清理
+DROP TABLE IF EXISTS `hp_cache_files`;
+DROP TABLE IF EXISTS `hp_cache_store`;
+DROP TABLE IF EXISTS `hp_cache_meta`;
+-- 遗留空桶：hp_cache_res_ai_doc（AI 文档响应分类，0 行且无运行时消费者），表定义已移除；
+-- 旧库初始化时一并清理；见 sql/cache_data.sql
+DROP TABLE IF EXISTS `hp_cache_res_ai_doc`;
 DROP TABLE IF EXISTS `hp_message_templates`;
 DROP TABLE IF EXISTS `hp_template_styles`;
 DROP TABLE IF EXISTS `hp_template_names`;
@@ -31,3 +39,13 @@ DROP TABLE IF EXISTS `hp_permission_requests`;
 DROP TABLE IF EXISTS `hp_api_categories`;
 DROP TABLE IF EXISTS `hp_skills`;
 DROP TABLE IF EXISTS `hp_skill_categories`;
+-- 热搜榜单结构化数据：先删明细再删批次表
+DROP TABLE IF EXISTS `hp_hot_search_item`;
+DROP TABLE IF EXISTS `hp_hot_search_snapshot`;
+
+-- 例外：hp_i18n_messages 是文案维护真源（管理页可编辑），初始化只补缺失 key、不删除表，
+--       避免全库重建把数据库里维护过的文案冲掉；见 sql/i18n/35_i18n_messages.sql
+-- 例外：hp_knowledge_docs 是知识库维护真源（用户文档可在管理页编辑），同样不删除表；
+--       初始化 / 同步按文件回灌系统文档、只补齐用户文档缺失项；见 sql/knowledge/38_knowledge_docs.sql
+DROP TABLE IF EXISTS `hp_ai_chat_skins`;
+DROP TABLE IF EXISTS `hp_ai_chat_skin_presets`;

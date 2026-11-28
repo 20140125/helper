@@ -83,7 +83,7 @@ export const PAGE_REGISTRY: PageEntry[] = [
     group: 'operations',
     inMenu: false,
     permissions: ['logs:view'],
-    desc: '各脚本日志文件查看与清空',
+    desc: '运行日志记录表格：分页、筛选，点击单条查看日志详情',
     coveredByTools: ['query_logs', 'manage_logs'],
   },
   {
@@ -95,16 +95,6 @@ export const PAGE_REGISTRY: PageEntry[] = [
     permissions: ['config:view'],
     desc: '编辑 .env 配置项、管理企业微信机器人',
     coveredByTools: ['query_config', 'update_config', 'query_webhooks', 'manage_webhook'],
-  },
-  {
-    path: '/cache',
-    name: 'cache',
-    label: '缓存文件',
-    group: 'operations',
-    inMenu: false,
-    permissions: ['cache:view'],
-    desc: '查看 / 编辑 .cache 下的 JSON 缓存',
-    coveredByTools: ['query_cache', 'manage_cache'],
   },
   {
     path: '/greetings',
@@ -224,6 +214,16 @@ export const PAGE_REGISTRY: PageEntry[] = [
     inMenu: true,
     permissions: ['database:view'],
     desc: '查看 MySQL 连接状态、库表结构与数据预览，执行 SQL，并用 helper_database.sql 重建全库（仅超级管理员）',
+    coveredByTools: [],
+  },
+  {
+    path: '/i18n-messages',
+    name: 'i18n-messages',
+    label: '语言包管理',
+    group: 'operations',
+    inMenu: true,
+    permissions: [],
+    desc: '浏览 hp_i18n_messages 中的中英文案（所有登录用户可查看），超管可编辑并让前端语言包立即生效',
     coveredByTools: [],
   },
   {

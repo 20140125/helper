@@ -40,4 +40,4 @@ tools:
 ## 相关但不在这里
 
 - 用户主动申请的权限记录 → `query_permission_requests`（只读，审批在「权限申请」页由管理员操作）
-- 直接改 `.cache/rbac.json` / `users.json` 文件 → 禁止，用 `manage_rbac`（它带权限码校验）
+- 绕过 `manage_rbac` 直接改数据库 `hp_roles` / `hp_users` → 禁止（它带权限码校验）

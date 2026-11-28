@@ -178,7 +178,7 @@ except Exception:
 # ========== 原始 API 响应归档库 ==========
 # 提供 api_cache_path / read_cached_api_response / archive_api_response / cached_curl，
 # 让所有卡片脚本具备"日内复用"能力（同一天同一接口只打一次远端，省免费额度）。
-# 依赖 CACHE_DIR（由 project_config.sh 导出），这里做一次路径兜底。
+# 归档统一走 hp_cache_res_* 分类表，由库内部按需加载 cache_db.sh，不再依赖磁盘路径。
 source "${PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/api_archive.sh"
 
 # ========== 加载子模块 ==========

@@ -5,184 +5,188 @@
     :subtitle="t.logs.subtitle"
     :disable-anchor="true"
   >
-    <!-- 移动端：日志文件选择器 -->
-    <div class="panel-mobile-select">
-      <t-select
-        :value="activeKey"
-        size="large"
-        :placeholder="t.logs.selectPlaceholder"
-        @change="selectLog"
+    <template #actions>
+      <t-button variant="outline" size="large" @click="load">
+        <template #icon><t-icon name="refresh" /></template>
+        {{ t.common.refresh }}
+      </t-button>
+    </template>
+
+    <card-panel :title="t.logs.fileListTitle" icon="file-paste" icon-theme="primary">
+      <template #title-extra>
+        <span class="logs-total">{{ t.logs.logCount(total) }}</span>
+      </template>
+
+      <!-- 筛选栏 -->
+      <div class="logs-filter-bar">
+        <t-select
+          v-model="sourceTypeFilter"
+          :placeholder="t.logs.fieldType"
+          :options="sourceTypeOptions"
+          clearable
+          filterable
+          class="logs-source-type-select"
+          @change="onFilterChange"
+          @clear="onFilterChange"
+        />
+        <t-select
+          v-model="levelFilter"
+          :placeholder="t.logs.levelPlaceholder"
+          :options="levelOptions"
+          clearable
+          filterable
+          class="logs-level-select"
+          @change="onFilterChange"
+          @clear="onFilterChange"
+        />
+        <t-input
+          v-model="keyword"
+          :placeholder="t.logs.keywordPlaceholder"
+          clearable
+          class="logs-keyword-input"
+          @enter="onFilterChange"
+          @clear="onFilterChange"
+        />
+        <t-button theme="primary" variant="outline" @click="onFilterChange">
+          {{ t.common.search }}
+        </t-button>
+      </div>
+
+      <!-- 日志记录表格 -->
+      <t-table
+        :data="items"
+        :columns="columns"
+        row-key="id"
+        size="medium"
+        :empty="t.logs.emptyHint"
+        :expanded-row-keys="expandedRowKeys"
+        :expand-icon="false"
+        hover
+        stripe
+        @row-click="onRowClick"
       >
-        <template #valueDisplay="{ value }">
-          <div class="panel-select-option">
-            <t-icon name="file-paste" size="14px" style="color: var(--accent-secondary); flex-shrink: 0;" />
-            <span>{{ LOG_LABELS[value] }}</span>
+        <template #level="{ row }">
+          <t-tag :theme="levelTheme(row.level)" variant="light" size="small">{{ row.level }}</t-tag>
+        </template>
+        <template #source="{ row }">
+          <span class="logs-source">{{ sourceLabel(row.source) }}</span>
+        </template>
+        <template #actions="{ row }">
+          <t-button variant="text" theme="primary" size="small" @click.stop="openDetail(row)">
+            {{ t.logs.viewDetail }}
+          </t-button>
+        </template>
+        <!-- 详情按记录展开：点击哪行就显示在哪行下方 -->
+        <template #expandedRow="{ row }">
+          <div class="logs-expanded-row" @click.stop>
+            <log-detail-panel
+              :t="t"
+              :detail="detail && detail.id === row.id ? detail : null"
+              :loading="detailLoading"
+              :source-name="detail && detail.id === row.id ? sourceLabel(detail.source) : ''"
+              @close="closeDetail"
+            />
           </div>
         </template>
-        <t-option
-          v-for="log in logs"
-          :key="log.key"
-          :value="log.key"
-          :label="LOG_LABELS[log.key]"
-        >
-          <template #default>
-            <div class="panel-select-option">
-              <t-icon name="file-paste" size="14px" style="color: var(--accent-secondary); flex-shrink: 0;" />
-              <span>{{ LOG_LABELS[log.key] }}</span>
-              <t-tag v-if="!log.exists" size="small" theme="default" variant="light" class="log-empty-tag">{{ t.logs.noFile }}</t-tag>
-            </div>
-          </template>
-        </t-option>
-      </t-select>
-    </div>
+      </t-table>
 
-    <!-- 主体：左右两栏 -->
-    <div class="panel-layout">
-      <!-- 左侧日志列表 -->
-      <card-panel
-        :title="t.logs.fileListTitle"
-        icon="file-paste"
-        icon-theme="secondary"
-        class="panel-list"
-        full-height
-      >
-        <template #title-extra>
-          <span class="text-xs" style="color: var(--text-muted);">{{ t.logs.logCount(logs.length) }}</span>
-        </template>
-          <side-list-item
-            v-for="log in logs"
-            :key="log.key"
-            :active="activeKey === log.key"
-            icon="file-paste"
-            :title="LOG_LABELS[log.key]"
-            :size="log.exists ? log.size : undefined"
-            :mtime="log.mtime"
-            :class="{ 'log-item-empty': !log.exists }"
-            @click="selectLog(log.key)"
-          >
-            <template v-if="!log.exists" #extra>
-              <t-tag size="small" theme="default" variant="light" class="log-empty-tag">{{ t.logs.noFile }}</t-tag>
-            </template>
-          </side-list-item>
-      </card-panel>
-
-      <!-- 右侧日志内容 -->
-      <card-panel
-        :title="activeKey ? LOG_LABELS[activeKey] : t.logs.selectPlaceholder"
-        icon="file-code"
-        icon-theme="secondary"
-        class="panel-main"
-        full-height
-      >
-        <template #actions>
-            <t-select
-              v-model="lineCount"
-              size="large"
-              class="logs-line-select"
-              @change="loadContent"
-            >
-              <t-option :value="50" :label="t.logs.lines(50)" />
-              <t-option :value="100" :label="t.logs.lines(100)" />
-              <t-option :value="200" :label="t.logs.lines(200)" />
-              <t-option :value="500" :label="t.logs.lines(500)" />
-            </t-select>
-            <t-button
-              variant="outline"
-              size="large"
-              @click="loadContent"
-            >
-              <template #icon><t-icon name="refresh" /></template>
-              {{ t.common.refresh }}
-            </t-button>
-            <t-popconfirm
-              v-if="canEdit()"
-              :content="t.logs.clearConfirm"
-              @confirm="clearLog"
-            >
-              <t-button
-                variant="outline"
-                theme="danger"
-                size="large"
-              >
-                <template #icon><t-icon name="delete" /></template>
-                {{ t.logs.clearBtn }}
-              </t-button>
-            </t-popconfirm>
-        </template>
-
-        <!-- 接口访问日志：使用美化的卡片式查看器 -->
-        <access-log-viewer
-          v-if="activeKey === 'access_log' || activeKey === 'access_log_backup'"
-          :content="logContent"
-          :t="t"
-          :empty-text="t.logs.emptyHint"
+      <!-- 分页 -->
+      <div v-if="total > pageSize" class="logs-pagination">
+        <t-pagination
+          v-model="page"
+          :total="total"
+          :page-size="pageSize"
+          :total-content="false"
+          :show-page-size="false"
+          size="large"
+          @change="onPageChange"
         />
-
-        <!-- 其他日志：使用通用纯文本查看器 -->
-        <file-content
-          v-else
-          class="p-0"
-          :filename="activeKey ? `${activeKey}.txt` : ''"
-          :t="t"
-          :content="logContent"
-          :empty-text="t.logs.emptyHint"
-          :empty-content-text="t.logs.fileEmpty"
-          :readonly="true"
-        />
-      </card-panel>
-    </div>
+      </div>
+    </card-panel>
   </page-layout>
 </template>
 
 <script setup lang="ts">
 import { useLogsModel } from '@/models/logs-model';
-import SideListItem from '@/components/common/side-list-item.vue';
-import FileContent from '@/components/common/file-content.vue';
-import AccessLogViewer from '@/components/common/access-log-viewer.vue';
+import LogDetailPanel from '@/components/logs/log-detail-panel.vue';
 import PageLayout from '@/components/common/page-layout.vue';
 import CardPanel from '@/components/common/card-panel.vue';
 
 const {
   t,
-  logs,
-  activeKey,
-  logContent,
-  lineCount,
+  items,
+  total,
+  page,
+  pageSize,
+  sourceTypeFilter,
+  levelFilter,
+  keyword,
+  detail,
+  detailLoading,
   pageLoading,
-  LOG_LABELS,
-  canEdit,
-  loadContent,
-  selectLog,
-  clearLog,
+  columns,
+  expandedRowKeys,
+  sourceTypeOptions,
+  levelOptions,
+  load,
+  onFilterChange,
+  onPageChange,
+  onRowClick,
+  openDetail,
+  closeDetail,
+  levelTheme,
+  sourceLabel,
 } = useLogsModel();
 </script>
 
 <style scoped>
-@import "@/styles/panel-layout.css";
-
-/* logs 独有样式 */
-.log-item-empty {
-  opacity: 0.55;
+.logs-total {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
-.log-empty-tag {
-  font-size: 11px;
-  padding: 0 5px;
-  height: 18px;
-  line-height: 18px;
-  border-radius: 4px;
-  color: var(--text-muted) !important;
-  background: var(--bg-secondary) !important;
-  border-color: transparent !important;
+.logs-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
-.logs-line-select {
-  width: 110px;
+.logs-level-select,
+.logs-source-type-select {
+  width: 150px;
+}
+
+.logs-keyword-input {
+  width: 260px;
+  flex: 0 1 260px;
+  min-width: 180px;
+}
+
+.logs-source {
+  font-size: 13px;
+}
+
+.logs-expanded-row {
+  padding: 8px 0 12px;
+}
+
+.logs-pagination {
+  display: flex;
+  /* justify-content: center; */
+  padding-top: 16px;
 }
 
 @media (max-width: 768px) {
-  .logs-line-select {
-    width: 88px;
+  .logs-source-type-select,
+  .logs-level-select {
+    width: 100%;
+  }
+
+  .logs-keyword-input {
+    width: 100%;
+    flex: 1 1 100%;
   }
 }
 </style>

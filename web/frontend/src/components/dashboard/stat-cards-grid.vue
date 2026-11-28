@@ -54,17 +54,6 @@
       </template>
     </stat-card>
 
-    <!-- 缓存文件（入口已收起，仍可直连 /cache 兜底） -->
-    <info-stat-card
-      :label="t.menu.cache"
-      theme="violet"
-      :value="statusStore.cacheFiles"
-      :desc="t.dashboard.descCacheFiles"
-      icon="file"
-      route-name="cache"
-      :extra-path="statusStore.projectDir ? statusStore.projectDir + '/cache' : undefined"
-    />
-
     <!-- 自定义规则 -->
     <info-stat-card
       :label="t.menu.rules"
@@ -86,7 +75,7 @@ import StatCard from '@/components/common/stat-card.vue';
 import { Permission } from '@/models/base-model';
 import type { useStatusStore } from '@/stores/status';
 import type { useRulesStore } from '@/stores/rules';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 defineProps<{
   /** i18n 翻译函数（由父组件通过 LocaleStore.t 传入，响应式） */

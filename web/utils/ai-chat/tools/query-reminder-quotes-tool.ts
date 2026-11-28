@@ -1,10 +1,10 @@
-import { readReminderQuotesFile, flattenReminderQuotes } from '@/routes/utils';
 import { syncContentLibraryIfStale, readReminderQuotesFromDb } from '@/utils/database/content-library';
 import type { ToolImpl, ToolResult } from '@/types/ai-chat';
 
 /**
  * query_reminder_quotes 工具实现
  * @description 查询系统的提醒寄语库（包含三餐贴士、营养建议、周末问候、寄语等），可按场景关键词过滤。
+ *   直接读数据库；库不可用时返回明确错误，不再读 .cache 文件。
  *
  * 触发示例（仅供维护者参考，不会发送给 LLM）：
  *   - "看一下早餐相关的提醒寄语"                       → { bucket_keyword: 'breakfast' }
@@ -29,25 +29,23 @@ export const queryReminderQuotesTool: ToolImpl = {
   },
   requiredPermissions: ['reminder-quotes:view'],
   invoke: async (args): Promise<ToolResult> => {
-    const kw = typeof args.bucket_keyword === 'string' ? args.bucket_keyword.toLowerCase() : '';
-    const limit = Math.min(Math.max(Number(args.limit) || 20, 1), 100);
-    const items = await (async () => {
-      try {
-        await syncContentLibraryIfStale();
-        return await readReminderQuotesFromDb();
-      } catch (err) {
-        console.warn('[query_reminder_quotes] 查库失败，回退 JSON：', (err as Error).message);
-        return flattenReminderQuotes(readReminderQuotesFile());
-      }
-    })();
-    const filtered = kw
-      ? items.filter((it) => it.bucket.toLowerCase().includes(kw))
-      : items;
-    const slice = filtered.slice(0, limit);
-    return {
-      ok: true,
-      data: { items: slice, total: filtered.length, returned: slice.length },
-      summary: `匹配 ${filtered.length} 条，返回 ${slice.length} 条`,
-    };
+    try {
+      const kw = typeof args.bucket_keyword === 'string' ? args.bucket_keyword.toLowerCase() : '';
+      const limit = Math.min(Math.max(Number(args.limit) || 20, 1), 100);
+
+      await syncContentLibraryIfStale();
+      const items = await readReminderQuotesFromDb();
+      const filtered = kw
+        ? items.filter((it) => it.bucket.toLowerCase().includes(kw))
+        : items;
+      const slice = filtered.slice(0, limit);
+      return {
+        ok: true,
+        data: { items: slice, total: filtered.length, returned: slice.length },
+        summary: `匹配 ${filtered.length} 条，返回 ${slice.length} 条`,
+      };
+    } catch (err) {
+      return { ok: false, data: `查询提醒寄语失败：${(err as Error).message}` };
+    }
   },
 };

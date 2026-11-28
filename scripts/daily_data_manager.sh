@@ -27,7 +27,7 @@
 #   - 黄历：聚合数据老黄历API（fetch_real_almanac.sh）
 #   - 星座：聚合数据星座API（fetch_real_horoscope.sh）
 #   - 历史：维基百科API（history_today.sh）
-#   - 励志语录：.cache/reminder_quotes.json（quotes 分类）
+#   - 励志语录：reminder_quotes.json 对应的已有业务表（quotes 分类）
 #
 # 模块拆分：
 #   daily_data_manager/prefetch.sh          - 数据预获取
@@ -41,22 +41,21 @@
 #   get_morning_data                             # 获取早安数据
 #
 # 作者：智能提醒系统
-# 更新：2026-03-24
+# 更新：2026-11-28
 # ======================================
 
 # 获取脚本所在目录，加载项目路径配置
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/project_config.sh"
+# 按需加载缓存数据库通道（每日数据不再落盘）
+source "${PROJECT_DIR}/cache_db.sh"
 
 # 加载统一配置（包含 TZ 和 API Keys）
 source "${PROJECT_DIR}/weather_config.sh" 2>/dev/null || true
 
-# 缓存目录
-mkdir -p "$CACHE_DIR"
-
-# 缓存文件（按日期命名）
+# 缓存键（按日期命名）
 TODAY=$(date +%Y-%m-%d)
-CACHE_FILE="${CACHE_DIR}/daily_data_${TODAY}.json"
+CACHE_KEY="daily_data_${TODAY}.json"
 
 # 引入统一日志工具
 source "${PROJECT_DIR}/log_utils.sh"

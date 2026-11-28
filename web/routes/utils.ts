@@ -1,13 +1,7 @@
-import path from 'path';
-import { PROJECT_DIR } from '@/utils/paths';
-
 export type { Rule } from '@/types/rule';
 export type { Webhook } from '@/types/webhook';
 
 export { PROJECT_DIR, CACHE_DIR } from '@/utils/paths';
-
-/** 已登录用户存储文件路径 */
-export const USERS_FILE = path.join(PROJECT_DIR, '.cache', 'users.json');
 
 // 通用响应（从独立模块重导出，避免循环依赖）
 export { ErrorCode, returnResponse } from '@/utils/response';
@@ -18,11 +12,8 @@ export { readEnvFile, writeEnvFile, formatEnvValue } from '@/utils/env';
 export { ScriptResult, formatDate, runScript } from '@/utils/script';
 export type { LauncherStatus } from '@/types/launcher';
 export type { RoutePermissionConfig } from '@/types/permission';
-export { RULES_FILE } from '@/types/rule';
-export { WEBHOOKS_FILE } from '@/types/webhook';
 export { readRules, writeRules } from '@/utils/storage';
 export { readWebhooks, writeWebhooks } from '@/utils/storage';
-export { AI_MODEL_CONFIGS_FILE } from '@/types/ai-model-config';
 export type {
   AiModelGroup,
   AiModelEntry,
@@ -45,7 +36,7 @@ export {
 } from '@/utils/ai-model-config';
 export { fetchRemoteModels } from '@/utils/ai-model-config-fetch';
 export { testModelAvailability } from '@/utils/ai-model-config-test';
-// .cache 目录查询函数
+// 缓存 KV 查询函数（缓存分表）
 export {
   readCacheJsonFile,
   listDailyDataFiles,
@@ -113,11 +104,12 @@ export {
   startWebServiceByLauncher,
   scheduleWebServiceRestart,
 } from '@/utils/launcher';
+export { DEFAULT_LOG_PAGE_SIZE } from '@/types/log';
 export {
-  listLogFiles,
-  isLogKeyValid,
-  readLogTail,
-  clearLogFile,
+  listLogSources,
+  isLogSourceValid,
+  readSourceLogRows,
+  clearLogSource,
 } from '@/utils/logs';
 export {
   insertRunLog,
@@ -125,13 +117,15 @@ export {
   getLogRetentionDays,
   listRunLogSources,
   readRunLogRows,
+  listRunLogRows,
+  getRunLogById,
   renderRunLogRows,
   clearRunLogs,
   purgeExpiredRunLogs,
 } from '@/utils/run-log';
 export { notifyAllWebhooks } from '@/utils/wecom-notify';
 export { getOsRelease, getMemoryInfo, getDiskInfo, getSystemUptime, readDaemonPidInfo, readAnnualPid } from '@/utils/system';
-export { handleFileUpload } from '@/utils/upload';
+export { handleFileUpload, handleSkinBackgroundUpload } from '@/utils/upload';
 export { UPDATE_TOOLS_SCRIPTS } from '@/types/update-tools';
 export {
   validateRequiredArgs,
@@ -179,7 +173,6 @@ export {
   sendApprovalEmail,
   sendRejectionEmail,
 } from '@/utils/permission-request';
-export { PERMISSION_REQUESTS_FILE } from '@/types/permission-request';
 export type {
   PermissionRequest,
   PermissionRequestsStore,
@@ -187,7 +180,7 @@ export type {
   ApprovePermissionBody,
   RejectPermissionBody,
 } from '@/types/permission-request';
-export { API_CATEGORIES_FILE, API_ITEMS_FILE } from '@/types/api-management';
+export { API_ITEMS_FILE } from '@/types/api-management';
 export {
   readApiCategories,
   writeApiCategories,
@@ -208,7 +201,7 @@ export type {
   ExecuteApiBody,
   ExecuteApiResult,
 } from '@/types/api-management';
-export { GREETINGS_FILE, GREETINGS_GROUPS } from '@/types/greetings';
+export { GREETINGS_GROUPS } from '@/types/greetings';
 export {
   readGreetingsFile,
   writeGreetingsFile,
@@ -223,7 +216,7 @@ export type {
   CreateGreetingBody,
   UpdateGreetingBody,
 } from '@/types/greetings';
-export { REMINDER_QUOTES_FILE, REMINDER_QUOTES_BUCKETS } from '@/types/reminder-quotes';
+export { REMINDER_QUOTES_BUCKETS } from '@/types/reminder-quotes';
 export {
   readReminderQuotesFile,
   writeReminderQuotesFile,
@@ -299,6 +292,14 @@ export {
   searchKnowledge,
   buildKnowledgeIndex,
   resetKnowledgeIndex,
+  validateAiChatSkinBody,
+  readAiChatSkin,
+  upsertAiChatSkin,
+  isValidAiChatSkinKey,
+  validateAiChatSkinPresetBody,
+  normalizeAiChatSkinPresetVars,
+  listAiChatSkinPresets,
+  upsertAiChatSkinPreset,
 } from '@/utils/ai-chat';
 
 // 数据库管理（连接池、库表浏览、SQL 执行、建表脚本初始化）
@@ -323,6 +324,23 @@ export type {
   DatabaseInitResult,
 } from '@/types/database';
 
+// 前端 i18n 语言包（运行时读库与管理页读写）
+export {
+  isI18nLang,
+  readAllI18nTranslations,
+  listI18nMessages,
+  updateI18nMessage,
+} from '@/utils/database';
+export type {
+  I18nLang,
+  I18nTranslation,
+  I18nTranslationsMap,
+  I18nMessage,
+  I18nMessageList,
+  I18nMessageQuery,
+  I18nValueType,
+} from '@/types/i18n';
+
 export {
   normalizeDocName,
   isUserDocPath,
@@ -338,6 +356,9 @@ export {
   writeKnowledgeDirs,
   getDocContentBytes,
   resolveKnowledgeDirPaths,
+  initKnowledgeDocs,
+  refreshKnowledgeDocs,
+  getKnowledgeDocEntries,
 } from '@/utils/knowledge';
 
 // 首页首屏聚合

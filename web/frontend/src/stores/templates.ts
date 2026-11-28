@@ -16,7 +16,7 @@ export class TemplatesStore {
   // 状态变量
   // ==============================
 
-  /** 完整模板配置（从 .cache/message_templates.json 加载） */
+  /** 完整模板配置（从数据库 已有业务表 加载，缓存键 message_templates.json） */
   config = ref<TemplateConfig | null>(null);
 
   /** 加载状态 */
@@ -39,7 +39,7 @@ export class TemplatesStore {
    * 获取当前语言下的 messageTemplates 文案 override
    * @returns {{ templateNames: Record<string,string>; styleNames: Record<string,string> }}
    * @description 从 locale store 读取 key→显示名称映射（en.ts 提供完整英文、zh.ts 为空对象降级到 json 原值），
-   *              用于覆盖 message_templates.json 里的中文原值实现下拉选项双语切换
+   *              用于覆盖数据库 已有业务表（缓存键 message_templates.json）里的中文原值实现下拉选项双语切换
    */
   private get localeOverride(): {
     templateNames: Record<string, string>;

@@ -5,7 +5,7 @@
 # ======================================
 #
 # 功能说明：
-#   提供从 .cache/reminder_quotes.json 读取任意分类数据的通用方法。
+#   提供从 reminder_quotes.json 对应的已有业务表 读取任意分类数据的通用方法。
 #   其他脚本只需 source 本文件，即可调用以下函数获取所需内容，
 #   无需在各处重复编写 JSON 解析逻辑。
 #
@@ -39,7 +39,7 @@
 #   ./inspirational_quotes.sh count   dinner.tips
 #
 # 作者：智能提醒系统
-# 更新：2026-04-02
+# 更新：2026-11-28
 # ======================================
 
 # ======================================
@@ -48,9 +48,11 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/project_config.sh"
+# 按需加载缓存数据库通道（缓存 JSON 不再落盘）
+source "${PROJECT_DIR}/cache_db.sh"
 
-# JSON 文件路径
-QUOTES_JSON="${CACHE_DIR}/reminder_quotes.json"
+# JSON 的缓存键
+QUOTES_KEY='reminder_quotes.json'
 
 # 默认兜底语录
 _QUOTES_FALLBACK="成功不是终点，失败也不是末日，唯有勇气才能永续。"
@@ -78,18 +80,16 @@ _quotes_read_array() {
     local py_access
     py_access=$(_quotes_build_py_access "$json_path")
 
-    QUOTES_JSON_PATH="$QUOTES_JSON" \
     QUOTES_PY_ACCESS="$py_access" \
-    python3 << 'PYEOF'
+    python3 3< <(cache_db_read "$QUOTES_KEY") << 'PYEOF'
 import json
 import os
 import sys
 
-json_path = os.environ.get('QUOTES_JSON_PATH', '')
 py_access = os.environ.get('QUOTES_PY_ACCESS', '')
 
 try:
-    with open(json_path, 'r', encoding='utf-8') as f:
+    with os.fdopen(3, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     # 动态访问嵌套路径
@@ -123,7 +123,7 @@ PYEOF
 get_quote_random() {
     local json_path="${1:-quotes.quotes}"
 
-    if [ ! -f "$QUOTES_JSON" ]; then
+    if ! cache_db_exists "$QUOTES_KEY"; then
         echo "$_QUOTES_FALLBACK"
         return 1
     fi
@@ -131,19 +131,17 @@ get_quote_random() {
     local py_access
     py_access=$(_quotes_build_py_access "$json_path")
 
-    QUOTES_JSON_PATH="$QUOTES_JSON" \
     QUOTES_PY_ACCESS="$py_access" \
-    python3 << 'PYEOF'
+    python3 3< <(cache_db_read "$QUOTES_KEY") << 'PYEOF'
 import json
 import random
 import os
 import sys
 
-json_path = os.environ.get('QUOTES_JSON_PATH', '')
 py_access = os.environ.get('QUOTES_PY_ACCESS', '')
 
 try:
-    with open(json_path, 'r', encoding='utf-8') as f:
+    with os.fdopen(3, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     result = data
@@ -168,7 +166,7 @@ PYEOF
 get_quote_daily() {
     local json_path="${1:-quotes.quotes}"
 
-    if [ ! -f "$QUOTES_JSON" ]; then
+    if ! cache_db_exists "$QUOTES_KEY"; then
         echo "$_QUOTES_FALLBACK"
         return 1
     fi
@@ -176,19 +174,17 @@ get_quote_daily() {
     local py_access
     py_access=$(_quotes_build_py_access "$json_path")
 
-    QUOTES_JSON_PATH="$QUOTES_JSON" \
     QUOTES_PY_ACCESS="$py_access" \
-    python3 << 'PYEOF'
+    python3 3< <(cache_db_read "$QUOTES_KEY") << 'PYEOF'
 import json
 import os
 import sys
 from datetime import datetime
 
-json_path = os.environ.get('QUOTES_JSON_PATH', '')
 py_access = os.environ.get('QUOTES_PY_ACCESS', '')
 
 try:
-    with open(json_path, 'r', encoding='utf-8') as f:
+    with os.fdopen(3, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     result = data
@@ -216,8 +212,8 @@ PYEOF
 get_quote_list() {
     local json_path="${1:-quotes.quotes}"
 
-    if [ ! -f "$QUOTES_JSON" ]; then
-        echo "错误：语录文件不存在：$QUOTES_JSON" >&2
+    if ! cache_db_exists "$QUOTES_KEY"; then
+        echo "错误：语录文件不存在：$QUOTES_KEY" >&2
         return 1
     fi
 
@@ -230,7 +226,7 @@ get_quote_list() {
 get_quote_count() {
     local json_path="${1:-quotes.quotes}"
 
-    if [ ! -f "$QUOTES_JSON" ]; then
+    if ! cache_db_exists "$QUOTES_KEY"; then
         echo "0"
         return 1
     fi

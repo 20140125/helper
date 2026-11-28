@@ -24,7 +24,7 @@
 - 先设 `SCRIPT_DIR` 和 `_SELF_DIR`
 - 再 `source "${SCRIPT_DIR}/../project_config.sh"`
 
-`project_config.sh` 提供 `PROJECT_DIR`、`ROOT_DIR`、`CACHE_DIR`、`ENV_FILE`。环境变量文件优先级是 `web/.env` 优先，缺失时才回退 `scripts/.env`，Web 服务和脚本读同一份配置。
+`project_config.sh` 提供 `PROJECT_DIR`、`ROOT_DIR`、`CACHE_DIR`、`ENV_FILE`（其中 `CACHE_DIR` 仅保留给一次性迁移/兼容用途，脚本运行时通过 `scripts/cache_db.sh` 按缓存键读写数据库，不再读写 `.cache/` 文件）。环境变量文件优先级是 `web/.env` 优先，缺失时才回退 `scripts/.env`，Web 服务和脚本读同一份配置。
 
 ## 配置加载顺序
 
@@ -48,6 +48,7 @@
 - `weather_config.sh`：用到 `send_wecom_message`、`WECOM_WEBHOOKS`、`JUHE_*_KEY`、`TZ` 时
 - `holiday_config.sh`：用到 `is_holiday`、`is_workday`、`is_adjust_workday`、`HOLIDAYS_YYYY` 时
 - `log_utils.sh`：调用任一 `log_*` 函数时
+- `cache_db.sh`：需要按缓存键读写缓存 JSON 时（缓存数据以数据库为唯一真源，运行时不再读写 `.cache/` 文件）
 - `template_utils.sh`：调用 `get_message`、`load_template`、`render_template` 时
 - `greetings_loader.sh`：调用 `get_*_greeting` 时
 - `inspirational_quotes.sh`：调用 `get_quote_*` 时

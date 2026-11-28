@@ -17,9 +17,9 @@ const toJsonString = (raw: unknown): string =>
 
 /**
  * manage_cache 工具实现（缓存写能力）
- * @description query_cache 只能看，改 .cache/*.json 此前只能去 Web「缓存文件」页手改。
+ * @description query_cache 只能看，改数据库 已有业务表 的缓存键此前只能去 Web「缓存文件」页手改。
  *   本工具补齐整文件写入能力，并纳入增删改白名单——严格模式下会先建审批单，
- *   由超级管理员通过后生效。只写**已存在**的 .json 文件，不允许新建、不允许路径穿越。
+ *   由超级管理员通过后生效。只写**已存在**的缓存键（*.json），不允许新建、不允许路径穿越。
  *
  * 触发示例（仅供维护者参考，不会发送给 LLM）：
  *   - "把节假日数据这份缓存整个替换掉"   → { action: 'write', filename: 'holiday_data.json', content: {...} }
@@ -28,7 +28,7 @@ const toJsonString = (raw: unknown): string =>
 export const manageCacheTool: ToolImpl = {
   name: 'manage_cache',
   description:
-    '整文件写入 .cache/ 下的 JSON 缓存（覆盖原内容，不可撤销）。'
+    '整文件写入数据库 已有业务表 的缓存键（覆盖原内容，不可撤销）。'
     + 'action 只有 write：必传 filename（.json 结尾，可带子目录）与 content；只能改已存在的文件，不能新建。'
     + '改角色 / 用户授权用 manage_rbac，不要直接改 rbac.json / users.json。'
     + '不确定文件名先用 query_cache 不带参数看列表；写之前跟用户复述要改哪个文件与影响。',
@@ -71,9 +71,10 @@ export const manageCacheTool: ToolImpl = {
       return { ok: false, data: invalid };
     }
 
-    // 只允许改已存在的文件：避免 LLM 凭空造缓存文件污染 .cache
+    // 只允许改已存在的缓存键：避免 LLM 凭空造缓存键污染 已有业务表
     // name 是相对路径（子目录形如 api_responses/xxx.json）
-    const exists = listCacheFiles(CACHE_DIR).some((f) => f.name === filename);
+    const files = await listCacheFiles(CACHE_DIR);
+    const exists = files.some((f) => f.name === filename);
     if (!exists) {
       return {
         ok: false,
@@ -81,7 +82,7 @@ export const manageCacheTool: ToolImpl = {
       };
     }
 
-    const writeError = writeCacheFile(CACHE_DIR, filename, content);
+    const writeError = await writeCacheFile(CACHE_DIR, filename, content);
     if (writeError) {
       return { ok: false, data: `写入失败：${writeError}` };
     }

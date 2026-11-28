@@ -5,7 +5,7 @@
 # ======================================
 #
 # 功能说明：
-#   读取 .cache/custom_rules.json 中的规则配置，
+#   读取 custom_rules.json 对应的已有业务表 中的规则配置，
 #   根据规则类型（date/weekday/lunar_date/countdown/keyword）
 #   判断是否满足触发条件，满足则发送企业微信消息。
 #
@@ -32,7 +32,7 @@
 #   custom_rules/template_renderer.sh  - 模板消息渲染
 #
 # 作者：智能提醒系统
-# 更新：2026-03-24
+# 更新：2026-11-28
 # ======================================
 
 # ======================================
@@ -41,10 +41,12 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/project_config.sh"
+# 按需加载缓存数据库通道（规则 JSON 不再落盘）
+source "${PROJECT_DIR}/cache_db.sh"
 source "${PROJECT_DIR}/weather_config.sh" 2>/dev/null
 source "${PROJECT_DIR}/holiday_config.sh" 2>/dev/null
 
-RULES_FILE="${CACHE_DIR}/custom_rules.json"
+RULES_KEY='custom_rules.json'
 
 # 日志文件
 LOG_FILE="${PROJECT_DIR}/custom_rules.log"
@@ -75,8 +77,8 @@ run_all_enabled() {
     log_info "📅 当前时间: $(date '+%Y-%m-%d %H:%M:%S')"
     log_info "======================================"
 
-    if [ ! -f "$RULES_FILE" ]; then
-        log_warning "规则文件不存在: $RULES_FILE"
+    if ! cache_db_exists "$RULES_KEY"; then
+        log_warning "规则文件不存在: $RULES_KEY"
         log_info "======================================"
         exit 0
     fi
@@ -130,8 +132,8 @@ run_test_rule() {
     log_info "📅 当前时间: $(date '+%Y-%m-%d %H:%M:%S')"
     log_info "======================================"
 
-    if [ ! -f "$RULES_FILE" ]; then
-        log_error "规则文件不存在: $RULES_FILE"
+    if ! cache_db_exists "$RULES_KEY"; then
+        log_error "规则文件不存在: $RULES_KEY"
         log_info "======================================"
         exit 1
     fi

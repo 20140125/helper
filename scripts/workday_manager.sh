@@ -20,7 +20,7 @@
 # 
 # 数据来源：
 #   - 节假日配置：holiday_config.sh
-#   - 寄语配置：.cache/reminder_quotes.json（workday_adjust 分类）
+#   - 寄语配置：reminder_quotes.json 对应的已有业务表（workday_adjust 分类）
 #   - 数据缓存：daily_data_manager.sh（早安数据）
 #   - 消息模板：template_utils.sh
 # 

@@ -160,6 +160,10 @@ router.post('/verify-token', async (req: Request, res: Response) => {
     return returnResponse(res, ErrorCode.UNAUTHORIZED, {}, 'Token 无效或已过期');
   }
 
+  // 全局中间件已从 header / cookie 挂载用户；仅 body 传 token 的场景在此兜底，
+  // 保证访问日志也能记录本次校验对应的用户名（日志在响应时读取 req.userEmail）
+  if (!req.userEmail) req.userEmail = payload.email;
+
   const isAdmin = isAdminEmail(payload.email);
   const permissions = await getUserPermissionsByEmail(payload.email, isAdmin);
   const roleId = await getUserRoleId(payload.email, isAdmin);

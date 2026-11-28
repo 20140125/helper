@@ -1,39 +1,14 @@
-import fs from 'fs';
 import type { RowDataPacket } from 'mysql2';
 import { formatDate } from './script';
 import { createMailTransporter, getAuthTargetEmail, getAuthMailFromName } from './auth';
 import { getPool } from '@/utils/database/connection';
 import { toDateText, normalizeDbDateTime } from '@/utils/database/datetime';
 import type { PermissionRequest, PermissionRequestsStore } from '@/types/permission-request';
-import { PERMISSION_REQUESTS_FILE } from '@/types/permission-request';
-import { CACHE_DIR } from './paths';
 import { ErrorCode } from './response';
 
 // ==============================
 // 存储读写（hp_permission_requests 为唯一真源）
 // ==============================
-
-/**
- * 读取本地 JSON 快照（数据库不可用时的降级数据）
- * @returns {PermissionRequestsStore} 存储数据
- */
-const readLegacyPermissionRequests = (): PermissionRequestsStore => {
-  if (!fs.existsSync(PERMISSION_REQUESTS_FILE)) return { requests: [] };
-  try {
-    return JSON.parse(fs.readFileSync(PERMISSION_REQUESTS_FILE, 'utf-8')) as PermissionRequestsStore;
-  } catch {
-    return { requests: [] };
-  }
-};
-
-/**
- * 写入本地 JSON 快照（数据库不可用时的降级数据）
- * @param {PermissionRequestsStore} store - 存储数据
- */
-const writeLegacyPermissionRequests = (store: PermissionRequestsStore): void => {
-  if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
-  fs.writeFileSync(PERMISSION_REQUESTS_FILE, JSON.stringify(store, null, 2), 'utf-8');
-};
 
 /**
  * 从数据库读取权限申请记录
@@ -109,30 +84,20 @@ const writePermissionRequestsToDb = async (store: PermissionRequestsStore): Prom
 /**
  * 读取权限申请存储
  * @returns {Promise<PermissionRequestsStore>} 存储数据
- * @description 优先查库；数据库不可用时降级读取本地 JSON 快照
+ * @description 直接查库；数据库异常向上抛出，由路由转成 500，不再降级读本地 JSON
  */
 export async function readPermissionRequests(): Promise<PermissionRequestsStore> {
-  try {
-    return await readPermissionRequestsFromDb();
-  } catch (err) {
-    console.warn('[permission-request] 读取 hp_permission_requests 失败，回退 JSON：', (err as Error).message);
-    return readLegacyPermissionRequests();
-  }
+  return readPermissionRequestsFromDb();
 }
 
 /**
  * 写入权限申请存储
  * @param {PermissionRequestsStore} store - 存储数据
  * @returns {Promise<void>}
- * @description 写库失败时降级写本地快照，数据库恢复后可重跑 migrate:cache 补齐
+ * @description 直接写库；数据库异常向上抛出，不再降级写本地 JSON
  */
 export async function writePermissionRequests(store: PermissionRequestsStore): Promise<void> {
-  try {
-    await writePermissionRequestsToDb(store);
-  } catch (err) {
-    console.warn('[permission-request] 写入 hp_permission_requests 失败，回退 JSON：', (err as Error).message);
-    writeLegacyPermissionRequests(store);
-  }
+  await writePermissionRequestsToDb(store);
 }
 
 /**

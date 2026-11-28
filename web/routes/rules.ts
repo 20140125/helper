@@ -10,7 +10,11 @@ const router = Router();
  * @returns {{ ok: boolean, rules: Rule[] }} 规则列表
  */
 router.get('/', async (_req, res) => {
-  return returnResponse(res, ErrorCode.SUCCESS, { rules: await readRules() }, 'success');
+  try {
+    return returnResponse(res, ErrorCode.SUCCESS, { rules: await readRules() }, 'success');
+  } catch (error) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, error instanceof Error ? error.message : '读取规则失败');
+  }
 });
 
 /**
@@ -53,29 +57,33 @@ router.post('/', async (req, res) => {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '缺少必填字段：condition');
   }
 
-  const rules = await readRules();
-  const newRule: Rule = {
-    id: `rule_${Date.now()}`,
-    name,
-    type,
-    condition: condition ?? '',
-    time: time ?? '09:00',
-    message: useCustom ? (message ?? '') : '',
-    template_id: useCustom ? '' : (template_id ?? ''),
-    custom_content: useCustom,
-    enabled: enabled !== false,
-    webhookIds: webhookIds ?? [],
-    created_at: formatDate(),
-    updated_at: formatDate(),
-    lastTriggeredAt: '',
-    // 卡片技能默认发数据文本；非法值一律回落 text
-    output_mode: VALID_OUTPUT_MODES.includes(output_mode as typeof VALID_OUTPUT_MODES[number])
-      ? (output_mode as typeof VALID_OUTPUT_MODES[number])
-      : 'text',
-  };
-  rules.push(newRule);
-  writeRules(rules);
-  return returnResponse(res, ErrorCode.SUCCESS, { rule: newRule }, 'success');
+  try {
+    const rules = await readRules();
+    const newRule: Rule = {
+      id: `rule_${Date.now()}`,
+      name,
+      type,
+      condition: condition ?? '',
+      time: time ?? '09:00',
+      message: useCustom ? (message ?? '') : '',
+      template_id: useCustom ? '' : (template_id ?? ''),
+      custom_content: useCustom,
+      enabled: enabled !== false,
+      webhookIds: webhookIds ?? [],
+      created_at: formatDate(),
+      updated_at: formatDate(),
+      lastTriggeredAt: '',
+      // 卡片技能默认发数据文本；非法值一律回落 text
+      output_mode: VALID_OUTPUT_MODES.includes(output_mode as typeof VALID_OUTPUT_MODES[number])
+        ? (output_mode as typeof VALID_OUTPUT_MODES[number])
+        : 'text',
+    };
+    rules.push(newRule);
+    await writeRules(rules);
+    return returnResponse(res, ErrorCode.SUCCESS, { rule: newRule }, 'success');
+  } catch (error) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, error instanceof Error ? error.message : '创建规则失败');
+  }
 });
 
 /**
@@ -92,19 +100,23 @@ router.put('/order', async (req, res) => {
   if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string')) {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, 'ids 必须是字符串数组');
   }
-  const rules = await readRules();
-  const remaining = new Map(rules.map((rule) => [rule.id, rule] as const));
-  const ordered: Rule[] = [];
-  for (const id of ids as string[]) {
-    const rule = remaining.get(id);
-    if (rule) {
-      ordered.push(rule);
-      remaining.delete(id);
+  try {
+    const rules = await readRules();
+    const remaining = new Map(rules.map((rule) => [rule.id, rule] as const));
+    const ordered: Rule[] = [];
+    for (const id of ids as string[]) {
+      const rule = remaining.get(id);
+      if (rule) {
+        ordered.push(rule);
+        remaining.delete(id);
+      }
     }
+    ordered.push(...remaining.values());
+    await writeRules(ordered);
+    return returnResponse(res, ErrorCode.SUCCESS, { rules: ordered }, 'success');
+  } catch (error) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, error instanceof Error ? error.message : '更新规则顺序失败');
   }
-  ordered.push(...remaining.values());
-  writeRules(ordered);
-  return returnResponse(res, ErrorCode.SUCCESS, { rules: ordered }, 'success');
 });
 
 /**
@@ -116,27 +128,31 @@ router.put('/order', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const rules = await readRules();
-  const idx = rules.findIndex((r) => r.id === id);
-  if (idx === -1) {
-    return returnResponse(res, ErrorCode.NOT_FOUND, {}, '规则不存在');
+  try {
+    const rules = await readRules();
+    const idx = rules.findIndex((r) => r.id === id);
+    if (idx === -1) {
+      return returnResponse(res, ErrorCode.NOT_FOUND, {}, '规则不存在');
+    }
+    const body = req.body as Partial<Rule>;
+    // 自定义内容模式与模板互斥：开启时清空 template_id，否则清空 message
+    if (body.custom_content) {
+      body.template_id = '';
+    } else {
+      body.message = '';
+    }
+    const updated: Rule = {
+      ...rules[idx],
+      ...body,
+      id,
+      updated_at: formatDate(),
+    };
+    rules[idx] = updated;
+    await writeRules(rules);
+    return returnResponse(res, ErrorCode.SUCCESS, { rule: updated }, 'success');
+  } catch (error) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, error instanceof Error ? error.message : '更新规则失败');
   }
-  const body = req.body as Partial<Rule>;
-  // 自定义内容模式与模板互斥：开启时清空 template_id，否则清空 message
-  if (body.custom_content) {
-    body.template_id = '';
-  } else {
-    body.message = '';
-  }
-  const updated: Rule = {
-    ...rules[idx],
-    ...body,
-    id,
-    updated_at: formatDate(),
-  };
-  rules[idx] = updated;
-  writeRules(rules);
-  return returnResponse(res, ErrorCode.SUCCESS, { rule: updated }, 'success');
 });
 
 /**
@@ -147,13 +163,17 @@ router.put('/:id', async (req, res) => {
  */
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
-  const rules = await readRules();
-  const filtered = rules.filter((r) => r.id !== id);
-  if (filtered.length === rules.length) {
-    return returnResponse(res, ErrorCode.NOT_FOUND, {}, '规则不存在');
+  try {
+    const rules = await readRules();
+    const filtered = rules.filter((r) => r.id !== id);
+    if (filtered.length === rules.length) {
+      return returnResponse(res, ErrorCode.NOT_FOUND, {}, '规则不存在');
+    }
+    await writeRules(filtered);
+    return returnResponse(res, ErrorCode.SUCCESS, {}, '规则已删除');
+  } catch (error) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, error instanceof Error ? error.message : '删除规则失败');
   }
-  writeRules(filtered);
-  return returnResponse(res, ErrorCode.SUCCESS, {}, '规则已删除');
 });
 
 /**
@@ -164,12 +184,12 @@ router.delete('/:id', async (req, res) => {
  */
 router.post('/:id/test', async (req, res) => {
   const { id } = req.params;
-  const rules = await readRules();
-  const rule = rules.find((r) => r.id === id);
-  if (!rule) {
-    return returnResponse(res, ErrorCode.NOT_FOUND, {}, '规则不存在');
-  }
   try {
+    const rules = await readRules();
+    const rule = rules.find((r) => r.id === id);
+    if (!rule) {
+      return returnResponse(res, ErrorCode.NOT_FOUND, {}, '规则不存在');
+    }
     const result = await runScript('scripts/custom_rules.sh', ['test', id]);
     return returnResponse(res, ErrorCode.SUCCESS, { stdout: result.stdout, stderr: result.stderr }, 'success');
   } catch (err) {

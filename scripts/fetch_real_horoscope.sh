@@ -8,7 +8,7 @@
 #   1. 调用聚合数据API获取星座运势（免费 key 支持 today/tomorrow/week/month/year 共 5 档）
 #   2. 自动判断当前日期对应的星座（基于出生日期）
 #   3. 返回综合、爱情、事业、财运、健康等多维度运势
-#   4. 原始 API 响应归档到 .cache/api_responses/（一月一文件）
+#   4. 原始 API 响应归档到 hp_cache_res_*（api_responses/horoscope_<星座>.json）
 #
 # 数据来源：
 #   - 聚合数据星座运势API  http://web.juhe.cn/constellation/getAll

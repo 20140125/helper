@@ -1,10 +1,10 @@
 /**
- * 日志查询工具
- * @description 运行日志页、贾维斯 query_logs / manage_logs 的统一入口。
- *   所有读取与清空都落在 hp_run_logs，不再 stat/tail/清空任何日志文件。
+ * 日志来源查询与清理
+ * @description 全部基于 hp_run_logs.source，按库里实际存在的来源读取与清空；
+ *   不再有日志文件、静态注册表、key 别名或历史归档偏移。
  */
 
-import { LOG_SOURCES, LOG_SOURCE_OFFSETS, type LogFileInfo } from '@/types/log';
+import type { LogSourceInfo } from '@/types/log';
 import {
   listRunLogSources,
   readRunLogRows,
@@ -12,70 +12,42 @@ import {
   clearRunLogs,
 } from '@/utils/run-log';
 
-/** 动态来源的合法 key 形态（库里出现的新模块也要能被查看） */
-const SAFE_SOURCE_KEY = /^[a-z0-9_-]+$/;
+/** 合法来源名形态（与库里 source 字段一致，仅用于拦截异常入参） */
+const SAFE_SOURCE = /^[A-Za-z0-9_.:-]{1,64}$/;
 
 /**
- * 把日志 key 解析成库里的 source
- * @param key - 日志标识
- * @returns 来源标识
+ * 判断来源名是否可查询
+ * @param {string} source - hp_run_logs.source 原值
+ * @returns {boolean} 形态合法时返回 true
+ * @description 来源名最终走参数化 SQL；不再依赖静态白名单，库里出现的新模块可直接查询
  */
-const sourceOf = (key: string): string => LOG_SOURCES[key] ?? key;
+export const isLogSourceValid = (source: string): boolean => SAFE_SOURCE.test(source);
 
 /**
- * 判断日志 key 是否可查询
- * @param key - 日志标识
- * @returns 已注册或为合法来源名时返回 true
- * @description 来源名最终走参数化 SQL，不参与拼接，允许库里新出现的模块直接按字面 key 查询
+ * 列出库里实际存在的日志来源
+ * @returns {Promise<LogSourceInfo[]>} 按最近写入时间倒序的来源统计
+ * @description 直接来自 SELECT ... GROUP BY source，来源不在库里就不会出现在列表中
  */
-export const isLogKeyValid = (key: string): boolean =>
-  Boolean(LOG_SOURCES[key]) || SAFE_SOURCE_KEY.test(key);
-
-/**
- * 列出所有日志来源
- * @returns {Promise<LogFileInfo[]>} 已注册来源 + 库里新出现的来源，按最近写入时间倒序
- */
-export const listLogFiles = async (): Promise<LogFileInfo[]> => {
+export const listLogSources = async (): Promise<LogSourceInfo[]> => {
   const stats = await listRunLogSources();
-  const statMap = new Map(stats.map((item) => [item.source, item]));
-  const keys = Object.keys(LOG_SOURCES);
-  // 库里出现但注册表里没有的 source 也列出来，保证「所有日志」都能在页面上看到
-  stats.forEach((item) => {
-    if (!LOG_SOURCES[item.source] && !keys.includes(item.source)) keys.push(item.source);
-  });
-
-  const list = keys.map((key) => {
-    const source = sourceOf(key);
-    const stat = statMap.get(source);
-    const mtime = stat?.latest || null;
-    return {
-      key,
-      filename: `hp_run_logs:${source}`,
-      exists: (stat?.rows ?? 0) > 0,
-      size: stat?.bytes ?? 0,
-      mtime,
-      mtimeMs: mtime ? Date.parse(mtime.replace(' ', 'T')) || 0 : 0,
-    };
-  });
-
-  return list
-    .sort((a, b) => b.mtimeMs - a.mtimeMs)
-    .map(({ mtimeMs: _mtimeMs, ...rest }) => rest as LogFileInfo);
+  return stats
+    .map(({ source, rows, bytes, latest }) => ({ source, rows, bytes, latest }))
+    .sort((a, b) => b.latest.localeCompare(a.latest));
 };
 
 /**
  * 读取指定来源末尾 N 条日志
- * @param key - 日志标识
- * @param lines - 读取条数
- * @returns 文本内容 / 尚无记录 / 读取失败
+ * @param {string} source - hp_run_logs.source 原值
+ * @param {number} lines - 读取条数
+ * @returns {Promise<{ content: string } | { missing: true } | { error: string }>} 渲染后的日志文本
  * @description 统一渲染成 [时间] [级别] 正文；访问日志保留原有文本区块格式
  */
-export const readLogTail = async (
-  key: string,
+export const readSourceLogRows = async (
+  source: string,
   lines: number,
 ): Promise<{ content: string } | { missing: true } | { error: string }> => {
   try {
-    const rows = await readRunLogRows(sourceOf(key), lines, LOG_SOURCE_OFFSETS[key] ?? 0);
+    const rows = await readRunLogRows(source, lines);
     if (rows.length === 0) return { missing: true };
     return { content: renderRunLogRows(rows) };
   } catch (err) {
@@ -84,9 +56,8 @@ export const readLogTail = async (
 };
 
 /**
- * 清空指定来源的日志记录
- * @param key - 日志标识
+ * 清空指定来源的库记录
+ * @param {string} source - hp_run_logs.source 原值
  * @returns {Promise<number>} 删除的记录数
  */
-export const clearLogFile = async (key: string): Promise<number> =>
-  clearRunLogs(sourceOf(key));
+export const clearLogSource = async (source: string): Promise<number> => clearRunLogs(source);

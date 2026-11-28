@@ -16,9 +16,9 @@ import { BaseService } from './base-service';
  */
 export class TemplateService extends BaseService {
   /**
-   * 获取完整模板配置（从 .cache/message_templates.json 读取）
+   * 获取完整模板配置（从数据库 已有业务表 读取，缓存键 message_templates.json）
    * @returns {Promise<TemplateConfigResponse>} 完整配置
-   * @description 拉取后端 .cache/message_templates.json 的全量模板配置，用于模板管理页初始化
+   * @description 拉取数据库 已有业务表（缓存键 message_templates.json）的全量模板配置，用于模板管理页初始化
    * @example
    * const service = new TemplateService();
    * const result = await service.fetchConfig();
@@ -49,7 +49,7 @@ export class TemplateService extends BaseService {
    * @param {string} style - 模板风格
    * @param {string} template - 模板内容字符串
    * @returns {Promise<TemplateSaveResult>} 保存结果
-   * @description 将指定类型和风格的模板文本持久化到后端配置文件
+   * @description 将指定类型和风格的模板文本持久化到数据库 已有业务表（缓存键 message_templates.json）
    * @example
    * const service = new TemplateService();
    * const result = await service.saveTemplate('morning', 'default', '早安，今天天气不错！');

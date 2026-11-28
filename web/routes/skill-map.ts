@@ -29,9 +29,13 @@ router.get('/', (_req, res) => {
  * @description 供「地图选点」组件初始化高德 JS SDK；仅登录用户可读，不暴露服务端 REST Key。
  *   configured=false 表示未配置 JS Key，前端降级为普通输入框
  */
-router.get('/amap-config', (_req, res) => {
-  // 展开成对象字面量：AmapJsConfig 是 interface，直接传不满足 Record<string, unknown> 的索引签名
-  return returnResponse(res, ErrorCode.SUCCESS, { ...getAmapJsConfig() }, 'success');
+router.get('/amap-config', async (_req, res) => {
+  try {
+    // 展开成对象字面量：AmapJsConfig 是 interface，直接传不满足 Record<string, unknown> 的索引签名
+    return returnResponse(res, ErrorCode.SUCCESS, { ...(await getAmapJsConfig()) }, 'success');
+  } catch (error) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, error instanceof Error ? error.message : '读取高德配置失败');
+  }
 });
 
 /**

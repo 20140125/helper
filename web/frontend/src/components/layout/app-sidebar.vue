@@ -119,7 +119,7 @@
 <script setup lang="ts">
 import { reactive, computed } from 'vue';
 import type { MenuItem, MenuGroup } from '@/types/home';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 const props = defineProps<{
   /** i18n 翻译函数 - 侧边栏部分（由父组件通过 LocaleStore.t 传入，响应式） */

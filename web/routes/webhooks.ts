@@ -1,8 +1,13 @@
 import { Router } from 'express';
+import type { Response } from 'express';
 import { readWebhooks, writeWebhooks, formatDate, returnResponse, ErrorCode } from './utils';
 import { Webhook, WebhookBody } from '@/types/webhook';
 
 const router = Router();
+
+/** 把数据库异常转成 500 响应 */
+const dbErrorResponse = (res: Response, error: unknown, fallback: string) =>
+  returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, error instanceof Error ? error.message : fallback);
 
 /**
  * 获取 Webhook 列表
@@ -10,21 +15,25 @@ const router = Router();
  * @returns {{ ok: boolean, webhooks: Webhook[] }} 脱敏后的 Webhook 列表（url 中的 key 只显示后 8 位）
  */
 router.get('/', async (_req, res) => {
-  const webhooks = await readWebhooks();
-  // 脱敏：url 中的 key 只显示后8位；只输出规范字段，剔除历史残留
-  const masked = webhooks.map((w) => ({
-    id: w.id,
-    name: w.name,
-    url: w.url.replace(
-      /(key=)([^&]+)/,
-      (_match: string, prefix: string, key: string) =>
-        `${prefix}${'*'.repeat(Math.max(0, key.length - 8))}${key.slice(-8)}`,
-    ),
-    style: w.style,
-    created_at: w.created_at,
-    updated_at: w.updated_at,
-  }));
-  return returnResponse(res, ErrorCode.SUCCESS, { webhooks: masked }, 'success');
+  try {
+    const webhooks = await readWebhooks();
+    // 脱敏：url 中的 key 只显示后8位；只输出规范字段，剔除历史残留
+    const masked = webhooks.map((w) => ({
+      id: w.id,
+      name: w.name,
+      url: w.url.replace(
+        /(key=)([^&]+)/,
+        (_match: string, prefix: string, key: string) =>
+          `${prefix}${'*'.repeat(Math.max(0, key.length - 8))}${key.slice(-8)}`,
+      ),
+      style: w.style,
+      created_at: w.created_at,
+      updated_at: w.updated_at,
+    }));
+    return returnResponse(res, ErrorCode.SUCCESS, { webhooks: masked }, 'success');
+  } catch (error) {
+    return dbErrorResponse(res, error, '读取 Webhook 失败');
+  }
 });
 
 /**
@@ -39,18 +48,22 @@ router.post('/', async (req, res) => {
   if (!name || !url) {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '缺少必填字段：name, url');
   }
-  const webhooks = await readWebhooks();
-  const newWebhook: Webhook = {
-    id: `webhook_${Date.now()}`,
-    name,
-    url,
-    style: style ?? '',
-    created_at: formatDate(),
-    updated_at: formatDate(),
-  };
-  webhooks.push(newWebhook);
-  await writeWebhooks(webhooks);
-  return returnResponse(res, ErrorCode.SUCCESS, { webhook: newWebhook }, 'success');
+  try {
+    const webhooks = await readWebhooks();
+    const newWebhook: Webhook = {
+      id: `webhook_${Date.now()}`,
+      name,
+      url,
+      style: style ?? '',
+      created_at: formatDate(),
+      updated_at: formatDate(),
+    };
+    webhooks.push(newWebhook);
+    await writeWebhooks(webhooks);
+    return returnResponse(res, ErrorCode.SUCCESS, { webhook: newWebhook }, 'success');
+  } catch (error) {
+    return dbErrorResponse(res, error, '创建 Webhook 失败');
+  }
 });
 
 /**
@@ -63,28 +76,32 @@ router.post('/', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const webhooks = await readWebhooks();
-  const idx = webhooks.findIndex((w) => w.id === id);
-  if (idx === -1) {
-    return returnResponse(res, ErrorCode.NOT_FOUND, {}, 'Webhook 不存在');
-  }
   const { name, url, style } = req.body as WebhookBody;
   // 防止脱敏值被写入：若 url 包含 * 号，说明是前端展示的脱敏串，拒绝保存
   if (url !== undefined && url.includes('*')) {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, 'Webhook 地址无效，请重新输入完整地址');
   }
-  const existing = webhooks[idx];
-  const updated: Webhook = {
-    id,
-    name: name ?? existing.name,
-    url: url ?? existing.url,
-    style: style ?? existing.style,
-    created_at: existing.created_at,
-    updated_at: formatDate(),
-  };
-  webhooks[idx] = updated;
-  await writeWebhooks(webhooks);
-  return returnResponse(res, ErrorCode.SUCCESS, { webhook: updated }, 'success');
+  try {
+    const webhooks = await readWebhooks();
+    const idx = webhooks.findIndex((w) => w.id === id);
+    if (idx === -1) {
+      return returnResponse(res, ErrorCode.NOT_FOUND, {}, 'Webhook 不存在');
+    }
+    const existing = webhooks[idx];
+    const updated: Webhook = {
+      id,
+      name: name ?? existing.name,
+      url: url ?? existing.url,
+      style: style ?? existing.style,
+      created_at: existing.created_at,
+      updated_at: formatDate(),
+    };
+    webhooks[idx] = updated;
+    await writeWebhooks(webhooks);
+    return returnResponse(res, ErrorCode.SUCCESS, { webhook: updated }, 'success');
+  } catch (error) {
+    return dbErrorResponse(res, error, '更新 Webhook 失败');
+  }
 });
 
 /**
@@ -95,13 +112,17 @@ router.put('/:id', async (req, res) => {
  */
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
-  const webhooks = await readWebhooks();
-  const filtered = webhooks.filter((w) => w.id !== id);
-  if (filtered.length === webhooks.length) {
-    return returnResponse(res, ErrorCode.NOT_FOUND, {}, 'Webhook 不存在');
+  try {
+    const webhooks = await readWebhooks();
+    const filtered = webhooks.filter((w) => w.id !== id);
+    if (filtered.length === webhooks.length) {
+      return returnResponse(res, ErrorCode.NOT_FOUND, {}, 'Webhook 不存在');
+    }
+    await writeWebhooks(filtered);
+    return returnResponse(res, ErrorCode.SUCCESS, {}, 'Webhook 已删除');
+  } catch (error) {
+    return dbErrorResponse(res, error, '删除 Webhook 失败');
   }
-  await writeWebhooks(filtered);
-  return returnResponse(res, ErrorCode.SUCCESS, {}, 'Webhook 已删除');
 });
 
 export default router;

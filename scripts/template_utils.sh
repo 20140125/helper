@@ -22,11 +22,11 @@
 #     bash scripts/template_utils.sh styles morning
 #
 # 配置环境变量：
-#   TEMPLATE_FILE  - 模板文件路径（默认 .cache/message_templates.json）
+#   TEMPLATE_KEY   - 模板缓存键（默认 message_templates.json，存于 已有业务表）
 #   MESSAGE_STYLE  - 消息风格（default | brief | formal，默认 default）
 #
 # 数据来源：
-#   - 消息模板：.cache/message_templates.json
+#   - 消息模板：message_templates.json 对应的已有业务表（运行时不落盘）
 #
 # 子模块：
 #   - template_utils/loader.sh    — 模板加载（load_template）
@@ -34,19 +34,21 @@
 #   - template_utils/validator.sh — 校验查询 + CLI（validate/preview/types/styles）
 #
 # 作者：智能提醒系统
-# 更新：2026-04-22
+# 更新：2026-11-28
 # ======================================
 
 # 获取脚本所在目录，加载项目路径配置
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/project_config.sh"
+# 按需加载缓存数据库通道（缓存 JSON 不再落盘）
+source "${PROJECT_DIR}/cache_db.sh"
 
 # ======================================
 # 配置加载
 # ======================================
 
 # 默认配置
-TEMPLATE_FILE="${TEMPLATE_FILE:-${CACHE_DIR}/message_templates.json}"
+TEMPLATE_KEY="${TEMPLATE_KEY:-message_templates.json}"
 MESSAGE_STYLE="${MESSAGE_STYLE:-default}"
 
 # 设置日志文件（仅在直接执行且未设置 LOG_FILE 时生效）

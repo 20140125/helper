@@ -11,7 +11,7 @@
 # 提供的变量：
 #   PROJECT_DIR  - scripts 目录（本文件所在目录）
 #   ROOT_DIR     - 项目根目录（scripts 的上级目录）
-#   CACHE_DIR    - 缓存目录（项目根目录下的 .cache）
+#   CACHE_DIR    - 缓存目录（仅迁移/兼容用途，运行时不再读写）
 #   ENV_FILE     - 环境变量文件路径（web/.env 优先，缺失时回退 scripts/.env）
 #
 # 使用方式（在其他脚本开头添加）：
@@ -32,7 +32,7 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 项目根目录（scripts 的上级目录）
 ROOT_DIR="$(cd "${PROJECT_DIR}/.." && pwd)"
 
-# 缓存目录
+# 缓存目录（仅迁移/兼容用途，运行时不再读写）
 CACHE_DIR="${ROOT_DIR}/.cache"
 
 # 环境变量文件：与 Web 服务保持同一优先级——web/.env 优先，缺失时回退 scripts/.env

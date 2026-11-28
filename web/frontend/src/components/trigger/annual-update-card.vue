@@ -137,7 +137,7 @@ import AutoForm from '@/components/auto-form/index.vue';
 import type { FormInstanceFunctions } from 'tdesign-vue-next';
 import type { AutoFormField } from '@/types/auto-form';
 import type { UpdateToolScript } from '@/types/update-tools';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import type { ScriptResultBase } from '@/types/trigger';
 
 const props = defineProps<{

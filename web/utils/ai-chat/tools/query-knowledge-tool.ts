@@ -12,7 +12,7 @@ import { searchKnowledge } from '../knowledge';
 export const queryKnowledgeTool: ToolImpl = {
   name: 'query_knowledge',
   description:
-    '检索本项目的本地知识库（docs/ 文档），回答「怎么用 / 怎么配置 / 怎么扩展」类问题。'
+    '检索本项目知识库（docs/ + knowledge/ 文档，数据库快照），回答「怎么用 / 怎么配置 / 怎么扩展」类问题。'
     + '凡涉及本项目自身用法、脚本说明、配置项含义、开发规范的提问，优先用它取权威文档，'
     + '不要凭模型记忆作答。返回的是文档片段，需自行提炼成结论并注明出处。'
     + '若要列文档/读正文/重建索引用 query_knowledge_docs；新建/编辑/删除用 manage_knowledge。',
@@ -38,7 +38,7 @@ export const queryKnowledgeTool: ToolImpl = {
     const rawTopK = Number(args.top_k);
     const topK = Number.isFinite(rawTopK) ? Math.min(Math.max(Math.floor(rawTopK), 1), 5) : 3;
 
-    const hits = searchKnowledge(query, topK);
+    const hits = await searchKnowledge(query, topK);
     if (hits.length === 0) {
       return {
         ok: true,

@@ -79,7 +79,7 @@
                   type="color"
                   class="color-picker-input"
                   :value="accentPrimary"
-                  @input="emit('color-input', $event)"
+                  @change="emit('color-change', $event)"
                 />
               </label>
             </template>
@@ -174,7 +174,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useStatusStore } from '@/stores/status';
 import { getThemeStyles } from '@/constants/theme';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import type { ThemeStyle } from '@/types/theme';
 
 const statusStore = useStatusStore();
@@ -271,8 +271,8 @@ onBeforeUnmount(() => {
 const emit = defineEmits<{
   /** 点击汉堡菜单打开侧边栏（移动端） */
   (e: 'open-sidebar'): void;
-  /** 颜色选择器输入事件（自定义主题调色） */
-  (e: 'color-input', event: Event): void;
+  /** 颜色选择器选色事件（自定义主题调色） */
+  (e: 'color-change', event: Event): void;
   /** 切换亮/暗色模式 */
   (e: 'color-mode-toggle', event: MouseEvent): void;
   /** 开启/关闭按时间自动切换主题 */

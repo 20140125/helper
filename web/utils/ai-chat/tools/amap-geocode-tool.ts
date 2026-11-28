@@ -14,7 +14,7 @@ import {
  * @description 正向（地址→坐标）与逆地理（坐标→地址）二合一：
  *   - "XX 的经纬度是多少""把这个地址转成坐标" → address
  *   - "113.93,22.53 是哪儿""这个坐标对应什么地址" → location
- *   正向结果写入 .cache/amap_geocode.json（与通勤脚本共用，命中缓存不再打接口，省额度）。
+ *   正向结果写入数据库 已有业务表（缓存键 amap_geocode.json，与通勤脚本共用，命中缓存不再打接口，省额度）。
  *
  * 触发示例（仅供维护者参考，不会发送给 LLM）：
  *   - "深圳北站的坐标"              → { address: '深圳北站' }
@@ -88,7 +88,7 @@ export const amapGeocodeTool: ToolImpl = {
 
     // ── 正向：地址 → 坐标（先查缓存） ──
     const cacheKey = city ? `${address}` : address;
-    const cached = readGeocodeCache()[cacheKey];
+    const cached = (await readGeocodeCache())[cacheKey];
     if (cached) {
       return {
         ok: true,
@@ -112,7 +112,7 @@ export const amapGeocodeTool: ToolImpl = {
     if (!coord) {
       return { ok: false, data: `「${address}」返回的结果里没有坐标` };
     }
-    writeGeocodeCache(cacheKey, coord);
+    await writeGeocodeCache(cacheKey, coord);
 
     return {
       ok: true,

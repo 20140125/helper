@@ -46,7 +46,7 @@ import { computed, ref } from 'vue';
 import ImagePreviewer from '@/components/common/image-previewer.vue';
 import { TOOL_CALL_STATUS_LABEL_KEY, TOOL_CALL_STATUS_THEME, TOOL_NAME_ICON } from '@/constants/ai-chat';
 import type { UiToolCall } from '@/types/ai-chat';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import { extractToolImageUrl, formatToolArgs, formatToolResult } from '@/utils/ai-chat';
 
 const props = defineProps<{

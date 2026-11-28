@@ -14,7 +14,7 @@
 #   不可单独执行，不设 SCRIPT_DIR / LOG_FILE
 #
 # 作者：智能提醒系统
-# 更新：2026-04-22
+# 更新：2026-11-28
 # ======================================
 
 # 校验模板文件格式
@@ -22,13 +22,13 @@
 #   成功：返回 0
 #   失败：返回 1
 validate_template_file() {
-    if [ ! -f "$TEMPLATE_FILE" ]; then
-        log_error "模板文件不存在: $TEMPLATE_FILE"
+    if ! cache_db_exists "$TEMPLATE_KEY"; then
+        log_error "模板文件不存在: $TEMPLATE_KEY"
         return 1
     fi
 
     # 检查 JSON 格式
-    if ! jq empty "$TEMPLATE_FILE" 2>/dev/null; then
+    if ! cache_db_read "$TEMPLATE_KEY" | jq empty 2>/dev/null; then
         log_error "模板文件格式错误（非有效 JSON）"
         return 1
     fi
@@ -36,13 +36,13 @@ validate_template_file() {
     # 检查必需字段
     local required_fields=("templates" "placeholders" "styles")
     for field in "${required_fields[@]}"; do
-        if ! jq -e ".$field" "$TEMPLATE_FILE" &>/dev/null; then
+        if ! cache_db_read "$TEMPLATE_KEY" | jq -e ".$field" &>/dev/null; then
             log_error "缺少必需字段: $field"
             return 1
         fi
     done
 
-    log_success "模板文件校验通过: $TEMPLATE_FILE"
+    log_success "模板文件校验通过: $TEMPLATE_KEY"
     return 0
 }
 
@@ -51,12 +51,12 @@ validate_template_file() {
 #   成功：输出类型列表到 stdout 并返回 0
 #   失败：返回 1
 list_message_types() {
-    if [ ! -f "$TEMPLATE_FILE" ]; then
-        log_error "模板文件不存在: $TEMPLATE_FILE"
+    if ! cache_db_exists "$TEMPLATE_KEY"; then
+        log_error "模板文件不存在: $TEMPLATE_KEY"
         return 1
     fi
 
-    jq -r '.templates | keys[]' "$TEMPLATE_FILE" 2>/dev/null
+    cache_db_read "$TEMPLATE_KEY" | jq -r '.templates | keys[]' 2>/dev/null
 }
 
 # 列出指定类型的所有风格
@@ -68,12 +68,12 @@ list_message_types() {
 list_message_styles() {
     local type="$1"
 
-    if [ ! -f "$TEMPLATE_FILE" ]; then
-        log_error "模板文件不存在: $TEMPLATE_FILE"
+    if ! cache_db_exists "$TEMPLATE_KEY"; then
+        log_error "模板文件不存在: $TEMPLATE_KEY"
         return 1
     fi
 
-    jq -r ".templates.${type} | keys[]" "$TEMPLATE_FILE" 2>/dev/null
+    cache_db_read "$TEMPLATE_KEY" | jq -r ".templates.${type} | keys[]" 2>/dev/null
 }
 
 # 主函数：处理命令行参数

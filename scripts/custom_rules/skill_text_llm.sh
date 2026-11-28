@@ -16,7 +16,7 @@
 #   - temperature=0.2，只做排版不做创作
 #   - 原始数据超长时截断，避免上下文爆炸
 #
-# 配置（.cache/ai-model-configs.json，唯一来源）：
+# 配置（ai-model-configs.json 对应的已有业务表，唯一来源）：
 #   第一个配置组的 baseUrl / apiKey / models[0].id，复用 AI 对话的同一套配置
 #   SKILL_TEXT_LLM   false 时整体关闭本路径（默认开启，见 skill_text.sh）
 #
@@ -31,13 +31,15 @@ key="${1:-}"
 
 # 本文件位于 scripts/custom_rules/ 下 → 上一级即 scripts/（tools/、weather_config.sh 都在这一层）
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+# 按需加载项目路径与缓存数据库通道（配置 JSON 不再落盘）
+[ -n "${PROJECT_DIR:-}" ] || source "${SCRIPT_DIR}/project_config.sh"
+source "${PROJECT_DIR}/cache_db.sh"
 
-# 唯一配置来源：.cache/ai-model-configs.json（保存后立即生效，无需重启）
 # 优先使用配置页标记的「默认模型」及其所属配置组；未标记时回退到第一个配置组。
 # 回退链按「默认模型 → 同组其它模型」排列，被限流/余额不足时依次降级。
-_AI_MODEL_CONFIG="${SCRIPT_DIR}/../.cache/ai-model-configs.json"
-[ -f "$_AI_MODEL_CONFIG" ] && command -v jq >/dev/null 2>&1 || exit 1
-_llm_values=$(jq -r '
+AI_MODEL_CONFIG_KEY='ai-model-configs.json'
+cache_db_exists "$AI_MODEL_CONFIG_KEY" && command -v jq >/dev/null 2>&1 || exit 1
+_llm_values=$(cache_db_read "$AI_MODEL_CONFIG_KEY" | jq -r '
     (if type == "array" then . else (.groups // []) end) as $groups
     | ((($groups | map(select(any(.models[]?; .isDefault == true))) | .[0]) // ($groups[0] // {}))) as $group
     | ($group.models // []) as $models
@@ -46,12 +48,12 @@ _llm_values=$(jq -r '
         ($group.apiKey // ""),
         ((($models | map(select(.isDefault == true) | .id)) + ($models | map(select(.isDefault != true) | .id))) | join(","))
       ]
-    | @tsv' "$_AI_MODEL_CONFIG" 2>/dev/null)
+    | @tsv' 2>/dev/null)
 [ -n "$_llm_values" ] || exit 1
 IFS=$'\t' read -r LLM_BASE_URL LLM_API_KEY _model_chain <<< "$_llm_values"
 [ -n "$_model_chain" ] || exit 1
 MODEL_CHAIN="${SKILL_TEXT_LLM_MODELS:-${_model_chain}}"
-unset _AI_MODEL_CONFIG _llm_values _model_chain
+unset _llm_values _model_chain
 
 [ -n "${LLM_API_KEY:-}" ] || exit 1
 [ -n "${LLM_BASE_URL:-}" ] || exit 1
@@ -62,9 +64,9 @@ raw=$(bash "${SCRIPT_DIR}/tools/${key}.sh" data 2>/dev/null)
 
 # 标题：优先模板库登记的中文名
 title=""
-tpl_file="${CACHE_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)/.cache}/message_templates.json"
-if [ -f "$tpl_file" ] && command -v jq >/dev/null 2>&1; then
-    title=$(jq -r --arg k "$key" '.template_names[$k] // ""' "$tpl_file" 2>/dev/null | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+tpl_key='message_templates.json'
+if cache_db_exists "$tpl_key" && command -v jq >/dev/null 2>&1; then
+    title=$(cache_db_read "$tpl_key" | jq -r --arg k "$key" '.template_names[$k] // ""' 2>/dev/null | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
 fi
 [ -n "$title" ] || title="$key"
 

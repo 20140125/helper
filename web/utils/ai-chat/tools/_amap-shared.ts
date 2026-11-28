@@ -4,13 +4,11 @@
  *   新增工具若再抄一份就是三份。这里统一收口：
  *   - Key 读取（进程变量优先 → .env 回退，5 分钟缓存）
  *   - 请求节流 + 超时的 GET（免费 Key 有 QPS 限制）
- *   - 坐标判定与地址 → 坐标解析（带 .cache/amap_geocode.json 缓存，与通勤脚本共用一份）
+ *   - 坐标判定与地址 → 坐标解析（带缓存 KV amap_geocode.json，与通勤脚本共用一份）
  */
 
-import fs from 'fs';
-import path from 'path';
 import { readEnvFile } from '@/routes/utils';
-import { PROJECT_DIR } from '@/utils/paths';
+import { readCacheJson, writeCacheBody } from '@/utils/database/cache-store';
 
 /** 高德 Web 服务 API 基础地址 */
 export const AMAP_BASE = 'https://restapi.amap.com/v3';
@@ -79,27 +77,28 @@ export const getAmapJson = async (url: string): Promise<Record<string, unknown> 
 /** 判断字符串是否已是「经度,纬度」坐标 */
 export const isCoord = (v: string): boolean => /^\d+(\.\d+)?\s*,\s*\d+(\.\d+)?$/.test(v.trim());
 
-/** 地理编码缓存文件（与 scripts/tools/commute_card.sh 共用，避免各写一份） */
-const GEOCODE_CACHE_FILE = path.join(PROJECT_DIR, '.cache', 'amap_geocode.json');
+/** 地理编码缓存键（真源为 已有业务表，与 scripts/tools/commute_card.sh 共用） */
+const GEOCODE_CACHE_KEY = 'amap_geocode.json';
 
-/** 缓存文件最多保留条数：地址解析结果常年累积，超了从头淘汰最早的 */
+/** 缓存最多保留条数：地址解析结果常年累积，超了从头淘汰最早的 */
 const MAX_CACHE_ENTRIES = 200;
 
 /**
  * 读取地理编码缓存
- * @returns {Record<string, string>} 地址 → 坐标；文件缺失或格式异常返回空对象
+ * @returns {Promise<Record<string, string>>} 地址 → 坐标；缓存缺失或格式异常返回空对象
+ * @description 真源为缓存 KV，不再触碰磁盘文件
  */
-export const readGeocodeCache = (): Record<string, string> => {
+export const readGeocodeCache = async (): Promise<Record<string, string>> => {
   try {
-    if (!fs.existsSync(GEOCODE_CACHE_FILE)) return {};
-    const parsed: unknown = JSON.parse(fs.readFileSync(GEOCODE_CACHE_FILE, 'utf-8'));
+    const parsed = await readCacheJson<Record<string, unknown>>(GEOCODE_CACHE_KEY);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
     const out: Record<string, string> = {};
-    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+    for (const [k, v] of Object.entries(parsed)) {
       if (typeof v === 'string' && v) out[k] = v;
     }
     return out;
   } catch {
+    // 缓存只是省额度，读失败不影响主流程（与旧版容错一致）
     return {};
   }
 };
@@ -108,13 +107,13 @@ export const readGeocodeCache = (): Record<string, string> => {
  * 写入一条地理编码缓存
  * @param {string} address - 地址文本（缓存 key）
  * @param {string} coord - 坐标 "经度,纬度"
- * @returns {void}
+ * @returns {Promise<void>}
  * @description 写失败静默跳过（缓存只是省额度，不该影响主流程）；
- *   用「临时文件 + rename」保证原子性，避免与脚本并发写坏 JSON
+ *   通过缓存 KV 的 UPSERT 原子替换，保留原序列化格式（2 空格缩进 + 末尾换行）
  */
-export const writeGeocodeCache = (address: string, coord: string): void => {
+export const writeGeocodeCache = async (address: string, coord: string): Promise<void> => {
   try {
-    const cache = readGeocodeCache();
+    const cache = await readGeocodeCache();
     cache[address] = coord;
     // 超量时按插入顺序淘汰最早的
     const keys = Object.keys(cache);
@@ -122,9 +121,7 @@ export const writeGeocodeCache = (address: string, coord: string): void => {
     for (const k of keys.slice(Math.max(0, keys.length - MAX_CACHE_ENTRIES))) {
       trimmed[k] = cache[k];
     }
-    const tmp = `${GEOCODE_CACHE_FILE}.tmp`;
-    fs.writeFileSync(tmp, `${JSON.stringify(trimmed, null, 2)}\n`, 'utf-8');
-    fs.renameSync(tmp, GEOCODE_CACHE_FILE);
+    await writeCacheBody(GEOCODE_CACHE_KEY, `${JSON.stringify(trimmed, null, 2)}\n`);
   } catch {
     // 忽略：缓存写失败不影响查询结果
   }
@@ -141,7 +138,8 @@ export const toCoord = async (place: string, city: string): Promise<string> => {
   const trimmed = place.trim();
   if (isCoord(trimmed)) return trimmed.replace(/\s/g, '');
 
-  const cached = readGeocodeCache()[trimmed];
+  const cache = await readGeocodeCache();
+  const cached = cache[trimmed];
   if (cached) return cached;
 
   const key = getAmapKey();
@@ -151,6 +149,6 @@ export const toCoord = async (place: string, city: string): Promise<string> => {
   const data = await getAmapJson(url);
   const list = data?.geocodes as Array<{ location?: string }> | undefined;
   const coord = list?.[0]?.location ?? '';
-  if (coord) writeGeocodeCache(trimmed, coord);
+  if (coord) await writeGeocodeCache(trimmed, coord);
   return coord;
 };

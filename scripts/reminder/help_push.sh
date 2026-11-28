@@ -11,7 +11,7 @@
 #   cmd_help_push
 #
 # 依赖（由主脚本提供）：
-#   - KEYWORD_MAP / CUSTOM_RULES_JSON / SCRIPT_DIR
+#   - KEYWORD_MAP / CUSTOM_RULES_KEY / SCRIPT_DIR
 #   - read_custom_rule_entries / is_reserved_static_keyword
 #   - script_display_name / log_info / log_warn / log_error
 #   - send_wecom_message

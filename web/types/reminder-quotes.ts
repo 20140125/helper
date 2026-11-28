@@ -1,8 +1,3 @@
-import { CACHE_DIR } from '@/utils/paths';
-
-/** Reminder Quotes 数据文件路径 */
-export const REMINDER_QUOTES_FILE = `${CACHE_DIR}/reminder_quotes.json`;
-
 /** Reminder Quotes 桶（bucket）—— 二级路径字符串标识 */
 export type ReminderQuotesBucket =
   | 'weekend.messages'
@@ -83,7 +78,7 @@ export interface ReminderMeal {
   nutrition_advice: Record<string, string[]>;
 }
 
-/** 原始 JSON 文件结构（.cache/reminder_quotes.json） */
+/** 原始 JSON 结构（数据库 已有业务表，缓存键 reminder_quotes.json） */
 export interface ReminderQuotesFile {
   weekend: { description: string; messages: string[] };
   workday_adjust: ReminderWorkdayAdjust;

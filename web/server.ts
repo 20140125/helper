@@ -25,8 +25,11 @@ import {
 } from '@/routes/utils';
 import { Permission } from '@/types/permission';
 import { AI_CHAT_SEND_BODY_LIMIT } from '@/types/ai-chat';
+import { AI_CHAT_SKIN_BODY_LIMIT } from '@/types/ai-chat-skin';
 import { ensureRbacSchema } from '@/utils/rbac/db';
 import { ensureEnvConfigSeed } from '@/utils/env-config';
+import { ensureAiChatSkinSchema } from '@/utils/ai-chat/skin-store';
+import { initKnowledgeDocs } from '@/utils/knowledge';
 
 setupTimestampLogger();
 import systemRouter from '@/routes/system';
@@ -59,6 +62,7 @@ import aiChatRouter, { aiWebhookRouter } from '@/routes/ai-chat';
 import knowledgeRouter from '@/routes/knowledge';
 import databaseRouter from '@/routes/database';
 import amapRouter from '@/routes/amap';
+import i18nRouter from '@/routes/i18n';
 import {
   TOOLS_IMAGES_DIR,
   TOOLS_IMAGES_URL_PREFIX,
@@ -95,6 +99,8 @@ app.use(cors());
 // 必须放在全局 express.json() 之前：body-parser 解析后置 req._body=true，
 // 后续全局 parser 直接跳过，不会被默认的 100kb 上限截断成 413。
 app.use('/api/ai-chat/send', express.json({ limit: AI_CHAT_SEND_BODY_LIMIT }));
+// 皮肤配置里带背景图本体（data URL，最大约 7MB），同样要在全局 100kb 上限之前放宽
+app.use('/api/ai-chat/skin', express.json({ limit: AI_CHAT_SKIN_BODY_LIMIT }));
 app.use(express.json());
 
 // uploads 目录始终提供静态文件访问（开发/生产均需要）
@@ -130,6 +136,16 @@ if (!DEV_MODE) {
 // =================================================
 
 app.use('/api', async (req, res, next) => {
+  // 所有 API 请求（含免鉴权路径）先挂载用户上下文，供访问日志与业务读取。
+  // attachUserInfo 在无 token / token 无效时直接返回，不会阻断免鉴权接口；
+  // RBAC 查询异常先记下，仅对需要鉴权的接口返回 500，避免影响登录态校验等放行路径。
+  let attachError: unknown = null;
+  try {
+    await attachUserInfo(req);
+  } catch (err) {
+    attachError = err;
+  }
+
   // 仅处理真正的 /api/ 路径
   if (!req.path.startsWith('/')) {
     return next();
@@ -143,6 +159,12 @@ app.use('/api', async (req, res, next) => {
   // /api/ai-chat/webhook 为外部渠道入口（无登录态），由路由内的 AI_CHAT_WEBHOOK_TOKEN 令牌把关
   // 必须精确匹配：startsWith 会让 /ai-chat/webhook/../health 这类路径绕过 JWT 校验进入业务路由
   if (req.path === '/ai-chat/webhook') {
+    return next();
+  }
+
+  // /api/i18n/translations 为前端运行时语言包（登录弹框与首屏都要用），一次返回 zh / en 两份文案
+  // 精确路径放行，避免 /i18n/translations/../messages 之类的路径绕过 JWT 校验
+  if (req.path === '/i18n/translations') {
     return next();
   }
 
@@ -160,13 +182,12 @@ app.use('/api', async (req, res, next) => {
     return;
   }
 
-  // 解析用户信息并挂载权限到 req 上（RBAC 已迁库，必须 await 后再放行）
-  try {
-    await attachUserInfo(req);
-    return next();
-  } catch (err) {
-    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, `读取用户权限失败：${(err as Error).message}`);
+  // 用户信息已在中间件开头挂载，RBAC 查询失败时仅拦截需要鉴权的接口
+  if (attachError) {
+    const reason = attachError instanceof Error ? attachError.message : String(attachError);
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, `读取用户权限失败：${reason}`);
   }
+  return next();
 });
 
 // =================================================
@@ -358,6 +379,9 @@ app.use('/api/database', requireSuperAdmin, ...withPermission(databaseRouter, {
   readPaths: ['/query'],
 }));
 
+// i18n 语言包：读文案公开（登录页用），管理页列表/编辑在路由内逐接口校验 database:view/edit
+app.use('/api/i18n', i18nRouter);
+
 // 高德静态地图代理（给贾维斯 / 前端出图；Key 只留在服务端）
 app.use('/api/amap-static-map', ...withPermission(amapRouter, {
   read: Permission.AI_CHAT_VIEW,
@@ -456,13 +480,27 @@ const startWebServer = (): void => {
   });
 };
 
-// 启动前补齐迁库所需的表结构与数据库配置种子；失败只告警，读取链路会降级到本地 JSON
+// 启动前补齐迁库所需的表结构与数据库配置种子；失败只告警，请检查 DB_* 配置
 void (async (): Promise<void> => {
   try {
     await ensureRbacSchema();
     await ensureEnvConfigSeed();
   } catch (err) {
-    console.warn('[DB] 鉴权表结构/配置种子初始化失败，登录与权限将回退本地 JSON：', (err as Error).message);
+    console.warn('[DB] 鉴权表结构/配置种子初始化失败，数据库不可用请检查 DB_* 配置：', (err as Error).message);
+  }
+  // 皮肤表结构与预设种子独立执行，避免前面任一初始化失败时连皮肤表都不创建
+  try {
+    await ensureAiChatSkinSchema();
+  } catch (err) {
+    console.warn('[DB] 皮肤表结构/预设种子初始化失败，皮肤将使用内置兜底：', (err as Error).message);
+  }
+  // 知识库文档：按文件增量同步后加载数据库快照；初始化异常时提示检查 DB_* 配置
+  try {
+    const knowledgeDocCount = await initKnowledgeDocs();
+    if (knowledgeDocCount > 0) console.log(`📚 知识库文档已加载 ${knowledgeDocCount} 篇`);
+    else console.warn('[DB] 知识库文档未加载，数据库不可用请检查 DB_* 配置');
+  } catch (err) {
+    console.warn('[DB] 知识库初始化失败，数据库不可用请检查 DB_* 配置：', (err as Error).message);
   }
   startWebServer();
 })();

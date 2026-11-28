@@ -67,7 +67,7 @@
 import CardPanel from '@/components/common/card-panel.vue';
 import type { ReminderQuoteItem, ReminderQuotesBucket, ReminderQuotesGroupBucket } from '@/types/reminder-quotes';
 import type { Permission } from '@/types/permission';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 defineProps<{
   /** i18n 翻译函数（由父组件通过 LocaleStore.t 传入，响应式） */

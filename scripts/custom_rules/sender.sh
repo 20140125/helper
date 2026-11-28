@@ -13,6 +13,15 @@
 #
 # ======================================
 
+# 按需加载缓存数据库通道（主脚本已加载时直接复用）
+if ! declare -F cache_db_read >/dev/null 2>&1; then
+    _CR_SENDER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    if [ -z "${PROJECT_DIR:-}" ]; then
+        source "${_CR_SENDER_DIR}/project_config.sh"
+    fi
+    source "${PROJECT_DIR}/cache_db.sh"
+fi
+
 send_wecom_message() {
     local message="$1"
     local webhook_ids="${2:-}"
@@ -38,14 +47,13 @@ print(json.dumps(payload, ensure_ascii=False))
 
     # 根据 webhookIds 过滤目标 URL
     local target_urls
-    target_urls=$(python3 -c "
+    target_urls=$(cache_db_read 'webhooks.json' | WEBHOOK_IDS="$webhook_ids" python3 -c "
 import json, sys, os
 
-webhooks_file = os.path.join('${CACHE_DIR}', 'webhooks.json')
-ids_str = '''${webhook_ids}'''
+ids_str = os.environ.get('WEBHOOK_IDS', '')
 
 try:
-    hooks = json.load(open(webhooks_file))
+    hooks = json.load(sys.stdin)
 except Exception:
     sys.exit(1)
 

@@ -46,13 +46,16 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../project_config.sh"
+# 缓存数据库通道（放在 project_config.sh 之后）
+source "${PROJECT_DIR}/cache_db.sh"
 LOG_FILE="${SCRIPT_DIR}/tools.log"
 source "${PROJECT_DIR}/log_utils.sh"
 source "${SCRIPT_DIR}/card_utils.sh"
 
 OUTPUT_FILE="${CARD_OUTPUT_DIR}/commute_card.png"
 SVG_FILE="/tmp/commute_card.svg"
-GEOCODE_CACHE="${CACHE_DIR}/amap_geocode.json"
+# 地理编码缓存改为 KV 条目（相对 .cache 的路径）
+GEOCODE_CACHE_KEY="amap_geocode.json"
 
 # 命令行解析结果（由 parse_args 填充：方向 / 起点输入 / 终点输入）
 DIRECTION=""
@@ -72,9 +75,12 @@ geocode_addr() {
         return 0
     fi
 
-    [ -f "$GEOCODE_CACHE" ] || echo '{}' > "$GEOCODE_CACHE"
+    # key 不存在时先写 '{}'（用 cache_db_exists 判断，不再落盘）
+    if ! cache_db_exists "$GEOCODE_CACHE_KEY"; then
+        cache_db_write "$GEOCODE_CACHE_KEY" '{}'
+    fi
     local cached
-    cached=$(jq -r --arg k "$addr" '.[$k] // ""' "$GEOCODE_CACHE" 2>/dev/null)
+    cached=$(cache_db_read "$GEOCODE_CACHE_KEY" | jq -r --arg k "$addr" '.[$k] // ""' 2>/dev/null)
     if [ -n "$cached" ]; then
         printf '%s' "$cached"
         return 0
@@ -87,8 +93,11 @@ geocode_addr() {
     coord=$(echo "$resp" | jq -r '.geocodes[0].location // ""' 2>/dev/null)
 
     if [ -n "$coord" ]; then
-        jq --arg k "$addr" --arg v "$coord" '.[$k]=$v' "$GEOCODE_CACHE" > "${GEOCODE_CACHE}.tmp" 2>/dev/null \
-            && mv "${GEOCODE_CACHE}.tmp" "$GEOCODE_CACHE"
+        local updated
+        updated=$(cache_db_read "$GEOCODE_CACHE_KEY" | jq --arg k "$addr" --arg v "$coord" '.[$k]=$v' 2>/dev/null)
+        if [ -n "$updated" ]; then
+            cache_db_write "$GEOCODE_CACHE_KEY" "$updated"
+        fi
         log_info "📍 地理编码缓存已写入: ${addr} → ${coord}"
     else
         log_warning "⚠️  地址解析失败: ${addr}（$(echo "$resp" | jq -r '.info // "未知错误"' 2>/dev/null)）"

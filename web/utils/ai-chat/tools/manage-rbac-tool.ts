@@ -18,7 +18,7 @@ const nowStamp = (): string => {
  * 解析并校验权限码列表
  * @param {unknown} raw - LLM 传入的 permissions（逗号分隔字符串或数组）
  * @returns {{ ok: true; list: Permission[] } | { ok: false; reason: string }} 校验结果
- * @description 权限码必须已在 .cache/permission_metas.json 中登记，防止 LLM 编造权限码
+ * @description 权限码必须已在数据库 hp_permissions（权限元信息表）中登记，防止 LLM 编造权限码
  */
 const parsePermissions = async (
   raw: unknown,

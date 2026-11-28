@@ -1,13 +1,10 @@
 import { ref, computed, onMounted, onBeforeUnmount, type Ref, type ComputedRef } from 'vue';
 import { useRouter } from 'vue-router';
 import { StatusService } from '@/services/status-service';
-import { LogService } from '@/services/log-service';
 import { WebServiceService } from '@/services/web-service-service';
 import { useStatusStore } from '@/stores/status';
 import { useRulesStore } from '@/stores/rules';
 import { useBootstrapStore } from '@/stores/bootstrap';
-import type { LogItem } from '@/types/log';
-import { getLogLabels } from '@/types/log';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { getRuleTypeLabel, getWeekdays } from '@/constants/rules';
 import { BaseModel, Permission } from '@/models/base-model';
@@ -16,7 +13,7 @@ import { groupRulesByType } from '@/utils/rules';
 
 /**
  * 仪表盘页面数据模型类
- * @description 管理仪表盘页面的所有业务逻辑，包括系统状态监控、守护进程控制、日志查看、Web服务管理等
+ * @description 管理仪表盘页面的所有业务逻辑，包括系统状态监控、守护进程控制、Web服务管理等
  */
 export class DashboardModel extends BaseModel {
   /**
@@ -48,13 +45,6 @@ export class DashboardModel extends BaseModel {
   statusService: StatusService = new StatusService();
 
   /**
-   * 日志服务实例
-   * @type {LogService}
-   * @description 用于日志文件管理和内容查看
-   */
-  logService: LogService = new LogService();
-
-  /**
    * Web服务实例
    * @type {WebServiceService}
    * @description 用于Web服务启停重启操作
@@ -66,25 +56,11 @@ export class DashboardModel extends BaseModel {
   // ==============================
 
   /**
-   * 日志文件列表
-   * @type {Ref<LogItem[]>}
-   * @description 存储系统中所有可用的日志文件信息
-   */
-  logs: Ref<LogItem[]> = ref<LogItem[]>([]);
-  
-  /**
    * 初始化加载状态
    * @type {Ref<boolean>}
    * @description 页面初始化时的加载状态
    */
   initLoading: Ref<boolean> = ref(false);
-  
-  /**
-   * 日志加载状态
-   * @type {Ref<boolean>}
-   * @description 日志文件列表加载时的loading状态
-   */
-  logsLoading: Ref<boolean> = ref(false);
   
   /**
    * 刷新状态
@@ -99,27 +75,6 @@ export class DashboardModel extends BaseModel {
    * @description 启动/停止/重启守护进程操作时的loading状态
    */
   daemonLoading: Ref<boolean> = ref(false);
-  
-  /**
-   * 当前激活的日志文件标识符
-   * @type {Ref<string>}
-   * @description 记录用户当前查看的日志文件key
-   */
-  activeLogKey: Ref<string> = ref('');
-  
-  /**
-   * 当前激活日志文件的内容
-   * @type {Ref<string>}
-   * @description 存储用户当前查看的日志文件的具体内容
-   */
-  activeLogContent: Ref<string> = ref('');
-  
-  /**
-   * 日志内容加载状态
-   * @type {Ref<boolean>}
-   * @description 加载具体日志文件内容时的loading状态
-   */
-  contentLoading: Ref<boolean> = ref(false);
   
   /**
    * Web服务操作加载状态
@@ -232,20 +187,6 @@ export class DashboardModel extends BaseModel {
     const seconds = Math.floor((this.now.value - this.statusStore.daemonStartTime) / 1000);
     return seconds >= 0 ? this.formatSeconds(seconds) : '';
   });
-
-  /**
-   * 获取最近的日志文件列表
-   * @type {ComputedRef<LogItem[]>}
-   */
-  recentLogs: ComputedRef<LogItem[]> = computed(
-    () => this.logs.value.filter((l) => l.exists && l.size > 0).slice(0, 5),
-  );
-
-  /**
-   * 获取日志标签映射
-   * @type {ComputedRef<Record<string, string>>}
-   */
-  logLabels: ComputedRef<Record<string, string>> = computed(() => getLogLabels());
 
   /**
    * 判断页面是否处于加载状态
@@ -421,51 +362,6 @@ export class DashboardModel extends BaseModel {
   };
 
   /**
-   * 加载日志文件列表
-   * @returns {Promise<void>}
-   * @description 获取系统中可用的日志文件列表
-   */
-  loadLogs = async (): Promise<void> => {
-    this.logsLoading.value = true;
-    try {
-      const data = await this.logService.fetchLogs();
-      this.logs.value = data.data.logs;
-      useBootstrapStore().setLogs(data.data.logs);
-    } catch {
-      // 请求失败时保持原有数据，不阻塞页面
-    } finally {
-      this.logsLoading.value = false;
-    }
-  };
-
-  /**
-   * 切换日志文件显示
-   * @param {string} key - 日志文件标识符
-   * @returns {Promise<void>}
-   * @description 点击日志文件时切换显示/隐藏状态
-   */
-  toggleLog = async (key: string): Promise<void> => {
-    if (this.activeLogKey.value === key) {
-      this.activeLogKey.value = '';
-      this.activeLogContent.value = '';
-      return;
-    }
-    
-    this.activeLogKey.value = key;
-    this.activeLogContent.value = '';
-    
-    this.contentLoading.value = true;
-    try {
-      const { data: { content } } = await this.logService.fetchLogContent(key, 50);
-      this.activeLogContent.value = content || this.localeStore.t.dashboard.logEmpty;
-    } catch {
-      this.activeLogContent.value = this.localeStore.t.dashboard.logLoadFailed;
-    } finally {
-      this.contentLoading.value = false;
-    }
-  };
-
-  /**
    * 执行守护进程动作的通用模板（成功/失败提示 + 状态轮询）
    * @param {() => Promise<{ message?: string }>} action - 真正触发动作的 service 调用
    * @param {string} successText - 成功时的默认文案
@@ -544,7 +440,7 @@ export class DashboardModel extends BaseModel {
   /**
    * 刷新页面数据
    * @returns {Promise<void>}
-   * @description 同时刷新系统状态信息和日志文件列表
+   * @description 刷新系统状态与 Web 服务状态
    */
   refresh = async (): Promise<void> => {
     this.refreshing.value = true;
@@ -552,7 +448,6 @@ export class DashboardModel extends BaseModel {
       await Promise.all([
         this.statusStore.fetchStatus(),
         this.statusStore.loadWebStatus(),
-        this.loadLogs(),
       ]);
     } finally {
       this.refreshing.value = false;
@@ -580,22 +475,16 @@ export class DashboardModel extends BaseModel {
   /**
    * 初始化页面数据
    * @returns {Promise<void>}
-   * @description 首屏数据优先复用路由守卫触发的 /api/bootstrap 聚合结果，不再单独请求规则与日志；
-   *   聚合接口不可用时才降级为原有的两个请求
+   * @description 首屏数据优先复用路由守卫触发的 /api/bootstrap 聚合结果；
+   *   聚合接口不可用时才降级单独拉取规则
    */
   init = async (): Promise<void> => {
     const bootstrapStore = useBootstrapStore();
     await bootstrapStore.load();
-    if (bootstrapStore.loaded) {
-      this.logs.value = bootstrapStore.logs;
-      return;
-    }
+    if (bootstrapStore.loaded) return;
     this.initLoading.value = true;
     try {
-      await Promise.all([
-        this.rulesStore.fetchRules(),
-        this.loadLogs(),
-      ]);
+      await this.rulesStore.fetchRules();
     } finally {
       this.initLoading.value = false;
     }

@@ -37,7 +37,7 @@
           :light-time="themeStore.autoTimes.lightTime"
           :dark-time="themeStore.autoTimes.darkTime"
           @open-sidebar="openSidebar"
-          @color-input="handleColorInput"
+          @color-change="handleColorChange"
           @color-mode-toggle="handleColorModeToggle"
           @auto-toggle="handleAutoModeToggle"
           @auto-time-change="handleAutoTimeChange"
@@ -133,7 +133,7 @@ const {
   openSidebar,
   closeSidebar,
   handleMenuChange,
-  handleColorInput,
+  handleColorChange,
   handleColorModeToggle,
   handleAutoModeToggle,
   handleAutoTimeChange,

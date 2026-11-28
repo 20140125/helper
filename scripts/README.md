@@ -268,7 +268,7 @@ graph TB
     reminder --> r_runner["runner.sh<br/>子脚本执行"]
     reminder --> r_help["help_push.sh<br/>cmd_help_push"]
 
-    r_router -.->|"动态关键字"| custom_rules[".cache/custom_rules.json"]
+    r_router -.->|"动态关键字"| custom_rules["数据库 custom_rules.json 缓存键"]
     r_runner -->|"按关键字路由"| workday_manager
     r_runner -->|"按关键字路由"| festival_greetings
     r_runner -->|"按关键字路由"| birthday_reminder
@@ -371,7 +371,7 @@ cp web/.env.example web/.env
 | `MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` / `MAIL_ENCRYPTION` / `MAIL_FROM_ADDRESS` / `MAIL_FROM_NAME` | — | 登录验证码邮件配置 |
 | `JWT_SECRET` | — | Web 管理界面 JWT 签名密钥 |
 
-> Webhook 现由 Web 界面 `.cache/webhooks.json` 管理，支持多机器人、按场景路由。
+> Webhook 现由 Web 界面管理（数据存数据库 `hp_webhooks` / `webhooks.json` 缓存键），支持多机器人、按场景路由。
 
 ---
 
@@ -398,7 +398,7 @@ cp web/.env.example web/.env
 | 定时 | 其它自定义规则 | `custom_rules.sh` |
 | 12-31 23:59 | 年度数据更新 | `annual_update.sh` |
 
-> **推送类提醒全部由自定义规则触发**（`.cache/custom_rules.json`，Web「定时提醒」页配置）：
+> **推送类提醒全部由自定义规则触发**（数据库 `custom_rules.json` 缓存键，Web「定时提醒」页配置）：
 > 时间、工作日条件、推送目标、开关都在规则上；各脚本内部自行判断当天该不该发。
 > `reminder_daemon.sh` 不再直接发任何提醒，只负责数据预取与触发规则。
 
@@ -423,7 +423,7 @@ Web 端「系统配置 → 系统任务调度」分区可直接修改这些键�
 
 > 这里**只放不发消息的系统任务**（数据预取、日志清理、年度更新）与节拍参数。
 > 所有推送类提醒（早安 / 节日节气 / 月度 / 倒计时 / 生日 / 午餐 / 下班 / 调休预告 / 每周总结）
-> 都在「定时提醒」规则里配（`.cache/custom_rules.json`）。
+> 都在「定时提醒」规则里配（数据库 `custom_rules.json` 缓存键）。
 
 **08:00 提醒优先级：**
 1. 调休上班提醒（最高）
@@ -497,9 +497,9 @@ bash scripts/tools/card.sh "github trending"
 
 每年 12-31 23:59 由 `annual_scheduler.sh` 自动触发，也可手动执行 `bash scripts/annual_update.sh`，主要步骤：
 
-1. 获取国务院节假日数据 → `.cache/holiday_data.json`
+1. 获取国务院节假日数据 → 数据库 `holiday_data.json` 缓存键
 2. 生成公司节假日配置 → `holiday_config.sh`（自动识别公司特别假）
-3. 更新月份配置 → `.cache/month_config.json`
+3. 更新月份配置 → 数据库 `month_config.json` 缓存键
 4. 更新 24 节气数据（运行时动态计算）
 5. 更新农历节日数据（运行时动态计算）
 6. 发送企业微信更新通知
@@ -525,11 +525,11 @@ bash scripts/view_logs.sh states                # 统计
 删除过期记录；也可在 Web「运行日志」页查看 / 清空。「接口访问日志（历史）」
 展示的是同一来源里更早的一批记录，不再是归档文件。
 
-> AI 运行追踪写 `hp_ai_run_traces`；`.cache/api_responses/` 等是业务缓存，不属于日志。
+> AI 运行追踪写 `hp_ai_run_traces`；`api_responses/*` 等是数据库里的业务缓存条目，不属于日志。
 
-**缓存** 存放在项目根目录 `.cache/` 下：
+**缓存** 以数据库为唯一真源，按缓存键读写（Web 经 `web/utils/database/cache-store.ts`、shell 经 `scripts/cache_db.sh`），运行时不再读写 `.cache/` 下的文件；全新安装数据来自 `sql/cache_data/*.sql` 种子，Web「缓存文件」页可查看/编辑这些数据库条目。下表沿用原 JSON 文件名作为缓存键名：
 
-| 文件 | 说明 |
+| 缓存键 | 说明 |
 |------|------|
 | `daily_data_YYYY-MM-DD.json` | 每日预获取数据 |
 | `daemon_sent_state.json` | 守护进程今日已发送标记 |

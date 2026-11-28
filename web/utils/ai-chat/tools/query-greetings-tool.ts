@@ -1,4 +1,4 @@
-import { readGreetingItems, GREETINGS_GROUPS } from '@/routes/utils';
+import { GREETINGS_GROUPS } from '@/routes/utils';
 import { syncContentLibraryIfStale, readGreetingsFromDb } from '@/utils/database/content-library';
 import type { GreetingsGroup } from '@/types/greetings';
 import type { ToolImpl, ToolResult } from '@/types/ai-chat';
@@ -10,7 +10,8 @@ const MAX_ITEMS = 50;
 
 /**
  * query_greetings 工具实现
- * @description 查询「节日祝福语」库（节气 / 节日 / 农历节日 / 特殊日子 / 生日模板）。
+ * @description 查询「节日祝福语」库（节气 / 节日 / 农历节日 / 特殊日子 / 生日模板），
+ *   直接读数据库；库不可用时返回明确错误，不再读 .cache 文件。
  *
  * 触发示例（仅供维护者参考，不会发送给 LLM）：
  *   - "祝福语库里都配了哪些节日？"                      → {}
@@ -42,39 +43,36 @@ export const queryGreetingsTool: ToolImpl = {
   },
   requiredPermissions: ['greetings:view'],
   invoke: async (args): Promise<ToolResult> => {
-    const group = typeof args.group === 'string' ? args.group.trim() : '';
-    if (group && !GREETINGS_GROUPS.includes(group as GreetingsGroup)) {
-      return { ok: false, data: `不支持 group="${group}"，可用：${GREETINGS_GROUPS.join('、')}` };
-    }
-    const kw = typeof args.keyword === 'string' ? args.keyword.toLowerCase().trim() : '';
-
-    const allItems = await (async () => {
-      try {
-        await syncContentLibraryIfStale();
-        return await readGreetingsFromDb();
-      } catch (err) {
-        console.warn('[query_greetings] 查库失败，回退 JSON：', (err as Error).message);
-        return readGreetingItems();
+    try {
+      const group = typeof args.group === 'string' ? args.group.trim() : '';
+      if (group && !GREETINGS_GROUPS.includes(group as GreetingsGroup)) {
+        return { ok: false, data: `不支持 group="${group}"，可用：${GREETINGS_GROUPS.join('、')}` };
       }
-    })();
+      const kw = typeof args.keyword === 'string' ? args.keyword.toLowerCase().trim() : '';
 
-    const list = allItems
-      .filter((i) => (group ? i.group === group : true))
-      .filter((i) => {
-        if (!kw) return true;
-        return i.name.toLowerCase().includes(kw) || i.content.toLowerCase().includes(kw);
-      });
+      await syncContentLibraryIfStale();
+      const allItems = await readGreetingsFromDb();
 
-    const limit = Math.min(Math.max(Number(args.limit) || DEFAULT_ITEMS, 1), MAX_ITEMS);
-    const shown = list.slice(0, limit);
-    return {
-      ok: true,
-      data: {
-        items: shown.map((i) => ({ id: i.id, group: i.group, name: i.name, content: i.content })),
-        total: list.length,
-        truncated: list.length > limit,
-      },
-      summary: `命中 ${list.length} 条祝福语${list.length > limit ? `（仅返回前 ${limit} 条）` : ''}`,
-    };
+      const list = allItems
+        .filter((i) => (group ? i.group === group : true))
+        .filter((i) => {
+          if (!kw) return true;
+          return i.name.toLowerCase().includes(kw) || i.content.toLowerCase().includes(kw);
+        });
+
+      const limit = Math.min(Math.max(Number(args.limit) || DEFAULT_ITEMS, 1), MAX_ITEMS);
+      const shown = list.slice(0, limit);
+      return {
+        ok: true,
+        data: {
+          items: shown.map((i) => ({ id: i.id, group: i.group, name: i.name, content: i.content })),
+          total: list.length,
+          truncated: list.length > limit,
+        },
+        summary: `命中 ${list.length} 条祝福语${list.length > limit ? `（仅返回前 ${limit} 条）` : ''}`,
+      };
+    } catch (err) {
+      return { ok: false, data: `查询祝福语失败：${(err as Error).message}` };
+    }
   },
 };

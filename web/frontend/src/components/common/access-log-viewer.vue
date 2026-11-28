@@ -51,7 +51,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
 import LoadingSpinner from '@/components/common/loading-spinner.vue';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import {
   ACCESS_LOG_USER_MARKER,
   ACCESS_LOG_STATUS_MARKER,

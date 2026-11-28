@@ -48,7 +48,7 @@ import CardPanel from '@/components/common/card-panel.vue';
 import SideListItem from '@/components/common/side-list-item.vue';
 import SqlEditor from '@/components/common/sql-editor.vue';
 import { formatBytes } from '@/utils/database';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import type { DatabaseScriptFile } from '@/types/database';
 
 const props = defineProps<{

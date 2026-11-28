@@ -9,7 +9,7 @@
 #   2. 早上07:55 - 备用数据预获取（如01:00失败）
 #   3. 每轮循环 - 触发到点的自定义规则（所有提醒消息都由规则发出）
 #
-# 推送类提醒已全部迁到自定义规则（.cache/custom_rules.json，Web「定时提醒」页配置）：
+# 推送类提醒已全部迁到自定义规则（custom_rules.json 对应的已有业务表，Web「定时提醒」页配置）：
 #   早安 08:00 / 节日节气 08:00 / 月度 08:00 / 假期倒计时 08:00 / 生日 09:00
 #   / 午餐 12:00 / 下班 18:00 / 明日调休预告 18:00 / 每周总结 18:30
 #   本进程不再直接发任何提醒消息——各脚本内部自行判断当天该不该发，
@@ -39,6 +39,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 第2步：加载项目路径配置
 source "${SCRIPT_DIR}/project_config.sh"
+
+# 第2.1步：缓存数据库通道（放在 project_config.sh 之后）
+source "${PROJECT_DIR}/cache_db.sh"
 
 # 第3步：加载统一配置（包含 TZ 和 WECOM_WEBHOOK）
 source "${PROJECT_DIR}/weather_config.sh" 2>/dev/null
@@ -96,22 +99,23 @@ log_info "📅 当前时间: $(date '+%Y-%m-%d %H:%M:%S')"
 log_info "📌 进程PID: $$"
 log_info "======================================"
 
-# 用于记录今天是否已经发送过提醒（持久化到 JSON 文件，重启后自动恢复）
-SENT_STATE_FILE="${CACHE_DIR}/daemon_sent_state.json"
+# 用于记录今天是否已经发送过提醒（持久化到 daemon_sent_state.json 对应的已有业务表，重启后自动恢复）
+SENT_STATE_KEY="daemon_sent_state.json"
 
-# 从 JSON 状态文件恢复发送标记（防止重启后重复发送或遗漏）
+# 从缓存条目恢复发送标记（防止重启后重复发送或遗漏）
 _load_sent_state() {
-    if [ -f "$SENT_STATE_FILE" ]; then
-        eval "$(python3 -c "
+    local body
+    body="$(cache_db_read "${SENT_STATE_KEY}")" || body=''
+    if [ -n "$body" ]; then
+        eval "$(printf '%s' "$body" | python3 -c "
 import json, sys
 try:
-    with open('$SENT_STATE_FILE', 'r') as f:
-        d = json.load(f)
+    d = json.load(sys.stdin)
     for key in ['morning', 'lunch', 'evening', 'weekly', 'birthday', 'holiday', 'prefetch']:
         val = d.get(key, '')
         print(f'{key.upper()}_SENT_DATE=\"{val}\"')
 except Exception as e:
-    print(f'# 状态文件读取失败: {e}', file=sys.stderr)
+    print(f'# 状态数据读取失败: {e}', file=sys.stderr)
 " 2>/dev/null)"
         log_info "📂 已从状态文件恢复发送标记: MORNING=${MORNING_SENT_DATE:-空} LUNCH=${LUNCH_SENT_DATE:-空} EVENING=${EVENING_SENT_DATE:-空} BIRTHDAY=${BIRTHDAY_SENT_DATE:-空} WEEKLY=${WEEKLY_SENT_DATE:-空} PREFETCH=${PREFETCH_SENT_DATE:-空}"
     else
@@ -119,9 +123,10 @@ except Exception as e:
     fi
 }
 
-# 保存发送标记到 JSON 文件
+# 保存发送标记到缓存条目（KV）
 _save_sent_state() {
-    python3 -c "
+    local state_json
+    state_json="$(python3 -c "
 import json
 data = {
     'updated_at': '$(date '+%Y-%m-%d %H:%M:%S')',
@@ -133,9 +138,10 @@ data = {
     'holiday': '${HOLIDAY_SENT_DATE}',
     'prefetch': '${PREFETCH_SENT_DATE}'
 }
-with open('$SENT_STATE_FILE', 'w') as f:
-    json.dump(data, f, ensure_ascii=False, indent=2)
-" 2>/dev/null
+print(json.dumps(data, ensure_ascii=False, indent=2))
+" 2>/dev/null)" || return 0
+    [ -n "$state_json" ] || return 0
+    cache_db_write "${SENT_STATE_KEY}" "${state_json}" 2>/dev/null
 }
 
 # 初始化：先设默认值，再尝试从文件恢复
@@ -148,12 +154,14 @@ HOLIDAY_SENT_DATE=""
 PREFETCH_SENT_DATE=""
 _load_sent_state
 
-CUSTOM_RULES_FILE="${CACHE_DIR}/custom_rules.json"
+# 自定义规则配置的 KV key（仅用于存在性闸门，不再依赖磁盘文件）
+CUSTOM_RULES_KEY="custom_rules.json"
 
 # 加载自定义规则读取工具（提供 get_matching_rule_ids、update_last_triggered_at、get_rule_name_by_id 等函数）
 # shellcheck source=custom_rules/rule_reader.sh
+# 说明：rule_reader.sh / custom_rules.sh 已统一从 custom_rules.json KV 读取，
+#       不再需要 RULES_FILE 磁盘路径，本进程也不再引用 CACHE_DIR。
 source "${PROJECT_DIR}/custom_rules/rule_reader.sh"
-RULES_FILE="$CUSTOM_RULES_FILE"
 
 ## 辅助函数：判断当前时间是否在指定小时:分钟的触发窗口内
 ## 使用范围判断（±2分钟）代替精确匹配，避免因任务执行耗时导致错过触发
@@ -184,10 +192,9 @@ while true; do
     
     # 早上备用数据预获取（保险机制：如果凌晨那次失败，早上再试一次）
     if sched_due SCHED_PREFETCH_BACKUP_TIME 07:55; then
-        # 检查今天的缓存是否存在
+        # 检查今天的缓存是否存在（KV 条目，不再判断磁盘文件）
         today=$(date +%Y-%m-%d)
-        cache_file="${CACHE_DIR}/daily_data_${today}.json"
-        if [ ! -f "$cache_file" ]; then
+        if ! cache_db_exists "daily_data_${today}.json"; then
             # 缓存不存在，立即预获取
             if [ -f "${PROJECT_DIR}/daily_data_manager.sh" ]; then
                 bash "${PROJECT_DIR}/daily_data_manager.sh" prefetch
@@ -200,7 +207,7 @@ while true; do
     #   / 明日调休预告 18:00 / 每周总结 18:30 —— 脚本内部自行判断当天该不该发
 
     # 自定义规则调度：检查当前时间是否有规则需要触发（使用±2分钟窗口匹配）
-    if [ -f "$CUSTOM_RULES_FILE" ]; then
+    if cache_db_exists "$CUSTOM_RULES_KEY"; then
         now_minutes=$(( 10#$(date '+%H') * 60 + 10#$(date '+%M') ))
         # 找出所有启用、time 在当前时间窗口内、且今天尚未触发的规则 ID
         matching_ids=$(get_matching_rule_ids "$now_minutes" "$CURRENT_DATE")

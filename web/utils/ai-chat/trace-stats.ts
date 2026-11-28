@@ -9,12 +9,12 @@ import {
 
 /**
  * 读取模型单价表（元 / 百万 token）
- * @returns {Record<string, { prompt: number; completion: number }>} 按模型 ID 索引的单价
+ * @returns {Promise<Record<string, { prompt: number; completion: number }>>} 按模型 ID 索引的单价
  * @description 代码中不再内置任何模型单价：唯一来源是「系统配置 → AI 模型与记忆」里每个配置组的
  *   「模型单价表」，形如 {"glm-4.6":{"prompt":2,"completion":6}}；全局 .env 的旧配置作为兼容底表，
  *   同型号以配置组为准。只接受非负有限数值，脏数据与解析失败一律忽略，未配置的模型按 0（免费）计。
  */
-const readCustomPricing = (): Record<string, { prompt: number; completion: number }> => {
+const readCustomPricing = async (): Promise<Record<string, { prompt: number; completion: number }>> => {
   const merged: Record<string, { prompt: number; completion: number }> = {};
   /**
    * 合并一份单价表
@@ -41,7 +41,7 @@ const readCustomPricing = (): Record<string, { prompt: number; completion: numbe
       // 旧全局配置损坏时忽略，不影响配置组单价
     }
   }
-  readAiModelGroups().forEach((group) => assignPricing(group.pricing ?? {}));
+  (await readAiModelGroups()).forEach((group) => assignPricing(group.pricing ?? {}));
   return merged;
 };
 
@@ -50,10 +50,10 @@ const readCustomPricing = (): Record<string, { prompt: number; completion: numbe
  * @param {string} model - 模型 ID
  * @param {number} promptTokens - 提示 token 数
  * @param {number} completionTokens - 补全 token 数
- * @returns {number} 估算成本（元，保留 6 位小数）；未在配置里填写单价的模型按 0（免费）计
+ * @returns {Promise<number>} 估算成本（元，保留 6 位小数）；未在配置里填写单价的模型按 0（免费）计
  */
-export const estimateCost = (model: string, promptTokens: number, completionTokens: number): number => {
-  const pricing = readCustomPricing()[model];
+export const estimateCost = async (model: string, promptTokens: number, completionTokens: number): Promise<number> => {
+  const pricing = (await readCustomPricing())[model];
   if (!pricing) return 0;
   const cost = (promptTokens / 1_000_000) * pricing.prompt + (completionTokens / 1_000_000) * pricing.completion;
   return Number(cost.toFixed(6));

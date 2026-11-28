@@ -1,4 +1,3 @@
-import { readMsgTemplates } from '@/routes/utils';
 import { syncContentLibraryIfStale, readTemplatesFromDb } from '@/utils/database/content-library';
 import type { ToolImpl, ToolResult } from '@/types/ai-chat';
 
@@ -17,8 +16,8 @@ const truncate = (text: string, limit: number): string =>
   (text.length > limit ? `${text.slice(0, limit)}…（已截断）` : text);
 
 /**
- * 从模板配置文件中安全地取出 templates 字典
- * @param {Record<string, unknown>} raw - readMsgTemplates 返回的原始对象
+ * 从模板配置中安全地取出 templates 字典
+ * @param {Record<string, unknown>} raw - readTemplatesFromDb 返回的原始对象
  * @returns {Record<string, Record<string, string>>} type → style → 模板内容
  */
 const extractTemplates = (raw: Record<string, unknown>): Record<string, Record<string, string>> => {
@@ -38,7 +37,8 @@ const extractTemplates = (raw: Record<string, unknown>): Record<string, Record<s
 
 /**
  * query_message_templates 工具实现
- * @description 查询「消息模板」配置（.cache/message_templates.json）：有哪些消息类型（type）与风格（style）。
+ * @description 查询「消息模板」配置（直接读数据库，库不可用时返回明确错误，不再读 .cache 文件）：
+ *              有哪些消息类型（type）与风格（style）。
  *              不传 type 返回全部类型/风格清单；传 type 返回该类型各风格的预览；同时传 style 返回完整内容。
  *
  * 触发示例（仅供维护者参考，不会发送给 LLM）：
@@ -72,12 +72,7 @@ export const queryMessageTemplatesTool: ToolImpl = {
       await syncContentLibraryIfStale();
       raw = await readTemplatesFromDb();
     } catch (err) {
-      console.warn('[query_message_templates] 查库失败，回退 JSON：', (err as Error).message);
-      try {
-        raw = await readMsgTemplates();
-      } catch (fileErr) {
-        return { ok: false, data: `读取消息模板失败：${(fileErr as Error).message}` };
-      }
+      return { ok: false, data: `读取消息模板失败：${(err as Error).message}` };
     }
 
     const templates = extractTemplates(raw);

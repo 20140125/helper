@@ -1,8 +1,3 @@
-import { CACHE_DIR } from '@/utils/paths';
-
-/** 权限申请存储文件路径 */
-export const PERMISSION_REQUESTS_FILE = `${CACHE_DIR}/permission_requests.json`;
-
 /** 权限申请记录 */
 export interface PermissionRequest {
   /** 请求唯一 ID */

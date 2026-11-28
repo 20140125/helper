@@ -1,5 +1,3 @@
-import { promises as fs } from 'fs';
-
 // 类型从 @/types/templates 直接再导出，无需先 import 再 export
 export type { HolidayInfo, AdjustWorkday, HolidayConfigResult, QuotesData, GreetingsData } from '@/types/templates';
 
@@ -11,16 +9,6 @@ export type { HolidayInfo, AdjustWorkday, HolidayConfigResult, QuotesData, Greet
 export function getDayOfYear(d: Date): number {
   const start = new Date(d.getFullYear(), 0, 0);
   return Math.floor((d.getTime() - start.getTime()) / 86400000);
-}
-
-/** 安全读取 JSON 文件 */
-export async function readJsonFile<T = Record<string, unknown>>(filePath: string): Promise<T | null> {
-  try {
-    const raw = await fs.readFile(filePath, 'utf-8');
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
 }
 
 /** 按确定性种子从数组中选取（模仿脚本中 day_of_year % len 的逻辑） */

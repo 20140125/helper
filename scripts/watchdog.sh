@@ -23,12 +23,16 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/project_config.sh"
 
+# 缓存数据库通道（放在 project_config.sh 之后）
+source "${PROJECT_DIR}/cache_db.sh"
+
 WATCHDOG_LOG="${PROJECT_DIR}/watchdog.log"
 LOG_FILE="$WATCHDOG_LOG"
 source "${PROJECT_DIR}/log_utils.sh"
 
 PID_FILE="${PROJECT_DIR}/watchdog.pid"
-ENSURE_STAMP="${CACHE_DIR}/watchdog_ensure.stamp"
+# 自举节流标记改为 KV 条目（相对 .cache 的路径），运行时不再落盘
+ENSURE_STAMP_KEY="watchdog_ensure.stamp"
 
 CHECK_INTERVAL="${CHECK_INTERVAL:-60}"
 ENSURE_THROTTLE="${ENSURE_THROTTLE:-60}"
@@ -205,7 +209,7 @@ cmd_check() {
 cmd_ensure() {
     local now last
     now=$(date +%s)
-    last=$(cat "$ENSURE_STAMP" 2>/dev/null)
+    last="$(cache_db_read "$ENSURE_STAMP_KEY" 2>/dev/null)"
     [ -n "$last" ] || last=0
 
     if [ "$((now - last))" -lt "$ENSURE_THROTTLE" ]; then
@@ -213,8 +217,7 @@ cmd_ensure() {
         return 0
     fi
 
-    mkdir -p "$CACHE_DIR"
-    echo "$now" > "$ENSURE_STAMP"
+    cache_db_write "$ENSURE_STAMP_KEY" "$now"
 
     log_info "======================================"
     log_info "🚀 服务看护启动（自举）"

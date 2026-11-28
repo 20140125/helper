@@ -78,7 +78,7 @@
 
 <script setup lang="ts">
 import CardPanel from '@/components/common/card-panel.vue';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import type { GreetingItem, GreetingsGroup } from '@/types/greetings';
 import type { Permission } from '@/types/permission';
 

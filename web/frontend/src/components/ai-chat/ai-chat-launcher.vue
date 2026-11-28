@@ -14,12 +14,13 @@
       :t="t"
       :is-mobile="isMobile"
       :header="t.aiChat.title"
+      :style="skinStore.skinStyle"
       readonly
       :cancel-btn="null"
       class="ai-chat-drawer"
       @close="closeDrawer"
     >
-      <!-- 自定义 header：左侧标题 + 右侧四个图标按钮（新建会话 / 历史会话 / 分享 / 关闭） -->
+      <!-- 自定义 header：左侧标题 + 右侧五个图标按钮（新建会话 / 历史会话 / 皮肤 / 分享 / 关闭） -->
       <template #header>
         <chat-drawer-header
           :t="t"
@@ -140,7 +141,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, onBeforeUnmount } from 'vue';
 import ChatMessageBubble from '@/components/ai-chat/chat-message-bubble.vue';
 import ChatTriggerButton from '@/components/ai-chat/chat-trigger-button.vue';
 import ChatDrawerHeader from '@/components/ai-chat/chat-drawer-header.vue';
@@ -149,6 +150,10 @@ import ChatQuickExamples from '@/components/ai-chat/chat-quick-examples.vue';
 import ChatInputArea from '@/components/ai-chat/chat-input-area.vue';
 import FormDrawer from '@/components/common/form-drawer.vue';
 import { useAiChatModel } from '@/models/ai-chat-model';
+import { useAiChatSkinStore } from '@/stores/ai-chat-skin';
+
+/** 皮肤全局状态：抽屉根节点绑定局部 CSS 变量，面板与主体共享同一份配置 */
+const skinStore = useAiChatSkinStore();
 
 const {
   t,
@@ -206,10 +211,53 @@ const scrollContainer = ref<HTMLDivElement | null>(null);
  * @description 视图层只负责 DOM 取值时机，所有副作用（attach/detach、body.dataset、autoFollow 重置）
  *   都集中在 model.onDrawerVisibleChange 里，便于复用与单测。
  */
+/** 已写入 body 的皮肤变量，便于皮肤切换 / 抽屉关闭时清理 */
+const appliedBodySkinVars = new Set<string>();
+
+/**
+ * 把专用皮肤变量同步到 body
+ * @param {Record<string, string>} style - 当前皮肤变量
+ * @param {boolean} open - 抽屉是否展开
+ * @returns {void}
+ * @description t-popup / t-dialog 会 teleport 到 body，继承不到抽屉根节点变量；
+ *   只同步 --ai-chat-* 前缀，不覆盖站点通用变量，避免影响抽屉外的页面
+ */
+const syncBodySkinVars = (style: Record<string, string>, open: boolean): void => {
+  for (const key of appliedBodySkinVars) {
+    document.body.style.removeProperty(key);
+  }
+  appliedBodySkinVars.clear();
+  if (!open || Object.keys(style).length === 0) {
+    delete document.body.dataset.aiChatSkin;
+    return;
+  }
+  document.body.dataset.aiChatSkin = '1';
+  for (const [key, value] of Object.entries(style)) {
+    // 背景图本体可能数 MB，只供抽屉自身使用，没必要写进 body 的浮层变量
+    if (!key.startsWith('--ai-chat-') || key === '--ai-chat-bg-image') continue;
+    document.body.style.setProperty(key, value);
+    appliedBodySkinVars.add(key);
+  }
+};
+
 watch(visible, async (open) => {
+  if (open) {
+    void skinStore.load();
+  }
+  syncBodySkinVars(skinStore.skinStyle, open);
   await nextTick();
   await onDrawerVisibleChange(open, scrollContainer.value);
 }, { immediate: false });
+
+/** 切换预设 / 上传背景图后刷新浮层配色 */
+watch(() => skinStore.skinStyle, (style) => {
+  syncBodySkinVars(style, visible.value);
+});
+
+/** 组件卸载时清掉 body 上的皮肤变量，避免污染登录页 */
+onBeforeUnmount(() => {
+  syncBodySkinVars({}, false);
+});
 </script>
 
 <style scoped>
@@ -219,11 +267,28 @@ watch(visible, async (open) => {
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  /* 背景图铺在 .t-drawer__content-wrapper（见 styles/ai-chat-skin.css），
+     让 header 与消息区共享同一张皮肤，避免两层背景错位 */
 }
 
 .ai-chat-alert {
   margin: 0 0 8px;
   flex-shrink: 0;
+  /* TDesign 警告条默认浅色底，与深色/自定义皮肤的亮色文字冲突；改用主题琥珀色半透明底 */
+  --td-warning-color-focus: rgba(var(--accent-amber-rgb), 0.16);
+  --td-warning-color: var(--accent-amber);
+  background-color: rgba(var(--accent-amber-rgb), 0.16);
+  border: 1px solid rgba(var(--accent-amber-rgb), 0.34);
+  color: var(--ai-chat-text, var(--text-primary));
+}
+
+.ai-chat-alert :deep(.t-alert__message),
+.ai-chat-alert :deep(.t-alert__description) {
+  color: var(--ai-chat-text, var(--text-primary));
+}
+
+.ai-chat-alert :deep(.t-alert__description) {
+  opacity: 0.82;
 }
 
 .ai-chat-messages-wrap {

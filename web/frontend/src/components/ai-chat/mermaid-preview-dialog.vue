@@ -45,7 +45,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 /** Vue 3.4+ defineModel 语法糖：对话框显示状态 */
 const visibleModel = defineModel<boolean>('visible', { required: true });

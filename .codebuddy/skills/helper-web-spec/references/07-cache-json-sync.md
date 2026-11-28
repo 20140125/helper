@@ -1,23 +1,26 @@
-# 7. 新建页面·数据配置清单（`.cache/*.json` 同步）
+# 7. 新建页面·数据配置清单（已迁库；下文为历史 `.cache/*.json` 字段关系）
 
-> ⚠️ **迁移状态（2026-11-28）**：下列 4 份配置已分批迁到 MySQL，运行时以 `hp_permissions` / `hp_roles` / `hp_role_permissions` / `hp_api_categories` / `hp_api_items` 为唯一真源，且 `/api/cache` 禁止直接覆盖这些文件。新增权限或 API 请在 Web 管理页维护，或在 `sql/` 建表脚本补种子，再用 `cd web && npm run migrate:cache -- --batch=api-metadata --verify` 校验。下文直接改写 JSON 的脚本是迁移前遗留，仅用于理解字段关系，不要再执行。
+> ⚠️ **迁移状态（2026-11-28，最终状态）**：下列 4 份配置已全量迁入 MySQL，运行时以 `hp_permissions` / `hp_roles` / `hp_role_permissions` / `hp_api_categories` / `hp_api_items` 为唯一真源；`.cache` 缓存文件已删除，运行时零文件依赖，数据库不可用时也不再降级读文件。新增权限或 API 请在 Web 管理页维护，或在 `sql/` 建表脚本补种子；`npm run migrate:cache` 只是从 `.cache` 导入、生成种子、校验一致性的一次性迁移工具，文件删除后不再需要。
+> 下文（含 7.2 / 7.3 的脚本与「从 `.cache/*.json` 现读现渲染」等描述）都是**迁移前的历史记录**，仅用于理解字段关系与当初为什么要补数据，**千万不要执行**，也不要据此认为项目仍在读写 `.cache/` 文件。
 
 新建页面时最隐蔽的坑，不在代码里，而在运行时数据里。
 
-`web/` 的几个管理页（权限管理、角色管理、接口管理）并不是扫描代码生成数据的，而是**从 `.cache/*.json` 现读现渲染**。这意味着：你在 `types/permission.ts` 里加了枚举、在 `routes/xxx.ts` 里加了路由，**服务重启后新页面能打开、接口能调通**——但权限管理页看不到新权限、管理员菜单不出现入口、接口管理页查不到这条 API。用户以为功能没做完，其实只是 JSON 没补。
+**现在**：`web/` 的权限管理、角色管理、接口管理页都读数据库（见顶部迁移状态），新增权限或 API 请在 Web 管理页或 `sql/` 种子里补记录。
 
-所以，**凡是新增 Permission 枚举或新增后端 API，都要走一遍这 4 个 JSON**：
+**迁移前（历史）**：这几个管理页并不是扫描代码生成数据的，而是从 `.cache/*.json` 现读现渲染。这意味着：你在 `types/permission.ts` 里加了枚举、在 `routes/xxx.ts` 里加了路由，**服务重启后新页面能打开、接口能调通**——但权限管理页看不到新权限、管理员菜单不出现入口、接口管理页查不到这条 API。用户以为功能没做完，其实只是数据没补。
 
-| # | 文件 | 触发条件 | 漏改后果 |
+迁移前，凡是新增 Permission 枚举或新增后端 API 都要手工改这 4 份 JSON；**现在改为**：通过 Web 管理页或 `sql/` 种子维护下面 4 组数据库表（表中「迁移前文件」列仅用于对照字段关系）：
+
+| # | 现在的表（迁移前文件） | 触发条件 | 漏改后果 |
 |---|------|----------|----------|
-| 1 | `.cache/permission_metas.json` | 每个新 Permission 枚举 | 权限管理页看不到新权限，无法分配 |
-| 2 | `.cache/rbac.json` | 每个新 Permission 枚举 | `admin` / `viewer` 菜单缺入口（`super_admin` 有代码自愈兜底，但仍建议写入） |
-| 3 | `.cache/api_categories.json` | 新模块没有合适分类时 | 接口管理页分类缺失；能复用就复用，不要为 1 条 API 单开 |
-| 4 | `.cache/api_items.json` | **每条**新后端路由 | 接口管理页查不到，无法代理调用/调试 |
+| 1 | `hp_permissions`（原 `.cache/permission_metas.json`） | 每个新 Permission 枚举 | 权限管理页看不到新权限，无法分配 |
+| 2 | `hp_roles` / `hp_role_permissions`（原 `.cache/rbac.json`） | 每个新 Permission 枚举 | `admin` / `viewer` 菜单缺入口（`super_admin` 有代码自愈兜底，但仍建议写入） |
+| 3 | `hp_api_categories`（原 `.cache/api_categories.json`） | 新模块没有合适分类时 | 接口管理页分类缺失；能复用就复用，不要为 1 条 API 单开 |
+| 4 | `hp_api_items`（原 `.cache/api_items.json`） | **每条**新后端路由 | 接口管理页查不到，无法代理调用/调试 |
 
-改动顺序就是上表从 1 到 4。
+改动顺序就是上表从 1 到 4（现在均在数据库 / Web 管理页完成）。
 
-> ⚠️ **改完 `rbac.json` 必须退出并重新登录才能看到新菜单**：前端菜单是 `router.getRoutes()` 按 `route.meta.permissions` 过滤得到的（见 [home-model.ts](/projects/helper/web/frontend/src/models/home-model.ts) `allMenuItems` / `menuItems`），而 `permissionStore.permissions` 是**登录时一次性**从后端拉取的。你改了 `rbac.json` 但当前浏览器会话里的 permissions 数组还是旧的，新菜单会被过滤掉——表现就是"权限都配了，页面也开发完了，但左侧菜单还是没有入口"。
+> ⚠️ **改完角色权限绑定（迁移前是 `rbac.json`）必须退出并重新登录才能看到新菜单**：前端菜单是 `router.getRoutes()` 按 `route.meta.permissions` 过滤得到的（见 [home-model.ts](/projects/helper/web/frontend/src/models/home-model.ts) `allMenuItems` / `menuItems`），而 `permissionStore.permissions` 是**登录时一次性**从后端拉取的。你改了 `rbac.json` 但当前浏览器会话里的 permissions 数组还是旧的，新菜单会被过滤掉——表现就是"权限都配了，页面也开发完了，但左侧菜单还是没有入口"。
 
 ---
 
@@ -47,9 +50,9 @@
 
 ## 7.2 一键补全脚本（推荐方式）
 
-**为什么不用编辑工具直接改 JSON**：`.cache/` 下的文件被运行中的 web 服务实时读写（用户改权限、调接口都会触发后端持久化）。你读完到写回之间，文件可能已被后端改动，`replace_in_file` 经常在这里失败。采用"写临时文件 → `os.replace` 原子切换 inode"的方式可以规避竞争，已在 `rbac.json` 高频改写场景下验证可靠。
+**（迁移前历史）为什么不用编辑工具直接改 JSON**：那时 `.cache/` 下的文件被运行中的 web 服务实时读写（用户改权限、调接口都会触发后端持久化），读完到写回之间文件可能已被后端改动，`replace_in_file` 经常失败，所以用"写临时文件 → `os.replace` 原子切换 inode"规避竞争。现在数据以数据库为唯一真源，直接通过 Web 管理页或 `sql/` 种子维护，不再需要这套做法。
 
-把下面的脚本另存或直接执行，**只需改顶部 `MOD` / `CAT_NAME` / `ROUTES` 三项**，就能同步 4 张表：
+下面是**迁移前的遗留脚本，仅用于理解字段关系，切勿执行**（现在请通过 Web 管理页或 `sql/` 种子维护）：
 
 ```bash
 python3 <<'PY'
@@ -133,7 +136,7 @@ PY
 
 ## 7.3 完成自检（粘贴即跑）
 
-写完代码、补完 JSON 后执行，4 项都应**至少 1 行输出**；任何一项为空就是漏了：
+**（迁移前历史自检，切勿执行）** 写完代码、补完 `.cache` JSON 后执行，4 项都应**至少 1 行输出**；任何一项为空就是漏了。现在请改为在数据库里核对 `hp_permissions` / `hp_roles` / `hp_api_categories` / `hp_api_items`：
 
 ```bash
 MOD='skill-map'; CAT="cat_${MOD//-/_}"
@@ -147,4 +150,4 @@ echo '--- api_items        ---'; grep    "\"category_id\": \"${CAT}\"" /projects
 
 ## 7.4 与"代码层"的边界
 
-本清单只管 `.cache/` 数据层。新建页面的**代码层**同步项（`types/` / `services/` / `models/` / `views/` / `constants/` / `locales/` / `router/`；后端的 `routes/utils.ts` barrel + `server.ts` 注册）见 `01-architecture-overview.md`《新增页面完整流程》与 `06-common-pitfalls-checklist.md`《i18n / 常量 / 拆分》。两者都做完，页面才真正"接入完成"。
+本清单（迁移前历史）只管数据层配置，现已全部迁库、运行时零文件依赖。新建页面的**代码层**同步项（`types/` / `services/` / `models/` / `views/` / `constants/` / `router/`；文案在数据库维护；后端的 `routes/utils.ts` barrel + `server.ts` 注册）见 `01-architecture-overview.md`《新增页面完整流程》与 `06-common-pitfalls-checklist.md`《i18n / 常量 / 拆分》。两者都做完，页面才真正"接入完成"。

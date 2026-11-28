@@ -137,7 +137,7 @@ export const fetchRemoteModels = async (
   input: AiModelFetchBody,
 ): Promise<{ models: RemoteModelOption[]; baseUrl: string; endpoint: string }> => {
   const existing = input.groupId
-    ? readAiModelGroups().find((group) => group.id === input.groupId)
+    ? (await readAiModelGroups()).find((group) => group.id === input.groupId)
     : undefined;
   const baseUrl = String(input.baseUrl ?? existing?.baseUrl ?? '').trim().replace(/\/+$/, '');
   const inputKey = String(input.apiKey ?? '').trim();

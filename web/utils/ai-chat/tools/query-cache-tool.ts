@@ -1,13 +1,6 @@
 import {
-  CACHE_DIR,
-  readCacheJsonFile,
-  readDailyData,
-  listDailyDataFiles,
-  readApiResponse,
-  listApiResponses,
   readPermissionRequests,
   readApiCategories,
-  readGreetingItems,
 } from '@/routes/utils';
 import {
   syncContentLibraryIfStale,
@@ -94,52 +87,20 @@ const buildCacheListResult = (): ToolResult => ({
   summary: `当前支持 ${CACHE_TARGETS.length} 种缓存查询`,
 });
 
-/** 通用：读取简单 JSON 缓存文件并返回 ToolResult */
-const handleSimpleCacheFile = (target: string, fileName: string): ToolResult => {
-  const data = readCacheJsonFile(CACHE_DIR, fileName);
-  const summaryMap: Record<string, string> = {
-    holiday: '节假日数据（含调休安排）',
-    permission_metas: `权限元信息共 ${Array.isArray(data) ? data.length : '?'} 条`,
-    rbac: '角色权限配置',
-    month_config: '月份配置',
-    users: `用户数据共 ${Array.isArray((data as { users?: unknown[] })?.users) ? (data as { users: unknown[] }).users.length : '?'} 条`,
-    daemon_sent_state: '守护进程发送状态',
-  };
-  return {
-    ok: true,
-    data,
-    summary: summaryMap[target] ?? `缓存文件：${fileName}`,
-  };
-};
-
 /**
- * 日历 / 缓存类查询统一入口：优先读镜像表，失败降级读文件
- * @param label - 用于日志的目标名
- * @param dbFn - 查库实现
- * @param fileFn - 文件实现
- * @returns {Promise<T>} 查询结果
+ * 处理日历/状态类缓存：直接读缓存分表，不再回退文件
+ * @param {string} fileName - 缓存键（如 holiday_data.json）
+ * @returns {Promise<ToolResult>} 查询结果
+ * @description 数据库不可用或条目缺失时返回明确错误，不再读 .cache 文件
  */
-const withCalendarDb = async <T>(
-  label: string,
-  dbFn: () => Promise<T>,
-  fileFn: () => T,
-): Promise<T> => {
-  try {
-    await syncCalendarCacheIfStale();
-    return await dbFn();
-  } catch (err) {
-    console.warn(`[query_cache] ${label} 查库失败，回退 JSON：`, (err as Error).message);
-    return fileFn();
+const handleCalendarCacheTarget = async (fileName: string): Promise<ToolResult> => {
+  await syncCalendarCacheIfStale();
+  const data = await readCalendarCacheJson(fileName);
+  if (data === null) {
+    return { ok: false, data: `缓存 ${fileName} 不存在或数据库不可用` };
   }
+  return { ok: true, data, summary: '数据来自数据库' };
 };
-
-/** 处理日历/状态类缓存：从 hp_cache_files 镜像读取 */
-const handleCalendarCacheTarget = (target: string, fileName: string): Promise<ToolResult> =>
-  withCalendarDb(target, async () => {
-    const data = await readCalendarCacheJson(fileName);
-    if (data === null) throw new Error(`查询镜像中缺少 ${fileName}`);
-    return { ok: true, data, summary: '数据来自数据库' };
-  }, () => handleSimpleCacheFile(target, fileName));
 
 /** 处理已迁库的 target：直接读数据库，不再读 .cache 下的 JSON 文件 */
 const handleDbCacheTarget = async (target: string): Promise<ToolResult> => {
@@ -163,15 +124,8 @@ const handleDbCacheTarget = async (target: string): Promise<ToolResult> => {
 
 /** 处理 greetings（支持 keyword 过滤 + limit） */
 const handleGreetings = async (keyword: string, limitNum: number): Promise<ToolResult> => {
-  const raw = await (async () => {
-    try {
-      await syncContentLibraryIfStale();
-      return await readGreetingsFromDb();
-    } catch (err) {
-      console.warn('[query_cache] 祝福语查库失败，回退 JSON：', (err as Error).message);
-      return readGreetingItems();
-    }
-  })();
+  await syncContentLibraryIfStale();
+  const raw = await readGreetingsFromDb();
   const filtered = keyword
     ? raw.filter((item) => item.name.toLowerCase().includes(keyword)
       || item.content.toLowerCase().includes(keyword))
@@ -194,59 +148,41 @@ const resolveDailyDate = (dateArg: unknown): string =>
     ? dateArg
     : new Date().toISOString().slice(0, 10));
 
-/** daily_data 的文件降级实现 */
-const handleDailyDataFromFile = (dateArg: unknown): ToolResult => {
+/** 处理 daily_data（支持指定 date，找不到时列出可用文件） */
+const handleDailyData = async (dateArg: unknown): Promise<ToolResult> => {
+  await syncCalendarCacheIfStale();
   const date = resolveDailyDate(dateArg);
-  const data = readDailyData(CACHE_DIR, date);
-  if (!data) {
-    const files = listDailyDataFiles(CACHE_DIR);
+  const data = await readCalendarCacheJson(`daily_data_${date}.json`);
+  if (data === null) {
+    const files = await listDailyDataFilesFromDb();
     return {
       ok: true,
       data: { requested_date: date, found: false, available_files: files },
-      summary: `未找到 ${date} 的每日数据，可用文件共 ${files.length} 个`,
+      summary: `未找到 ${date} 的每日数据，可用文件共 ${files.length} 个（数据来自数据库）`,
     };
   }
   return {
     ok: true,
     data: { date, content: data },
-    summary: `${date} 的每日数据`,
+    summary: `${date} 的每日数据（数据来自数据库）`,
   };
 };
 
-/** 处理 daily_data（支持指定 date，找不到时列出可用文件） */
-const handleDailyData = (dateArg: unknown): Promise<ToolResult> =>
-  withCalendarDb('daily_data', async () => {
-    const date = resolveDailyDate(dateArg);
-    const data = await readCalendarCacheJson(`daily_data_${date}.json`);
-    if (data === null) {
-      const files = await listDailyDataFilesFromDb();
-      return {
-        ok: true,
-        data: { requested_date: date, found: false, available_files: files },
-        summary: `未找到 ${date} 的每日数据，可用文件共 ${files.length} 个（数据来自数据库）`,
-      };
-    }
-    return {
-      ok: true,
-      data: { date, content: data },
-      summary: `${date} 的每日数据（数据来自数据库）`,
-    };
-  }, () => handleDailyDataFromFile(dateArg));
-
-/** api_response 的文件降级实现 */
-const handleApiResponseFromFile = (filenameArg: unknown): ToolResult => {
+/** 处理 api_response（支持列出所有文件或读取指定文件） */
+const handleApiResponse = async (filenameArg: unknown): Promise<ToolResult> => {
+  await syncCalendarCacheIfStale();
   const filename = typeof filenameArg === 'string' ? filenameArg.trim() : '';
+  const files = await listApiResponseFilesFromDb();
   if (!filename) {
-    const files = listApiResponses(CACHE_DIR);
     return {
       ok: true,
       data: { available_files: files, total: files.length },
-      summary: `API 响应缓存共 ${files.length} 个文件，请指定 filename 查看具体内容`,
+      summary: `API 响应缓存共 ${files.length} 个文件，请指定 filename 查看具体内容（数据来自数据库）`,
     };
   }
-  const data = readApiResponse(CACHE_DIR, filename);
-  if (!data) {
-    const files = listApiResponses(CACHE_DIR);
+  const safe = !filename.includes('..') && !filename.includes('/') && !filename.includes('\\');
+  const data = safe ? await readCalendarCacheJson(`api_responses/${filename}`) : null;
+  if (data === null) {
     return {
       ok: false,
       data: `文件 "${filename}" 不存在。可用文件：${files.join('、')}`,
@@ -255,49 +191,22 @@ const handleApiResponseFromFile = (filenameArg: unknown): ToolResult => {
   return {
     ok: true,
     data,
-    summary: `API 响应缓存：${filename}`,
+    summary: `API 响应缓存：${filename}（数据来自数据库）`,
   };
 };
 
-/** 处理 api_response（支持列出所有文件或读取指定文件） */
-const handleApiResponse = (filenameArg: unknown): Promise<ToolResult> =>
-  withCalendarDb('api_response', async () => {
-    const filename = typeof filenameArg === 'string' ? filenameArg.trim() : '';
-    const files = await listApiResponseFilesFromDb();
-    if (!filename) {
-      return {
-        ok: true,
-        data: { available_files: files, total: files.length },
-        summary: `API 响应缓存共 ${files.length} 个文件，请指定 filename 查看具体内容（数据来自数据库）`,
-      };
-    }
-    const safe = !filename.includes('..') && !filename.includes('/') && !filename.includes('\\');
-    const data = safe ? await readCalendarCacheJson(`api_responses/${filename}`) : null;
-    if (data === null) {
-      return {
-        ok: false,
-        data: `文件 "${filename}" 不存在。可用文件：${files.join('、')}`,
-      };
-    }
-    return {
-      ok: true,
-      data,
-      summary: `API 响应缓存：${filename}（数据来自数据库）`,
-    };
-  }, () => handleApiResponseFromFile(filenameArg));
-
 /** target → handler 映射表（消除 if-else 分支） */
 const CACHE_HANDLER_MAP: Record<string, (args: Record<string, unknown>, keyword: string, limitNum: number) => ToolResult | Promise<ToolResult>> = {
-  // 简单 JSON 文件读取（直接从映射表读取）
-  holiday: () => handleCalendarCacheTarget('holiday', SIMPLE_CACHE_FILE_MAP.holiday),
+  // 简单缓存键读取（直接读数据库）
+  holiday: () => handleCalendarCacheTarget(SIMPLE_CACHE_FILE_MAP.holiday),
   permission_metas: () => handleDbCacheTarget('permission_metas'),
   permission_requests: () => handleDbCacheTarget('permission_requests'),
   rbac: () => handleDbCacheTarget('rbac'),
   api_categories: () => handleDbCacheTarget('api_categories'),
   message_templates: () => handleDbCacheTarget('message_templates'),
-  month_config: () => handleCalendarCacheTarget('month_config', SIMPLE_CACHE_FILE_MAP.month_config),
+  month_config: () => handleCalendarCacheTarget(SIMPLE_CACHE_FILE_MAP.month_config),
   users: () => handleDbCacheTarget('users'),
-  daemon_sent_state: () => handleCalendarCacheTarget('daemon_sent_state', SIMPLE_CACHE_FILE_MAP.daemon_sent_state),
+  daemon_sent_state: () => handleCalendarCacheTarget(SIMPLE_CACHE_FILE_MAP.daemon_sent_state),
   // 特殊处理逻辑
   greetings: (_args, keyword, limitNum) => handleGreetings(keyword, limitNum),
   daily_data: (args) => handleDailyData(args.date),
@@ -355,10 +264,14 @@ export const queryCacheTool: ToolImpl = {
     const limitNum = Math.min(Math.max(Number(args.limit) || 20, 1), 200);
     const keyword = typeof args.keyword === 'string' ? args.keyword.toLowerCase() : '';
 
-    // 从映射表获取处理函数并执行
+    // 从映射表获取处理函数并执行；数据库不可用时返回明确错误，不再回退文件
     const handler = CACHE_HANDLER_MAP[target];
     if (handler) {
-      return await handler(args, keyword, limitNum);
+      try {
+        return await handler(args, keyword, limitNum);
+      } catch (err) {
+        return { ok: false, data: `查询缓存失败：${(err as Error).message}` };
+      }
     }
 
     return { ok: false, data: `target="${target}" 未实现` };

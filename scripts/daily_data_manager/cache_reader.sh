@@ -9,7 +9,7 @@
 #   支持类型：weather / history / almanac / horoscope / inspirational_quote
 #
 # 作者：智能提醒系统
-# 更新：2026-03-24
+# 更新：2026-11-28
 # ======================================
 
 # 函数版本：读取指定类型的缓存数据
@@ -18,16 +18,19 @@
 read_cached_data() {
     local data_type="${1:-weather}"
 
-    # 检查缓存文件是否存在
-    if [ ! -f "$CACHE_FILE" ]; then
+    # 检查缓存键是否存在
+    if ! cache_db_exists "$CACHE_KEY"; then
         echo "CACHE_NOT_FOUND"
         return 1
     fi
 
-    # 检查缓存是否过期（超过24小时）
-    local mtime
-    mtime=$(stat -c %Y "$CACHE_FILE" 2>/dev/null || stat -f %m "$CACHE_FILE" 2>/dev/null || echo 0)
-    local cache_age=$(($(date +%s) - mtime))
+    # 检查缓存是否过期（超过24小时）：读取该键已有业务表的更新时间（毫秒）
+    local updated_ms cache_age
+    updated_ms="$(_cache_db_cli mtime "$CACHE_KEY" 2>/dev/null)"
+    case "$updated_ms" in
+        ''|*[!0-9]*) updated_ms=0 ;;
+    esac
+    cache_age=$(( $(date +%s) - updated_ms / 1000 ))
     if [ $cache_age -gt 86400 ]; then
         echo "CACHE_EXPIRED"
         return 1
@@ -37,7 +40,7 @@ read_cached_data() {
     local data=""
     case "$data_type" in
         weather|history|almanac|horoscope|inspirational_quote)
-            data=$(jq -r ".${data_type} // empty" "$CACHE_FILE" 2>/dev/null)
+            data=$(cache_db_read "$CACHE_KEY" | jq -r ".${data_type} // empty" 2>/dev/null)
             ;;
         *)
             echo "INVALID_TYPE"

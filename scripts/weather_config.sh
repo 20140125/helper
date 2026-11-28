@@ -13,7 +13,7 @@
 #
 # 配置来源：
 #   - .env 文件（包含 API密钥等敏感信息）
-#   - webhooks.json（企业微信 Webhook 地址及消息风格）
+#   - webhooks.json 对应的已有业务表（企业微信 Webhook 地址及消息风格）
 #   - 首次使用请复制 web/.env.example 为 web/.env 并填写配置
 #
 # 使用方式：
@@ -30,7 +30,7 @@
 #   ZODIAC_SIGN         - 星座名称
 #
 # 作者：智能提醒系统
-# 更新：2026-03-10
+# 更新：2026-11-28
 # ======================================
 
 # ======================================
@@ -40,6 +40,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 引入项目路径配置（提供 ENV_FILE：web/.env 优先，缺失时回退 scripts/.env）
 source "${SCRIPT_DIR}/project_config.sh"
+# 按需加载缓存数据库通道（webhooks.json 等改用库内条目）
+source "${PROJECT_DIR}/cache_db.sh"
 
 # ======================================
 # 加载 .env 文件
@@ -78,14 +80,14 @@ ZODIAC_SIGN="天秤座"
 # ======================================
 # 从 webhooks.json 读取企业微信 Webhook 地址
 # ======================================
-WEBHOOKS_JSON="${SCRIPT_DIR}/../.cache/webhooks.json"
+WEBHOOKS_KEY='webhooks.json'
 
-# 读取所有 webhook URL 和消息模板风格
-if [ -f "$WEBHOOKS_JSON" ]; then
-    read_result=$(python3 -c "
+# 读取所有 webhook URL 和消息模板风格（JSON 来自缓存数据库，经 stdin 交给 python）
+if cache_db_exists "$WEBHOOKS_KEY"; then
+    read_result=$(cache_db_read "$WEBHOOKS_KEY" | python3 -c "
 import json, sys
 try:
-    hooks = json.load(open('$WEBHOOKS_JSON'))
+    hooks = json.load(sys.stdin)
     urls = [h['url'] for h in hooks if h.get('url')]
     style = hooks[0].get('style', 'default') if hooks else 'default'
     print(style if style else 'default')

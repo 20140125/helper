@@ -1,7 +1,7 @@
 /**
  * 贾维斯运行追踪存储
- * @description 成本 / 延迟 / 工具失败率分析的数据源。原先以 JSONL 追加到
- *   .cache/ai-traces/YYYY-MM.jsonl，现统一写入 hp_ai_run_traces，不再产生缓存文件。
+ * @description 成本 / 延迟 / 工具失败率分析的数据源，统一写入数据库 hp_ai_run_traces 表，
+ *   运行时不再读写 .cache 下的 JSONL 文件。
  */
 
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
@@ -155,7 +155,7 @@ export const listRunTraces = async (query: TraceQuery = {}): Promise<AgentRunTra
  * 清理过期运行追踪
  * @param {number} [keepMonths] - 保留月数（默认 AI_TRACE_KEEP_MONTHS）
  * @returns {Promise<number>} 删除的记录数
- * @description 替代原先「删除 .cache/ai-traces 下的按月文件」，按 started_at 删除库记录
+ * @description 按 started_at 删除数据库 hp_ai_run_traces 中的过期记录
  */
 export const pruneRunTraces = async (
   keepMonths: number = AI_TRACE_KEEP_MONTHS,

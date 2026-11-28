@@ -11,12 +11,12 @@
 #   4. 如该年份数据已存在，则跳过更新
 #
 # 使用方式：
-#   bash scripts/update-tools/generate_holiday_config.sh <年份> <JSON文件路径> [特别假日期]
-#   bash scripts/update-tools/generate_holiday_config.sh 2026 /projects/helper/.cache/holiday_data.json
-#   bash scripts/update-tools/generate_holiday_config.sh 2026 /projects/helper/.cache/holiday_data.json "2026-01-25,2026-01-26"
+#   bash scripts/update-tools/generate_holiday_config.sh <年份> [缓存 key] [特别假日期]
+#   bash scripts/update-tools/generate_holiday_config.sh 2026 holiday_data.json
+#   bash scripts/update-tools/generate_holiday_config.sh 2026 holiday_data.json "2026-01-25,2026-01-26"
 #
 # 作者：智能提醒系统
-# 更新：2026-03-10
+# 更新：2026-11-28
 # ======================================
 
 # 获取脚本所在目录的绝对路径
@@ -25,6 +25,9 @@ _SELF_DIR="$SCRIPT_DIR"
 
 # 加载项目路径配置
 source "${SCRIPT_DIR}/../project_config.sh"
+
+# 缓存数据库通道（放在 project_config.sh 之后）
+source "${PROJECT_DIR}/cache_db.sh"
 
 # 加载统一配置（包含 WECOM_WEBHOOK 等环境变量）
 source "${PROJECT_DIR}/weather_config.sh" 2>/dev/null
@@ -38,33 +41,33 @@ fi
 source "${PROJECT_DIR}/log_utils.sh"
 # 参数：
 #   $1 - 年份
-#   $2 - JSON文件路径
+#   $2 - 缓存 key（默认 holiday_data.json）
 #   $3 - 特别假日期（可选，逗号分隔）；不传则自动识别春节前调休日
 # 返回：
 #   成功：返回0
 #   失败：返回1
 generate_company_holiday_config() {
     local year="$1"
-    local json_file="$2"
+    local cache_key="${2:-holiday_data.json}"
     local custom_dates="$3"  # 可选：用户指定的日期，逗号分隔
     local config_file="${PROJECT_DIR}/holiday_config.sh"
 
-    # 从 JSON文件读取节假日数据
-    if [ ! -f "$json_file" ]; then
-        log_error "数据文件不存在: $json_file"
+    # 从缓存库读取节假日数据（KV，运行时不落盘）
+    if ! cache_db_exists "${cache_key}"; then
+        log_error "缓存条目不存在: ${cache_key}"
         return 1
     fi
 
     log_info "📝 生成 ${year} 年公司节假日配置..."
 
     # 使用 Python 解析 JSON 数据，同时输出 after 字段用于自动识别
+    # 缓存全文走 stdin，避免把大 JSON 拼进命令行参数
     local python_script='
 import json
 import sys
 
 try:
-    with open("'"$json_file"'", "r", encoding="utf-8") as f:
-        data = json.load(f)
+    data = json.loads(sys.stdin.read())
 
     if "holiday" in data:
         for key, info in data["holiday"].items():
@@ -86,9 +89,8 @@ except Exception as e:
     sys.exit(1)
 '
 
-    local parse_result=$(python3 -c "$python_script" 2>&1)
-
-    if [ $? -ne 0 ]; then
+    local parse_result
+    if ! parse_result=$(cache_db_read "${cache_key}" | python3 -c "$python_script" 2>&1); then
         log_error "JSON 解析失败: $parse_result"
         return 1
     fi
@@ -375,14 +377,14 @@ PYEOF
 # 主函数：处理命令行参数
 main() {
     if [ $# -lt 2 ]; then
-        log_error "用法: $0 <年份> <JSON文件路径> [指定特别假日期（逗号分隔）]"
-        log_info "示例: $0 2026 ${CACHE_DIR}/holiday_data.json          # 自动识别春节前调休日"
-        log_info "示例: $0 2026 ${CACHE_DIR}/holiday_data.json 2026-01-31  # 使用指定日期"
+        log_error "用法: $0 <年份> <缓存 key> [指定特别假日期（逗号分隔）]"
+        log_info "示例: $0 2026 holiday_data.json          # 自动识别春节前调休日"
+        log_info "示例: $0 2026 holiday_data.json 2026-01-31  # 使用指定日期"
         exit 1
     fi
 
     local year="$1"
-    local json_file="$2"
+    local cache_key="$2"
     local custom_dates="${3:-}"
     
     log_info "======================================"
@@ -392,7 +394,7 @@ main() {
     log_info "======================================"
 
     # 调用生成配置函数
-    if generate_company_holiday_config "$year" "$json_file" "$custom_dates"; then
+    if generate_company_holiday_config "$year" "$cache_key" "$custom_dates"; then
         log_success "脚本执行完成"
         log_info "======================================"
         exit 0

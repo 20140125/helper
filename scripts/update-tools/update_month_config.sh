@@ -5,18 +5,18 @@
 # ======================================
 #
 # 功能说明：
-#   1. 生成月份配置JSON文件，包含月份名称和天数
+#   1. 生成月份配置JSON，包含月份名称和天数
 #   2. 动态计算闰年2月天数（28天或29天）
-#   3. 数据保存到 .cache/month_config.json
+#   3. 数据写入 month_config.json 对应的已有业务表（KV，运行时不落盘）
 #   4. 支持中英文月份名称和描述信息
 #
 # 使用方式：
-#   bash scripts/update-tools/update_month_config.sh <年份> [JSON文件路径]
+#   bash scripts/update-tools/update_month_config.sh <年份> [缓存 key]
 #   bash scripts/update-tools/update_month_config.sh 2026
-#   bash scripts/update-tools/update_month_config.sh 2026 /projects/helper/.cache/month_config.json
+#   bash scripts/update-tools/update_month_config.sh 2026 month_config.json
 #
 # 作者：智能提醒系统
-# 更新：2026-03-10
+# 更新：2026-11-28
 # ======================================
 
 # 获取脚本所在目录的绝对路径
@@ -25,6 +25,9 @@ _SELF_DIR="$SCRIPT_DIR"
 
 # 加载项目路径配置
 source "${SCRIPT_DIR}/../project_config.sh"
+
+# 缓存数据库通道（放在 project_config.sh 之后）
+source "${PROJECT_DIR}/cache_db.sh"
 
 # 加载统一配置（包含环境变量）
 source "${PROJECT_DIR}/weather_config.sh" 2>/dev/null
@@ -38,16 +41,16 @@ fi
 source "${PROJECT_DIR}/log_utils.sh"
 # 参数：
 #   $1 - 年份
-#   $2 - JSON文件路径（可选，默认：./.cache/month_config.json）
+#   $2 - 缓存 key（可选，默认：month_config.json）
 # 返回：
 #   成功：返回0
 #   失败：返回1
 update_month_config() {
     local year="$1"
-    local json_file="${2:-${CACHE_DIR}/month_config.json}"
-    
+    local cache_key="${2:-month_config.json}"
+
     log_info "📅 生成 ${year} 年月份配置..."
-    
+
     # 判断是否为闰年
     is_leap_year() {
         local year=$1
@@ -57,7 +60,7 @@ update_month_config() {
             echo "false"
         fi
     }
-    
+
     # 判断当前年份是否为闰年
     local leap_year_status=$(is_leap_year "$year")
     if [ "$leap_year_status" = "true" ]; then
@@ -67,12 +70,10 @@ update_month_config() {
         log_info "📊 ${year} 年是平年，2月有28天"
         local feb_days=28
     fi
-    
-    # 确保目录存在
-    mkdir -p "$(dirname "$json_file")"
-    
-    # 生成月份配置JSON
-    cat > "$json_file" << EOF
+
+    # 生成月份配置 JSON（内容不变，只是不再落盘）
+    local month_json
+    month_json="$(cat << EOF
 {
   "months": {
     "01": {
@@ -159,12 +160,13 @@ update_month_config() {
   }
 }
 EOF
-    
-    # 验证配置文件是否创建成功
-    if [ -f "$json_file" ]; then
-        log_success "月份配置文件生成成功"
-        log_info "📁 已保存到: $json_file"
-        
+)"
+
+    # 写入缓存库并校验结果
+    if cache_db_write "${cache_key}" "${month_json}"; then
+        log_success "月份配置生成成功"
+        log_info "📁 已保存到: ${cache_key}"
+
         # 显示配置摘要
         log_info "=== 月份配置摘要 ==="
         log_info "年份: $year"
@@ -172,10 +174,10 @@ EOF
         log_info "2月天数: $feb_days"
         log_info "更新时间: $(date)"
         log_info "======================================"
-        
+
         return 0
     else
-        log_error "月份配置文件创建失败"
+        log_error "月份配置写入失败"
         return 1
     fi
 }
@@ -183,14 +185,14 @@ EOF
 # 主函数：处理命令行参数
 main() {
     if [ $# -lt 1 ]; then
-        log_error "用法: $0 <年份> [JSON文件路径]"
+        log_error "用法: $0 <年份> [缓存 key]"
         log_info "示例: $0 2026"
-        log_info "示例: $0 2026 ${CACHE_DIR}/month_config.json"
+        log_info "示例: $0 2026 month_config.json"
         exit 1
     fi
-    
+
     local year="$1"
-    local json_file="$2"
+    local cache_key="${2:-}"
 
     log_info "======================================"
     log_info "🚀 月份配置更新脚本启动"
@@ -199,7 +201,7 @@ main() {
     log_info "======================================"
 
     # 调用更新配置函数
-    if update_month_config "$year" "$json_file"; then
+    if update_month_config "$year" "$cache_key"; then
         log_success "脚本执行完成"
         log_info "======================================"
         exit 0

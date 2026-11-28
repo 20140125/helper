@@ -144,7 +144,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { MessagePlugin } from 'tdesign-vue-next';
 import AutoForm from '@/components/auto-form/index.vue';
 import { createAiModelEntry, formatRemoteModelMeta, isAiModelIdValid } from '@/utils/ai-model-config';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import type { AutoFormField } from '@/types/auto-form';
 import type { AiModelEntry, AiModelEntryTestResult, RemoteModelOption } from '@/types/ai-model-config';
 

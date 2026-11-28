@@ -20,8 +20,22 @@
 #   （read_rule_data_full 额外输出 RULE_ENABLED）
 #
 # 作者：智能提醒系统
-# 更新：2026-03-24
+# 更新：2026-11-28
 # ======================================
+
+# ======================================
+# 缓存数据库通道：主脚本已加载时复用；守护进程独立 source 本文件时按需补齐
+# ======================================
+if ! declare -F cache_db_read >/dev/null 2>&1; then
+    _RULE_READER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    if [ -z "${PROJECT_DIR:-}" ]; then
+        source "${_RULE_READER_DIR}/project_config.sh"
+    fi
+    source "${PROJECT_DIR}/cache_db.sh"
+fi
+
+# 规则数据的缓存键（不再依赖外部 RULES_FILE 路径）
+_RULES_KEY='custom_rules.json'
 
 # ======================================
 # 读取单条规则数据
@@ -33,10 +47,10 @@
 read_rule_data() {
     local rule_id="$1"
     local rule_data
-    rule_data=$(python3 -c "
-import json, sys, base64
-rules = json.load(open('$RULES_FILE'))
-r = next((x for x in rules if x['id']=='$rule_id'), None)
+    rule_data=$(cache_db_read "$_RULES_KEY" | RULE_ID="$rule_id" python3 -c "
+import json, sys, base64, os
+rules = json.load(sys.stdin)
+r = next((x for x in rules if x['id']==os.environ.get('RULE_ID','')), None)
 if not r:
     sys.exit(1)
 # 每行输出 base64 编码后的字段值，绕开 message 含换行符导致的错位问题
@@ -83,10 +97,10 @@ for f in fields:
 read_rule_data_full() {
     local rule_id="$1"
     local rule_data
-    rule_data=$(python3 -c "
-import json, sys, base64
-rules = json.load(open('$RULES_FILE'))
-r = next((x for x in rules if x['id']=='$rule_id'), None)
+    rule_data=$(cache_db_read "$_RULES_KEY" | RULE_ID="$rule_id" python3 -c "
+import json, sys, base64, os
+rules = json.load(sys.stdin)
+r = next((x for x in rules if x['id']==os.environ.get('RULE_ID','')), None)
 if not r:
     sys.exit(1)
 # 每行输出 base64 编码后的字段值，绕开 message 含换行符导致的错位问题
@@ -142,7 +156,7 @@ is_duplicate_trigger() {
     current_minute=$(date '+%Y-%m-%dT%H:%M')
 
     local last_triggered
-    last_triggered=$(python3 -c "import json; r=next((x for x in json.load(open('$RULES_FILE')) if x['id']=='$rule_id'), None); print(r.get('lastTriggeredAt','') if r else '')" 2>/dev/null)
+    last_triggered=$(cache_db_read "$_RULES_KEY" | RULE_ID="$rule_id" python3 -c "import json,sys,os; r=next((x for x in json.load(sys.stdin) if x['id']==os.environ.get('RULE_ID','')), None); print(r.get('lastTriggeredAt','') if r else '')" 2>/dev/null)
 
     local last_triggered_minute
     last_triggered_minute=$(echo "$last_triggered" | cut -c1-16)
@@ -170,17 +184,19 @@ update_last_triggered_at() {
     local current_datetime
     current_datetime=$(date '+%Y-%m-%dT%H:%M:%S')
 
-    python3 -c "
-import json
-with open('$RULES_FILE', 'r', encoding='utf-8') as f:
-    rules = json.load(f)
+    # 读库 → 改字段 → 写库（不再落盘）
+    local updated
+    updated=$(cache_db_read "$_RULES_KEY" | RULE_ID="$rule_id" TRIGGER_AT="$current_datetime" python3 -c "
+import json, os, sys
+rules = json.load(sys.stdin)
 for r in rules:
-    if r['id'] == '$rule_id':
-        r['lastTriggeredAt'] = '$current_datetime'
+    if r['id'] == os.environ.get('RULE_ID',''):
+        r['lastTriggeredAt'] = os.environ.get('TRIGGER_AT','')
         break
-with open('$RULES_FILE', 'w', encoding='utf-8') as f:
-    json.dump(rules, f, ensure_ascii=False, indent=2)
-" 2>/dev/null
+print(json.dumps(rules, ensure_ascii=False, indent=2))
+" 2>/dev/null) || return 1
+    [ -n "$updated" ] || return 1
+    printf '%s' "$updated" | cache_db_write "$_RULES_KEY"
 }
 
 # ======================================
@@ -190,10 +206,10 @@ with open('$RULES_FILE', 'w', encoding='utf-8') as f:
 # 返回：每行一个规则 ID（stdout）
 
 get_enabled_rule_ids() {
-    python3 -c "
-import json
+    cache_db_read "$_RULES_KEY" | python3 -c "
+import json, sys
 try:
-    rules = json.load(open('$RULES_FILE'))
+    rules = json.load(sys.stdin)
     for r in rules:
         if r.get('enabled', False):
             print(r['id'])
@@ -209,10 +225,10 @@ except Exception:
 # 返回：数量（stdout）
 
 get_enabled_rule_count() {
-    python3 -c "
-import json
+    cache_db_read "$_RULES_KEY" | python3 -c "
+import json, sys
 try:
-    rules = json.load(open('$RULES_FILE'))
+    rules = json.load(sys.stdin)
     print(len([r for r in rules if r.get('enabled', False)]))
 except Exception:
     print(0)
@@ -227,13 +243,13 @@ except Exception:
 
 get_rule_name_by_id() {
     local rule_id="$1"
-    python3 -c "
-import json
+    cache_db_read "$_RULES_KEY" | RULE_ID="$rule_id" python3 -c "
+import json, os, sys
 try:
-    r = next((x for x in json.load(open('$RULES_FILE')) if x['id']=='$rule_id'), None)
-    print(r['name'] if r else '$rule_id')
+    r = next((x for x in json.load(sys.stdin) if x['id']==os.environ.get('RULE_ID','')), None)
+    print(r['name'] if r else os.environ.get('RULE_ID',''))
 except Exception:
-    print('$rule_id')
+    print(os.environ.get('RULE_ID',''))
 " 2>/dev/null
 }
 
@@ -248,12 +264,12 @@ except Exception:
 get_matching_rule_ids() {
     local now_minutes="$1"
     local current_date="$2"
-    python3 -c "
-import json
+    cache_db_read "$_RULES_KEY" | NOW_MINUTES="$now_minutes" CURRENT_DATE="$current_date" python3 -c "
+import json, os, sys
 from datetime import datetime
 try:
-    rules = json.load(open('$RULES_FILE'))
-    now_min = $now_minutes
+    rules = json.load(sys.stdin)
+    now_min = int(os.environ.get('NOW_MINUTES', '0'))
     for r in rules:
         last = r.get('lastTriggeredAt', '')
         last_date = ''
@@ -263,7 +279,7 @@ try:
             except Exception:
                 pass
         t = r.get('time', '')
-        if t and r.get('enabled', False) and last_date != '$current_date':
+        if t and r.get('enabled', False) and last_date != os.environ.get('CURRENT_DATE', ''):
             parts = t.split(':')
             target_min = int(parts[0]) * 60 + int(parts[1])
             if now_min >= target_min and now_min <= target_min + 2:

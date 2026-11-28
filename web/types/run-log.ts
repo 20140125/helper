@@ -58,6 +58,42 @@ export interface RunLogRow {
   pid: number | null;
 }
 
+/** 运行日志分页查询条件 */
+export interface RunLogQuery {
+  /** 页码，从 1 开始 */
+  page: number;
+  /** 每页条数 */
+  pageSize: number;
+  /** 来源标识（为空表示全部） */
+  source?: string;
+  /** 来源类型（为空表示全部） */
+  sourceType?: string;
+  /** 级别（为空表示全部） */
+  level?: string;
+  /** 正文关键词（为空表示不过滤） */
+  keyword?: string;
+}
+
+/** 运行日志分页查询结果 */
+export interface RunLogPage {
+  /** 当前页记录（按 id 倒序） */
+  items: RunLogRow[];
+  /** 符合筛选条件的总记录数 */
+  total: number;
+  /** 当前页码 */
+  page: number;
+  /** 每页条数 */
+  pageSize: number;
+}
+
+/** 单条日志详情（在列表字段基础上补充链路与用户信息） */
+export interface RunLogDetail extends RunLogRow {
+  /** 链路 ID */
+  trace_id: string | null;
+  /** 关联用户 */
+  user: string | null;
+}
+
 /** 按来源聚合出的统计信息 */
 export interface RunLogSourceStat {
   /** 来源标识 */

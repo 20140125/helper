@@ -36,7 +36,7 @@
 import FormDrawer from '@/components/common/form-drawer.vue';
 import AutoForm from '@/components/auto-form/index.vue';
 import PermissionChecker from '@/components/rbac/permission-checker.vue';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import type { AutoFormField } from '@/types/auto-form';
 import type { PermissionGroup } from '@/types/rbac';
 import { FormMode } from '@/constants/form';

@@ -101,7 +101,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { FormInstanceFunctions, FormRules } from 'tdesign-vue-next';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 defineProps<{
   /** i18n 翻译函数（由父组件通过 LocaleStore.t 传入，响应式） */

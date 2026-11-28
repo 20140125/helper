@@ -105,7 +105,7 @@ export const querySystemStatusTool: ToolImpl = {
           pid: annualPid,
         },
       },
-      cache_files: countCacheFiles(CACHE_DIR),
+      cache_files: await countCacheFiles(CACHE_DIR),
     };
 
     return {

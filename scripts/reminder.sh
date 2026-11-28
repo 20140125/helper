@@ -23,7 +23,7 @@
 #
 # 关键字来源：
 #   1) 静态映射表 KEYWORD_MAP：7 个提醒脚本的预设关键字（中英文、简写等）
-#   2) 动态关键字：实时读取 .cache/custom_rules.json，把每条 enabled=true 规则的 name
+#   2) 动态关键字：实时读取 custom_rules.json 对应的已有业务表，把每条 enabled=true 规则的 name
 #      作为关键字，映射到 custom_rules.sh test <ruleId>（忽略触发条件直接发送一次）
 #      - 动态关键字优先级高于静态的 "自定义规则/规则/custom"（它们仍保留，用于 run_all_enabled）
 #      - 动态关键字不会覆盖其他 6 个脚本的静态关键字（防止规则命名为"周报"造成路由错乱）
@@ -50,12 +50,16 @@
 #   - reminder/runner.sh       run_builtin / run_child_script
 #
 # 作者：智能提醒系统
-# 更新：2026-04-30
+# 更新：2026-11-28
 # ======================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-CUSTOM_RULES_JSON="${PROJECT_DIR}/.cache/custom_rules.json"
+source "${SCRIPT_DIR}/project_config.sh"
+# 按需加载缓存数据库通道（动态规则关键字改从库内读取）
+source "${PROJECT_DIR}/cache_db.sh"
+
+# 动态规则数据的缓存键
+CUSTOM_RULES_KEY='custom_rules.json'
 
 # 接入统一日志体系：stderr 彩色输出 + reminder.log 落盘，便于排查关键字路由异常
 # 与 scripts/tools/card.sh 保持一致的日志风格

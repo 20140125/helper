@@ -156,7 +156,7 @@ async function* streamOneIteration(
   let usage: UsageInfo | undefined;
 
   // 检查模型是否支持流式调用
-  const streamable = isModelStreamable(model ?? '');
+  const streamable = await isModelStreamable(model ?? '');
 
   try {
     if (streamable) {
@@ -379,7 +379,7 @@ const executeToolCallOnce = async (
     }
     // 防重：同工具 + 同参数的待审批单已存在时直接复用（用户没看到回复就重试是重复单的主要来源）
     const argsJson = JSON.stringify(approvalArgs);
-    const duplicate = listApprovals().find(
+    const duplicate = (await listApprovals()).find(
       (a) => a.status === 'pending' && a.tool === tc.function.name && JSON.stringify(a.args ?? {}) === argsJson,
     );
     if (duplicate) {
@@ -411,7 +411,7 @@ const executeToolCallOnce = async (
     }
 
     const rawReason = typeof parsedArgs.reason === 'string' ? parsedArgs.reason.trim() : '';
-    const approval = createApproval({
+    const approval = await createApproval({
       user: context.userEmail,
       conversationId: context.conversationId ?? '',
       tool: tc.function.name,
@@ -584,15 +584,15 @@ interface TraceDraft {
 /**
  * 创建 Trace 草稿
  * @param {RunAgentLoopInput} input - Agent Loop 输入
- * @returns {TraceDraft} 初始草稿
+ * @returns {Promise<TraceDraft>} 初始草稿
  */
-const createTraceDraft = (input: RunAgentLoopInput): TraceDraft => ({
+const createTraceDraft = async (input: RunAgentLoopInput): Promise<TraceDraft> => ({
   runId: `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
   user: input.context.userEmail,
   conversationId: input.conversationId ?? '',
   // 归因兜底：调用方没指定模型时（巡检、子 Agent 等）记实际生效的默认模型，
   // 否则成本看板会出现「未知模型」空桶
-  model: input.model ?? getLlmConfigForModel(input.model).model,
+  model: input.model ?? (await getLlmConfigForModel(input.model)).model,
   startedAt: Date.now(),
   iterations: 0,
   promptTokens: 0,
@@ -608,9 +608,9 @@ const createTraceDraft = (input: RunAgentLoopInput): TraceDraft => ({
 /**
  * 把 Trace 草稿收尾为落盘结构
  * @param {TraceDraft} draft - 草稿
- * @returns {AgentRunTrace} 完整运行追踪
+ * @returns {Promise<AgentRunTrace>} 完整运行追踪
  */
-const finalizeTrace = (draft: TraceDraft): AgentRunTrace => {
+const finalizeTrace = async (draft: TraceDraft): Promise<AgentRunTrace> => {
   const endedAt = Date.now();
   return {
     run_id: draft.runId,
@@ -628,7 +628,7 @@ const finalizeTrace = (draft: TraceDraft): AgentRunTrace => {
     tool_failures: draft.toolFailures,
     planning_enabled: draft.planningEnabled,
     reflections: draft.reflections,
-    cost_cny: estimateCost(draft.model, draft.promptTokens, draft.completionTokens),
+    cost_cny: await estimateCost(draft.model, draft.promptTokens, draft.completionTokens),
     error: draft.error,
     steps: draft.steps,
   };
@@ -654,9 +654,9 @@ async function* runLoopBody(
   context.createdApprovalIds ??= [];
   // 会话 ID 注入上下文：建审批单时带上，审批出结果后据此把结果回写到本条对话
   context.conversationId ??= input.conversationId ?? '';
-  const discardPendingApprovals = () => {
+  const discardPendingApprovals = async () => {
     if (context.createdApprovalIds && context.createdApprovalIds.length > 0) {
-      cancelPendingApprovals(
+      await cancelPendingApprovals(
         context.createdApprovalIds,
         '本轮 AI 回复未成功送达（限流/异常/中止），审批单已自动作废，请重新发起',
       );
@@ -694,7 +694,7 @@ async function* runLoopBody(
     if (signal?.aborted) {
       draft.error = '会话已被终止';
       yield { type: 'error', message: draft.error };
-      discardPendingApprovals();
+      await discardPendingApprovals();
       return;
     }
     draft.iterations += 1;
@@ -703,7 +703,7 @@ async function* runLoopBody(
     if (!streamResult) {
       // 客户端 abort 或上游错误，事件已 yield，直接结束。
       // 本轮已建的审批单一并作废：用户没看到任何回复，留着只会诱导重复申请。
-      discardPendingApprovals();
+      await discardPendingApprovals();
       return;
     }
 
@@ -837,19 +837,19 @@ async function* runLoopBody(
  *   都会在最后 yield 一条 run_trace 事件，保证每次运行都留下可观测记录（成本/延迟/失败率）。
  */
 export async function* runAgentLoop(input: RunAgentLoopInput): AsyncGenerator<AgentEvent> {
-  const draft = createTraceDraft(input);
+  const draft = await createTraceDraft(input);
   try {
     yield* runLoopBody(input, draft);
   } catch (err) {
     draft.error = (err as Error).message;
     yield { type: 'error', message: draft.error };
     if (input.context.createdApprovalIds?.length) {
-      cancelPendingApprovals(
+      await cancelPendingApprovals(
         input.context.createdApprovalIds,
         `本轮 AI 回复异常中断（${draft.error}），审批单已自动作废，请重新发起`,
       );
     }
   } finally {
-    yield { type: 'run_trace', trace: finalizeTrace(draft) };
+    yield { type: 'run_trace', trace: await finalizeTrace(draft) };
   }
 }

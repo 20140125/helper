@@ -119,7 +119,7 @@ import CardPanel from '@/components/common/card-panel.vue';
 import SideListItem from '@/components/common/side-list-item.vue';
 import SqlEditor from '@/components/common/sql-editor.vue';
 import { DATABASE_PREVIEW_LIMIT } from '@/constants/database';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import type {
   DatabaseTable,
   DatabaseTableSchema,

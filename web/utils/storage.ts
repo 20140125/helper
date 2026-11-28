@@ -1,85 +1,35 @@
-import fs from 'fs';
 import type { RowDataPacket } from 'mysql2';
-import { Rule, RULES_FILE } from '@/types/rule';
-import { Webhook, WEBHOOKS_FILE } from '@/types/webhook';
-import { CACHE_DIR } from './paths';
+import { Rule } from '@/types/rule';
+import { Webhook } from '@/types/webhook';
 import { formatDate } from './script';
 import { getPool } from '@/utils/database/connection';
 import { toDateText, normalizeDbDateTime } from '@/utils/database/datetime';
-import { syncShellWritersIfStale, readShellCacheJson } from '@/utils/database/shell-writers';
+import { readCacheJson, writeCacheJson } from '@/utils/database/cache-store';
 
-/**
- * 读取自定义规则 JSON 快照（数据库不可用时的降级数据）
- * @returns {Rule[]} 规则列表
- */
-const readLegacyRules = (): Rule[] => {
-  if (!fs.existsSync(RULES_FILE)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(RULES_FILE, 'utf-8')) as Rule[];
-  } catch {
-    return [];
-  }
-};
+/** 自定义规则缓存键（真源为 已有业务表） */
+const RULES_KEY = 'custom_rules.json';
+
+/** Webhook JSON 镜像缓存键（供 shell 脚本读取） */
+const WEBHOOKS_KEY = 'webhooks.json';
 
 /**
  * 读取自定义规则列表
- * @returns {Promise<Rule[]>} 规则列表
- * @description 优先读数据库查询镜像；文件写入后按 mtime 自动同步，失败时降级读文件
+ * @returns {Promise<Rule[]>} 规则列表；缓存不存在时返回空数组
+ * @description 直接读取缓存 KV，不再降级读磁盘文件
  */
 export const readRules = async (): Promise<Rule[]> => {
-  try {
-    await syncShellWritersIfStale();
-    const rules = await readShellCacheJson<Rule[]>('custom_rules.json');
-    if (Array.isArray(rules)) return rules;
-    throw new Error('查询镜像里的规则格式异常');
-  } catch (err) {
-    console.warn('[storage] 读取规则镜像失败，回退 JSON：', (err as Error).message);
-    return readLegacyRules();
-  }
+  const rules = await readCacheJson<Rule[]>(RULES_KEY);
+  return Array.isArray(rules) ? rules : [];
 };
 
 /**
  * 写入自定义规则列表
  * @param {Rule[]} rules - 规则列表
+ * @returns {Promise<void>}
+ * @description 通过缓存 KV 全量覆盖，序列化格式与旧版一致（2 空格缩进）
  */
-export const writeRules = (rules: Rule[]): void => {
-  if (!fs.existsSync(CACHE_DIR)) {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
-  }
-  fs.writeFileSync(RULES_FILE, JSON.stringify(rules, null, 2), 'utf-8');
-};
-
-/**
- * 读取 Webhook JSON 快照（兼容旧版驼峰字段，数据库不可用时的降级数据）
- * @returns {Webhook[]} Webhook 列表
- */
-const readLegacyWebhooks = (): Webhook[] => {
-  if (!fs.existsSync(WEBHOOKS_FILE)) return [];
-  try {
-    const raw = JSON.parse(fs.readFileSync(WEBHOOKS_FILE, 'utf-8')) as Record<string, unknown>[];
-    return raw.map((item) => ({
-      id: (item.id as string) ?? '',
-      name: (item.name as string) ?? '',
-      url: (item.url as string) ?? '',
-      style: (item.style as string) ?? '',
-      created_at: (item.created_at as string) ?? (item.createdAt as string) ?? '',
-      updated_at: (item.updated_at as string) ?? (item.updatedAt as string) ?? '',
-    }));
-  } catch {
-    return [];
-  }
-};
-
-/**
- * 写入 Webhook JSON 快照
- * @param {Webhook[]} webhooks - Webhook 列表
- * @description shell 脚本只读这份文件，因此无论数据库写入是否成功都要同步镜像
- */
-const writeLegacyWebhooks = (webhooks: Webhook[]): void => {
-  if (!fs.existsSync(CACHE_DIR)) {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
-  }
-  fs.writeFileSync(WEBHOOKS_FILE, JSON.stringify(webhooks, null, 2), 'utf-8');
+export const writeRules = async (rules: Rule[]): Promise<void> => {
+  await writeCacheJson(RULES_KEY, rules);
 };
 
 /**
@@ -140,28 +90,31 @@ const writeWebhooksToDb = async (webhooks: Webhook[]): Promise<void> => {
 /**
  * 读取 Webhook 列表
  * @returns {Promise<Webhook[]>} Webhook 列表
- * @description 优先查库；数据库不可用时降级读取本地 JSON 快照
+ * @description 直接查库；数据库异常由路由层捕获并转成 500
  */
-export const readWebhooks = async (): Promise<Webhook[]> => {
-  try {
-    return await readWebhooksFromDb();
-  } catch (err) {
-    console.warn('[storage] 读取 hp_webhooks 失败，回退 JSON：', (err as Error).message);
-    return readLegacyWebhooks();
-  }
+export const readWebhooks = async (): Promise<Webhook[]> => readWebhooksFromDb();
+
+/**
+ * 写入 Webhook JSON 镜像（缓存 KV）
+ * @param {Webhook[]} webhooks - Webhook 列表
+ * @returns {Promise<void>}
+ * @description shell 脚本只读这份 KV，因此无论数据库写入是否成功都要同步镜像；不再写磁盘
+ */
+const writeLegacyWebhooks = async (webhooks: Webhook[]): Promise<void> => {
+  await writeCacheJson(WEBHOOKS_KEY, webhooks);
 };
 
 /**
  * 写入 Webhook 列表
  * @param {Webhook[]} webhooks - Webhook 列表
  * @returns {Promise<void>}
- * @description 库为查询真源；同时保留 JSON 镜像给 shell 脚本读取，写库失败时镜像仍可用
+ * @description 库为查询真源；写库无论成败都同步写一份 KV 镜像供 shell 读取
  */
 export const writeWebhooks = async (webhooks: Webhook[]): Promise<void> => {
   try {
     await writeWebhooksToDb(webhooks);
   } catch (err) {
-    console.warn('[storage] 写入 hp_webhooks 失败，仅保留 JSON 镜像：', (err as Error).message);
+    console.warn('[storage] 写入 hp_webhooks 失败，仍同步 KV 镜像：', (err as Error).message);
   }
-  writeLegacyWebhooks(webhooks);
+  await writeLegacyWebhooks(webhooks);
 };

@@ -5,13 +5,13 @@
 #
 # 职责：
 #   - 关键字归一化（lower-case、去空格、去 /、去 -）
-#   - 动态读取 .cache/custom_rules.json 中 enabled=true 的规则 name 作为关键字
+#   - 动态读取 custom_rules.json 对应的已有业务表 中 enabled=true 的规则 name 作为关键字
 #   - 判断某归一化关键字是否已被静态表占用（防止规则命名撞名 "周报" 等）
 #   - 按关键字查找对应脚本及默认参数
 #
 # 依赖（由主脚本提供）：
 #   - KEYWORD_MAP          （数组）
-#   - CUSTOM_RULES_JSON    （路径）
+#   - CUSTOM_RULES_KEY     （缓存键）
 #   - log_warn             （函数，可降级）
 #
 # 环境变量：
@@ -26,14 +26,14 @@ normalize_keyword() {
 }
 
 # 读取 custom_rules.json 中所有 enabled=true 的规则，输出 "<归一化name>\t<id>\t<原始name>"
-# 静默降级：文件不存在 / jq 不可用时，输出空（不会报错，退化为"只有静态关键字"）
+# 静默降级：缓存键不存在 / 数据库不可用 / jq 不可用时，输出空（不会报错，退化为"只有静态关键字"）
 # 注意：本函数可能被 lookup_script 频繁调用（每次关键字路由都会走一次），因此
 #   日志只记录"异常降级"和"首次读取"，避免刷屏。首次读取的统计由调用方打印。
 read_custom_rule_entries() {
-    if [[ ! -f "$CUSTOM_RULES_JSON" ]]; then
+    if ! cache_db_exists "$CUSTOM_RULES_KEY"; then
         # 仅在明确需要动态规则的调用链里（REMINDER_LOG_RULE_SOURCE=1）打 warn，默认静默
         [[ "${REMINDER_LOG_RULE_SOURCE:-0}" == "1" ]] && \
-            log_warn "custom_rules.json 不存在：$CUSTOM_RULES_JSON（动态关键字将为空）"
+            log_warn "custom_rules.json 不存在：$CUSTOM_RULES_KEY（动态关键字将为空）"
         return 0
     fi
     if ! command -v jq >/dev/null 2>&1; then
@@ -41,7 +41,7 @@ read_custom_rule_entries() {
             log_warn "jq 不可用，跳过 custom_rules.json 解析（动态关键字将为空）"
         return 0
     fi
-    jq -r '.[] | select(.enabled == true) | [.name, .id] | @tsv' "$CUSTOM_RULES_JSON" 2>/dev/null \
+    cache_db_read "$CUSTOM_RULES_KEY" | jq -r '.[] | select(.enabled == true) | [.name, .id] | @tsv' 2>/dev/null \
         | while IFS=$'\t' read -r name id; do
             [[ -n "$name" && -n "$id" ]] || continue
             local norm

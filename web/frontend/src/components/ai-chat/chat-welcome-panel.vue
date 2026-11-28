@@ -85,7 +85,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import type { ChatConversationSummary } from '@/types/ai-chat';
 import { formatWelcomeRelativeTime } from '@/utils/ai-chat';
 

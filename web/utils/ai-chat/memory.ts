@@ -7,7 +7,7 @@ import { extractJsonObject } from './planning';
 /**
  * 长期记忆的抽取与沉淀
  * @description 每轮对话结束后（异步、不阻塞响应）让模型自己判断「有什么值得长期记住」，
- *   抽出来的事实写进 .cache/ai-memory/<user>.json，下一轮注入 system prompt。
+ *   抽出来的事实写进 已有业务表 的 ai-memory/<user>.json，下一轮注入 system prompt。
  *   之所以用 LLM 而不是关键词规则：值得记的东西五花八门（偏好、环境、约定），规则写不全；
  *   之所以限制条数与开关：抽取要花一次额外的 LLM 调用，必须有成本闸门。
  */
@@ -15,11 +15,11 @@ import { extractJsonObject } from './planning';
 /**
  * 当前模型对应配置组的记忆功能是否启用
  * @param {string} [model] - 当前对话使用的模型 ID
- * @returns {boolean} 该模型所属配置组的开关；未命中配置组时回退全局 .env
+ * @returns {Promise<boolean>} 该模型所属配置组的开关；未命中配置组时回退全局 .env
  * @description 开关已下沉到「每个模型配置组」，配置页保存后立即生效，无需重启
  */
-export const isMemoryEnabled = (model?: string): boolean => {
-  const group = findAiModelGroupByModel(model);
+export const isMemoryEnabled = async (model?: string): Promise<boolean> => {
+  const group = await findAiModelGroupByModel(model);
   if (typeof group?.memoryEnabled === 'boolean') return group.memoryEnabled;
   return (process.env.AI_MEMORY_ENABLED ?? 'true').trim() !== 'false';
 };
@@ -89,10 +89,10 @@ export const rememberFromTurn = async (input: {
   assistantText: string;
   model?: string;
 }): Promise<number> => {
-  if (!isMemoryEnabled(input.model)) return 0;
-  const before = readMemory(input.userEmail).items.length;
+  if (!(await isMemoryEnabled(input.model))) return 0;
+  const before = (await readMemory(input.userEmail)).items.length;
   const memories = await extractMemories(input.userText, input.assistantText, input.model);
   if (memories.length === 0) return 0;
-  addMemoryItems(input.userEmail, memories, input.conversationId);
-  return readMemory(input.userEmail).items.length - before;
+  await addMemoryItems(input.userEmail, memories, input.conversationId);
+  return (await readMemory(input.userEmail)).items.length - before;
 };

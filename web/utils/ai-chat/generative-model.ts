@@ -18,12 +18,13 @@ const writeSse = (res: Response, event: string, data: unknown): void => {
 /**
  * 检查是否为文生图/文生视频模型（不需要走 Agent Loop）
  * @param {string | undefined} modelId - 模型 ID
- * @returns {boolean} 是否为生成类模型
- * @description 生成类模型由 JSON 配置里 `streamable=false` 的条目标记，不再硬编码模型 ID
+ * @returns {Promise<boolean>} 是否为生成类模型
+ * @description 生成类模型由缓存配置里 `streamable=false` 的条目标记，不再硬编码模型 ID
  */
-export const isGenerativeModel = (modelId: string | undefined): boolean => {
+export const isGenerativeModel = async (modelId: string | undefined): Promise<boolean> => {
   if (!modelId) return false;
-  return getAvailableModels().models.some((m) => m.id === modelId && m.streamable === false);
+  const { models } = await getAvailableModels();
+  return models.some((m) => m.id === modelId && m.streamable === false);
 };
 
 /**
@@ -121,9 +122,9 @@ export const handleGenerativeModel = async (
   model?: string,
 ): Promise<void> => {
   // 1) 获取或创建会话
-  let conv: ChatConversation | null = convId ? readConversation(email, convId) : null;
+  let conv: ChatConversation | null = convId ? await readConversation(email, convId) : null;
   if (!conv) {
-    conv = createConversation(email);
+    conv = await createConversation(email);
   }
   conv.messages.push({ role: 'user', content: message, created_at: Date.now() });
 
@@ -154,7 +155,7 @@ export const handleGenerativeModel = async (
       content: contentToSave,
       created_at: Date.now(),
     });
-    replaceMessages(email, conv.id, conv.messages);
+    await replaceMessages(email, conv.id, conv.messages);
 
     writeSse(res, 'done', { conversation_id: conv.id });
   } catch (err) {

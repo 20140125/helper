@@ -8,6 +8,8 @@ export {
   getLogRetentionDays,
   listRunLogSources,
   readRunLogRows,
+  listRunLogRows,
+  getRunLogById,
   renderRunLogRows,
   clearRunLogs,
   purgeExpiredRunLogs,

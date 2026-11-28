@@ -110,7 +110,7 @@
 <script setup lang="ts">
 import ScriptResult from '@/components/common/script-result.vue';
 import type { ScriptResultBase } from '@/types/trigger';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 /** 标签主题色（与 t-tag 主题保持一致） */
 type TagTheme = 'default' | 'primary' | 'warning' | 'danger' | 'success';

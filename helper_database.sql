@@ -76,6 +76,19 @@ SOURCE sql/logs/33_run_logs.sql;
 -- ──────────────── Playground 表单模板 ────────────────
 SOURCE sql/playground/34_playground_templates.sql;
 
+-- ──────────────── 前端 i18n 语言包 ────────────────
+SOURCE sql/i18n/35_i18n_messages.sql;
+
+-- ──────────────── 贾维斯 AI 助手皮肤配置 ────────────────
+SOURCE sql/ai/36_ai_chat_skins.sql;
+SOURCE sql/ai/37_ai_chat_skin_presets.sql;
+
+-- ──────────────── 项目知识库文档（docs/ + knowledge/） ────────────────
+SOURCE sql/knowledge/38_knowledge_docs.sql;
+
+-- ──────────────── 热搜榜单结构化数据（多站点共用明细表） ────────────────
+SOURCE sql/hot_search/39_hot_search.sql;
+
 -- ──────────────── 补充缓存数据（其它 SQL 文件未覆盖的 .cache/ 数据） ────────────────
 SOURCE sql/cache_data.sql;
 

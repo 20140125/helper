@@ -41,7 +41,7 @@ fetch_with_referer() {
 # 带日内归档缓存的 GET（等价于 fetch_url，但命中缓存时不发请求）
 # 参数: $1=api 名（不要带下划线） $2=key（城市/星座等，无则传空字符串）
 #       $3=URL $4=超时秒数(可选，同上默认读 CARD_CURL_TIMEOUT)
-# 归档位置: .cache/api_responses/<api>_<key>_<YYYY-MM>.json
+# 归档位置: hp_cache_res_* 的 api_responses/<api>_<key>_<YYYY-MM>.json（KV）
 # 说明: 需要小时级粒度时在前缀加 API_ARCHIVE_SLOT=hour，如
 #       API_ARCHIVE_SLOT=hour fetch_url_cached air_quality shenzhen "$url" 15
 fetch_url_cached() {

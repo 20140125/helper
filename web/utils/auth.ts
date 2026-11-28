@@ -1,16 +1,10 @@
-import fs from 'fs';
 import type { Response } from 'express';
 import type { RowDataPacket } from 'mysql2';
 import nodemailer from 'nodemailer';
 import jwt from 'jsonwebtoken';
-import type { CodeRecord, JwtPayload, UserRecord, UsersStore } from '@/types/auth';
-import { formatDate } from './script';
-import { PROJECT_DIR, CACHE_DIR } from './paths';
+import type { CodeRecord, JwtPayload, UsersStore } from '@/types/auth';
 import { getPool } from '@/utils/database/connection';
 import { readUsersFromDb, upsertUserLogin } from '@/utils/rbac/db';
-
-/** 已登录用户 JSON 快照路径（数据库不可用时的降级数据） */
-const USERS_FILE = `${PROJECT_DIR}/.cache/users.json`;
 
 // ==============================
 // 邮箱验证码（数据库 hp_verification_codes 为唯一真源）
@@ -138,74 +132,20 @@ export const verifyJwt = (token: string): JwtPayload | null => {
 // ==============================
 
 /**
- * 读取本地用户快照
- * @returns {UsersStore} 用户存储数据
- */
-const readLegacyUsers = (): UsersStore => {
-  if (!fs.existsSync(USERS_FILE)) return { users: [] };
-  try {
-    return JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8')) as UsersStore;
-  } catch {
-    return { users: [] };
-  }
-};
-
-/**
- * 写入本地用户快照
- * @param {UsersStore} store - 用户存储数据
- * @returns {void}
- */
-const writeLegacyUsers = (store: UsersStore): void => {
-  if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
-  fs.writeFileSync(USERS_FILE, JSON.stringify(store, null, 2), 'utf-8');
-};
-
-/**
- * 在本地快照中记录用户登录
- * @param {string} email - 用户邮箱
- * @returns {void}
- */
-const recordLegacyUserLogin = (email: string): void => {
-  const store = readLegacyUsers();
-  const now = formatDate();
-  const isAdmin = isAdminEmail(email);
-  const existing = store.users.find((u) => u.email === email);
-  if (existing) {
-    existing.lastLoginAt = now;
-    existing.isAdmin = isAdmin;
-  } else {
-    const newUser: UserRecord = { email, isAdmin, firstLoginAt: now, lastLoginAt: now };
-    store.users.push(newUser);
-  }
-  writeLegacyUsers(store);
-};
-
-/**
  * 读取已登录用户列表
  * @returns {Promise<UsersStore>} 用户存储数据
- * @description 优先查库；数据库不可用时降级读取本地 JSON 快照
+ * @description 直接查库；数据库异常由调用方（路由 / 中间件）转成 500，不再降级读本地 JSON
  */
-export const readUsers = async (): Promise<UsersStore> => {
-  try {
-    return await readUsersFromDb();
-  } catch (err) {
-    console.warn('[auth] 读取 hp_users 失败，回退 JSON：', (err as Error).message);
-    return readLegacyUsers();
-  }
-};
+export const readUsers = async (): Promise<UsersStore> => readUsersFromDb();
 
 /**
  * 记录用户登录信息
  * @param {string} email - 用户邮箱
  * @returns {Promise<void>}
+ * @description 直接写库；数据库异常向上抛出，不再降级写本地 JSON
  */
 export const recordUserLogin = async (email: string): Promise<void> => {
-  try {
-    await upsertUserLogin(email, isAdminEmail(email));
-  } catch (err) {
-    console.warn('[auth] 写入 hp_users 失败，回退 JSON：', (err as Error).message);
-    recordLegacyUserLogin(email);
-  }
+  await upsertUserLogin(email, isAdminEmail(email));
 };
 
 // ==============================

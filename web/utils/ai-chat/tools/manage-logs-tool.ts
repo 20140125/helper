@@ -1,35 +1,6 @@
-import { listLogFiles, isLogKeyValid, clearLogFile } from '@/routes/utils';
-import { LOG_LABELS } from '@/types/log';
+import { listLogSources, isLogSourceValid, clearLogSource } from '@/routes/utils';
+import type { LogSourceInfo } from '@/types/log';
 import type { ToolImpl, ToolResult } from '@/types/ai-chat';
-
-/**
- * 反向映射：中文标签 → log_key
- * @description 用户口语化提及「守护进程日志 / 自定义规则日志」时，LLM 可能直接传中文，本表用于反查 key。
- *   首次访问惰性构建，后续命中 O(1)。
- */
-let labelToKeyCache: Record<string, string> | null = null;
-const getLabelToKey = (): Record<string, string> => {
-  if (labelToKeyCache) return labelToKeyCache;
-  const map: Record<string, string> = {};
-  for (const [key, label] of Object.entries(LOG_LABELS)) {
-    map[label] = key;
-  }
-  labelToKeyCache = map;
-  return map;
-};
-
-/**
- * 把用户传入的 log_key 解析为合法 key：英文 key 直接命中，中文标签反查，都失败返回空串
- * @param {string} raw - 原始入参
- * @returns {string} 合法 key；未命中时返回空字符串
- */
-const resolveLogKey = (raw: string): string => {
-  const trimmed = raw.trim();
-  if (!trimmed) return '';
-  if (isLogKeyValid(trimmed)) return trimmed;
-  const fromLabel = getLabelToKey()[trimmed];
-  return fromLabel ?? '';
-};
 
 /**
  * 把字节数格式化为易读文本
@@ -45,20 +16,18 @@ const formatSize = (bytes: number): string => {
 
 /**
  * manage_logs 工具实现（日志写能力）
- * @description query_logs 只能看，清空此前只能去 Web「运行日志」页手点。
- *   本工具补齐清空能力（单个 / 全部），并纳入增删改白名单——严格模式下会先建审批单，
- *   由超级管理员通过后生效。清空的是 hp_run_logs 里对应来源的记录，不再涉及任何日志文件。
+ * @description 清空的是 hp_run_logs 中对应 source 的库记录，目标集合来自 SELECT ... GROUP BY source，
+ *   不再涉及任何日志文件、静态注册表或中文别名。
  *
  * 触发示例（仅供维护者参考，不会发送给 LLM）：
- *   - "把自定义规则日志清空"        → { action: 'clear', log_key: 'custom_rules' }
- *   - "清空「守护进程」日志"        → { action: 'clear', log_key: '守护进程' }
- *   - "把所有日志都清了"            → { action: 'clear_all' }
+ *   - "把 web_access 日志清空" → { action: 'clear', log_key: 'web_access' }
+ *   - "把所有日志都清了"       → { action: 'clear_all' }
  */
 export const manageLogsTool: ToolImpl = {
   name: 'manage_logs',
   description:
     '清空系统运行日志（不可恢复，写入前先想清楚）。action：clear（必传 log_key）/ clear_all（全部）。'
-    + 'log_key 支持英文 key 或中文名，不确定时先用 query_logs 不带参数看列表。'
+    + 'log_key 必须是 query_logs 清单里的 source 原值，不确定时先用 query_logs 不带参数看列表。'
     + '清空范围、体积确认与审批见 log-audit 技能。',
   parameters: {
     type: 'object',
@@ -70,7 +39,7 @@ export const manageLogsTool: ToolImpl = {
       },
       log_key: {
         type: 'string',
-        description: '日志标识（clear 时必填），支持英文 key 或中文名，如 custom_rules / 自定义规则',
+        description: 'hp_run_logs.source 原值（clear 时必填）',
       },
     },
     required: ['action'],
@@ -82,17 +51,22 @@ export const manageLogsTool: ToolImpl = {
       return { ok: false, data: `不支持的 action：${action}（只支持 clear / clear_all）` };
     }
 
-    // 列表快照：既用于体积统计，也用于 clear_all 的目标集合
-    const files = await listLogFiles();
+    // 列表快照来自库聚合：既用于体积统计，也用于 clear_all 的目标集合
+    let sources: LogSourceInfo[];
+    try {
+      sources = await listLogSources();
+    } catch (err) {
+      return { ok: false, data: `日志来源清单查询失败：${(err as Error).message}` };
+    }
 
     if (action === 'clear_all') {
-      const targets = files.filter((f) => f.exists && f.size > 0);
+      const targets = sources.filter((s) => s.rows > 0);
       if (targets.length === 0) {
         return { ok: true, data: { cleared: [], freed_bytes: 0 }, summary: '库里本来就没有日志记录，无需清空' };
       }
-      const freedBytes = targets.reduce((sum, f) => sum + f.size, 0);
-      const cleared = targets.map((f) => ({ key: f.key, label: LOG_LABELS[f.key] ?? f.key, size: f.size }));
-      await Promise.all(targets.map((f) => clearLogFile(f.key)));
+      const freedBytes = targets.reduce((sum, s) => sum + s.bytes, 0);
+      const cleared = targets.map((s) => ({ source: s.source, size: s.bytes }));
+      await Promise.all(targets.map((s) => clearLogSource(s.source)));
       return {
         ok: true,
         data: { cleared, freed_bytes: freedBytes },
@@ -100,25 +74,22 @@ export const manageLogsTool: ToolImpl = {
       };
     }
 
-    // clear：单个日志
-    const rawKey = typeof args.log_key === 'string' ? args.log_key : '';
-    const logKey = resolveLogKey(rawKey);
-    if (!logKey) {
+    const source = typeof args.log_key === 'string' ? args.log_key.trim() : '';
+    if (!source || !isLogSourceValid(source) || !sources.some((s) => s.source === source)) {
       return {
         ok: false,
-        data: `未知 log_key=${rawKey || '(空)'}，请先调 query_logs 不带参数看可用列表（中文/英文均可）`,
+        data: `未知 log_key=${source || '(空)'}，请先调 query_logs 不带参数查看库里的来源清单`,
       };
     }
 
-    const target = files.find((f) => f.key === logKey);
-    const label = LOG_LABELS[logKey] ?? logKey;
-    const removed = await clearLogFile(logKey);
+    const target = sources.find((s) => s.source === source);
+    const removed = await clearLogSource(source);
     return {
       ok: true,
-      data: { key: logKey, label, freed_bytes: target?.size ?? 0, removed },
-      summary: target?.exists
-        ? `已清空「${label}」（${logKey}），删除 ${removed} 条库记录`
-        : `已清空「${label}」（${logKey}），该来源原本没有记录`,
+      data: { source, freed_bytes: target?.bytes ?? 0, removed },
+      summary: target?.rows
+        ? `已清空 ${source}，删除 ${removed} 条库记录`
+        : `已清空 ${source}，该来源原本没有记录`,
     };
   },
 };

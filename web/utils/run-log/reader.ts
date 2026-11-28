@@ -9,6 +9,9 @@ import { getPool } from '@/utils/database/connection';
 import {
   DEFAULT_LOG_RETENTION_DAYS,
   type RunLogRow,
+  type RunLogDetail,
+  type RunLogQuery,
+  type RunLogPage,
   type RunLogSourceStat,
 } from '@/types/run-log';
 
@@ -76,6 +79,68 @@ export const readRunLogRows = async (
     [source, limit, offset],
   );
   return (rows as RunLogRow[]).reverse();
+};
+
+/**
+ * 按条件分页查询日志记录（按 id 倒序）
+ * @param {RunLogQuery} query - 分页与筛选条件
+ * @returns {Promise<RunLogPage>} 当前页记录与总条数
+ * @description 筛选条件全部走参数化 SQL，COUNT 与分页查询共用同一 WHERE 子句
+ */
+export const listRunLogRows = async (query: RunLogQuery): Promise<RunLogPage> => {
+  const conditions: string[] = [];
+  const params: Array<string | number> = [];
+  if (query.source) {
+    conditions.push('source = ?');
+    params.push(query.source);
+  }
+  if (query.sourceType) {
+    conditions.push('source_type = ?');
+    params.push(query.sourceType);
+  }
+  if (query.level) {
+    conditions.push('level = ?');
+    params.push(query.level);
+  }
+  if (query.keyword) {
+    conditions.push('message LIKE ?');
+    params.push(`%${query.keyword}%`);
+  }
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const [countRows] = await getPool().query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS total FROM hp_run_logs ${where}`,
+    params,
+  );
+  const total = Number(countRows[0]?.total ?? 0);
+  const offset = (query.page - 1) * query.pageSize;
+  const [rows] = await getPool().query<RowDataPacket[]>(
+    // DATE_FORMAT 让 mysql2 返回字符串而不是 JS Date
+    'SELECT id, DATE_FORMAT(logged_at, \'%Y-%m-%d %H:%i:%s\') AS logged_at, ts_ms, level, '
+    + 'source_type, source, message, context, caller, hostname, pid '
+    + `FROM hp_run_logs ${where} ORDER BY id DESC LIMIT ? OFFSET ?`,
+    [...params, query.pageSize, offset],
+  );
+  return {
+    items: rows as RunLogRow[],
+    total,
+    page: query.page,
+    pageSize: query.pageSize,
+  };
+};
+
+/**
+ * 按 ID 查询单条日志详情
+ * @param {number} id - 日志记录 ID
+ * @returns {Promise<RunLogDetail | null>} 完整日志记录，不存在时返回 null
+ */
+export const getRunLogById = async (id: number): Promise<RunLogDetail | null> => {
+  const [rows] = await getPool().query<RowDataPacket[]>(
+    'SELECT id, DATE_FORMAT(logged_at, \'%Y-%m-%d %H:%i:%s\') AS logged_at, ts_ms, level, '
+    + 'source_type, source, message, context, caller, hostname, pid, trace_id, `user` '
+    + 'FROM hp_run_logs WHERE id = ? LIMIT 1',
+    [id],
+  );
+  return (rows[0] as RunLogDetail | undefined) ?? null;
 };
 
 /**

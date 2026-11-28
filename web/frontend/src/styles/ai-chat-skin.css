@@ -1,0 +1,71 @@
+/*
+ * 贾维斯 AI 助手皮肤：接管 TDesign Drawer 与 teleport 浮层的配色
+ * ---------------------------------------------------------------------------
+ * TDesign 1.18+ 的抽屉容器类名是 .t-drawer__content-wrapper，背景/文字分别用
+ * --td-bg-color-container / --td-text-color-*；项目历史 .t-drawer__wrapper 规则并未命中。
+ * 皮肤变量由 ai-chat-launcher 绑到 .t-drawer 根节点、由 t-popup 的 overlayInnerStyle
+ * 绑到浮层内容节点，这里统一把容器层接到 --ai-chat-* 变量上。
+ * 默认皮肤未注入 --ai-chat-* 时全部回落站点主题，因此不会改变原有外观。
+ */
+
+.ai-chat-drawer .t-drawer__content-wrapper {
+  background-color: var(--ai-chat-surface, var(--bg-card)) !important;
+  background-image: var(--ai-chat-bg-image, none) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  color: var(--ai-chat-text, var(--text-primary)) !important;
+  border-color: var(--ai-chat-border, var(--border-color)) !important;
+}
+
+.ai-chat-drawer .t-drawer__header,
+.ai-chat-drawer .t-drawer__body,
+.ai-chat-drawer .t-drawer__footer {
+  background: transparent !important;
+  color: var(--ai-chat-text, var(--text-primary)) !important;
+}
+
+.ai-chat-drawer .t-drawer__header {
+  border-bottom-color: var(--ai-chat-border, var(--border-color)) !important;
+}
+
+.ai-chat-drawer .t-drawer__footer {
+  border-top-color: var(--ai-chat-border, var(--border-color)) !important;
+}
+
+/*
+ * t-popup / t-dialog 浮层会 teleport 到 body，继承不到抽屉根节点的变量。
+ * launcher 只在抽屉展开时把 --ai-chat-* 同步到 body，这里再把浮层内部的
+ * 项目通用变量与 TDesign 内部变量重映射到同一套皮肤色。
+ * popconfirm 的可见卡片 .t-popconfirm__content 自带背景 !important，必须一并
+ * 纳入，否则站点亮色主题的白底规则会把它刷成白底、与皮肤浅色文字形成白底白字。
+ */
+body[data-ai-chat-skin="1"] .t-popup__content,
+body[data-ai-chat-skin="1"] .t-popconfirm__content,
+body[data-ai-chat-skin="1"] .t-dialog {
+  --bg-card: var(--ai-chat-surface);
+  --bg-primary: var(--ai-chat-surface);
+  --bg-secondary: var(--ai-chat-panel-bg);
+  --bg-tertiary: var(--ai-chat-bubble-bg);
+  --bg-hover: var(--ai-chat-hover);
+  --card-bg: var(--ai-chat-surface);
+  --input-bg: var(--ai-chat-panel-bg);
+  --border-color: var(--ai-chat-border);
+  --text-primary: var(--ai-chat-text);
+  --text-secondary: var(--ai-chat-text-secondary);
+  --text-muted: var(--ai-chat-text-muted);
+  --accent-primary: var(--ai-chat-accent);
+  --accent-primary-rgb: var(--ai-chat-accent-rgb);
+  --accent-primary-bg: var(--ai-chat-accent-bg);
+  --accent-green: var(--ai-chat-accent-green);
+  --td-bg-color-container: var(--ai-chat-surface);
+  --td-bg-color-secondarycontainer: var(--ai-chat-panel-bg);
+  --td-text-color-primary: var(--ai-chat-text);
+  --td-text-color-secondary: var(--ai-chat-text-secondary);
+  --td-text-color-placeholder: var(--ai-chat-text-muted);
+  --td-border-level-1-color: var(--ai-chat-border);
+  --td-brand-color: var(--ai-chat-accent);
+  background: var(--ai-chat-surface) !important;
+  color: var(--ai-chat-text) !important;
+  border-color: var(--ai-chat-border) !important;
+}

@@ -77,6 +77,22 @@ export {
 } from './memory';
 
 export {
+  validateAiChatSkinBody,
+  readAiChatSkin,
+  upsertAiChatSkin,
+  ensureAiChatSkinSchema,
+} from './skin-store';
+
+export {
+  isValidAiChatSkinKey,
+  isSafeAiChatSkinCss,
+  normalizeAiChatSkinPresetVars,
+  validateAiChatSkinPresetBody,
+  listAiChatSkinPresets,
+  upsertAiChatSkinPreset,
+} from './skin-preset-store';
+
+export {
   listApprovals,
   findApproval,
   updateApproval,

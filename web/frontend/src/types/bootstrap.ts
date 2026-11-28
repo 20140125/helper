@@ -2,7 +2,7 @@ import type { ApiResponse } from './api';
 import type { SystemStatusData } from './status';
 import type { WebServiceStatusData } from './web-service';
 import type { Rule } from './rule';
-import type { LogItem } from './log';
+import type { LogSourceInfo } from './log';
 
 /**
  * 首页首屏聚合数据
@@ -16,7 +16,7 @@ export interface BootstrapData {
   /** 自定义规则列表 */
   rules?: Rule[];
   /** 日志来源列表 */
-  logs?: LogItem[];
+  logs?: LogSourceInfo[];
 }
 
 /** 首屏聚合接口响应 */

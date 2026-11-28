@@ -35,33 +35,14 @@
       @daemon-restart="daemonRestart"
     />
 
-    <!-- 日志概览 + 项目信息 -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-      <!-- 日志文件概览 -->
-      <logs-overview-panel
-        :t="t"
-        :recent-logs="recentLogs"
-        :logs-loading="logsLoading"
-        :active-log-key="activeLogKey"
-        :active-log-content="activeLogContent"
-        :content-loading="contentLoading"
-        :log-labels="logLabels"
-        @load-logs="loadLogs"
-        @toggle-log="toggleLog"
-        @go-to-logs="goToLogs"
-      />
-
-      <!-- 项目信息与快捷操作 -->
-      <div class="flex flex-col gap-5">
-        <quick-actions-panel
-          :t="t"
-          :status-store="statusStore"
-          :server-info-items="serverInfoItems"
-          @go-to-trigger="goToTrigger"
-          @go-to-logs="goToLogs"
-        />
-      </div>
-    </div>
+    <!-- 项目信息与快捷操作 -->
+    <quick-actions-panel
+      :t="t"
+      :status-store="statusStore"
+      :server-info-items="serverInfoItems"
+      @go-to-trigger="goToTrigger"
+      @go-to-logs="goToLogs"
+    />
   </page-layout>
 </template>
 
@@ -69,7 +50,6 @@
 import { useDashboardModel } from '@/models/dashboard-model';
 import PageLayout from '@/components/common/page-layout.vue';
 import StatCardsGrid from '@/components/dashboard/stat-cards-grid.vue';
-import LogsOverviewPanel from '@/components/dashboard/logs-overview-panel.vue';
 import QuickActionsPanel from '@/components/dashboard/quick-actions-panel.vue';
 
 const {
@@ -77,24 +57,16 @@ const {
   statusStore,
   rulesStore,
   canEdit,
-  recentLogs,
-  logLabels,
-  logsLoading,
   daemonLoading,
   pageLoading,
   enabledRulesCount,
   ruleTypeSummary,
   todayWeekday,
   daemonUptime,
-  activeLogKey,
-  activeLogContent,
-  contentLoading,
-  loadLogs,
   refresh,
   daemonStart,
   daemonStop,
   daemonRestart,
-  toggleLog,
   goToLogs,
   goToTrigger,
   webRunning,

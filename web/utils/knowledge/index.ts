@@ -1,16 +1,5 @@
-export {
-  normalizeDocName,
-  isUserDocPath,
-  listKnowledgeDocs,
-  readKnowledgeDoc,
-  readDocByPath,
-  resolveDocPath,
-  writeKnowledgeDoc,
-  deleteKnowledgeDoc,
-  importSystemDoc,
-  readKnowledgeDirs,
-  normalizeKnowledgeDirs,
-  writeKnowledgeDirs,
-  getDocContentBytes,
-  resolveKnowledgeDirPaths,
-} from './storage';
+// ==============================
+// 知识库工具函数 barrel
+// @description 路由、AI 工具与生成脚本统一从这里导入
+// ==============================
+export * from './storage';

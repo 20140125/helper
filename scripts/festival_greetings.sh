@@ -20,9 +20,9 @@
 # 
 # 数据来源：
 #   - 节假日配置：holiday_config.sh
-#   - 祝福语配置：.cache/greetings.json（各分类）
+#   - 祝福语配置：greetings.json 对应的已有业务表（各分类）
 #   - 祝福语加载器：greetings_loader.sh
-#   - 消息模板：.cache/message_templates.json
+#   - 消息模板：message_templates.json 对应的已有业务表
 #   - 模板工具：template_utils.sh
 #   - 节气/农历计算：date_utils.py
 # 

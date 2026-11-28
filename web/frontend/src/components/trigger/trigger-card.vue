@@ -36,7 +36,7 @@
 import { computed } from 'vue';
 import type { ScriptItem, ScriptResultBase } from '@/types/trigger';
 import ScriptResult from '@/components/common/script-result.vue';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 const props = defineProps<{
   /** i18n 翻译函数（由父组件通过 LocaleStore.t 传入，响应式） */

@@ -174,7 +174,7 @@ import ImagePreviewer from '@/components/common/image-previewer.vue';
 import MermaidPreviewDialog from './mermaid-preview-dialog.vue';
 import type { UiMessage } from '@/types/ai-chat';
 import { ChatRole } from '@/types/ai-chat';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import { INTERNAL_LINK_ATTR } from '@/constants/ai-chat';
 import { formatSize } from '@/utils/format/common.ts';
 import {

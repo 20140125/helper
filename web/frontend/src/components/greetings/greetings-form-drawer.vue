@@ -36,7 +36,7 @@ import AutoForm from '@/components/auto-form/index.vue';
 import MarkdownEditor from '@/components/common/markdown-editor.vue';
 import type { FileContentInstance } from '@/types/component-instances';
 import type { GreetingItem } from '@/types/greetings';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import type { FormMode } from '@/constants/form';
 import type { AutoFormField } from '@/types/auto-form';
 

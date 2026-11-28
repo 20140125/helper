@@ -1,33 +1,8 @@
-import fs from 'fs';
 import type { RowDataPacket } from 'mysql2';
 import { getPool } from '@/utils/database/connection';
 import { toDateText, normalizeDbDateTime } from '@/utils/database/datetime';
 import { formatDate } from './script';
 import type { ApiCategory } from '@/types/api-management';
-import { API_CATEGORIES_FILE } from '@/types/api-management';
-import { CACHE_DIR } from './paths';
-
-/**
- * 读取本地 JSON 快照（数据库不可用时的降级数据）
- * @returns {ApiCategory[]} 分类列表
- */
-const readLegacyApiCategories = (): ApiCategory[] => {
-  if (!fs.existsSync(API_CATEGORIES_FILE)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(API_CATEGORIES_FILE, 'utf-8')) as ApiCategory[];
-  } catch {
-    return [];
-  }
-};
-
-/**
- * 写入本地 JSON 快照（数据库不可用时的降级数据）
- * @param {ApiCategory[]} categories - 分类列表
- */
-const writeLegacyApiCategories = (categories: ApiCategory[]): void => {
-  if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
-  fs.writeFileSync(API_CATEGORIES_FILE, JSON.stringify(categories, null, 2), 'utf-8');
-};
 
 /**
  * 从数据库读取接口分类列表
@@ -86,28 +61,16 @@ const writeApiCategoriesToDb = async (categories: ApiCategory[]): Promise<void> 
 /**
  * 读取接口分类列表
  * @returns {Promise<ApiCategory[]>} 分类列表
- * @description 优先查库；数据库不可用时降级读取本地 JSON 快照
+ * @description 直接查库；数据库异常向上抛出，由路由转成 500，不再降级读本地 JSON
  */
-export const readApiCategories = async (): Promise<ApiCategory[]> => {
-  try {
-    return await readApiCategoriesFromDb();
-  } catch (err) {
-    console.warn('[api-categories] 读取 hp_api_categories 失败，回退 JSON：', (err as Error).message);
-    return readLegacyApiCategories();
-  }
-};
+export const readApiCategories = async (): Promise<ApiCategory[]> => readApiCategoriesFromDb();
 
 /**
  * 写入接口分类列表
  * @param {ApiCategory[]} categories - 分类列表
  * @returns {Promise<void>}
- * @description 写库失败时降级写本地快照，数据库恢复后可重跑 migrate:cache 补齐
+ * @description 直接写库；数据库异常向上抛出，不再降级写本地 JSON
  */
 export const writeApiCategories = async (categories: ApiCategory[]): Promise<void> => {
-  try {
-    await writeApiCategoriesToDb(categories);
-  } catch (err) {
-    console.warn('[api-categories] 写入 hp_api_categories 失败，回退 JSON：', (err as Error).message);
-    writeLegacyApiCategories(categories);
-  }
+  await writeApiCategoriesToDb(categories);
 };

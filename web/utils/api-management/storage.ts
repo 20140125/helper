@@ -1,33 +1,8 @@
-import fs from 'fs';
 import type { RowDataPacket } from 'mysql2';
 import { getPool } from '@/utils/database/connection';
 import { toDateText, normalizeDbDateTime } from '@/utils/database/datetime';
 import { formatDate } from '@/utils/script';
 import type { ApiItem } from '@/types/api-management';
-import { API_ITEMS_FILE } from '@/types/api-management';
-import { CACHE_DIR } from '@/utils/paths';
-
-/**
- * 读取本地 JSON 快照（数据库不可用时的降级数据）
- * @returns {ApiItem[]} API 条目列表
- */
-const readLegacyApiItems = (): ApiItem[] => {
-  if (!fs.existsSync(API_ITEMS_FILE)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(API_ITEMS_FILE, 'utf-8')) as ApiItem[];
-  } catch {
-    return [];
-  }
-};
-
-/**
- * 写入本地 JSON 快照（数据库不可用时的降级数据）
- * @param {ApiItem[]} items - API 条目列表
- */
-const writeLegacyApiItems = (items: ApiItem[]): void => {
-  if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
-  fs.writeFileSync(API_ITEMS_FILE, JSON.stringify(items, null, 2), 'utf-8');
-};
 
 /**
  * 从数据库读取 API 条目列表
@@ -103,28 +78,16 @@ const writeApiItemsToDb = async (items: ApiItem[]): Promise<void> => {
 /**
  * 读取 API 条目列表
  * @returns {Promise<ApiItem[]>} API 条目列表
- * @description 优先查库；数据库不可用时降级读取本地 JSON 快照
+ * @description 直接查库；数据库异常向上抛出，由路由转成 500，不再降级读本地 JSON
  */
-export const readApiItems = async (): Promise<ApiItem[]> => {
-  try {
-    return await readApiItemsFromDb();
-  } catch (err) {
-    console.warn('[api-management] 读取 hp_api_items 失败，回退 JSON：', (err as Error).message);
-    return readLegacyApiItems();
-  }
-};
+export const readApiItems = async (): Promise<ApiItem[]> => readApiItemsFromDb();
 
 /**
  * 写入 API 条目列表
  * @param {ApiItem[]} items - API 条目列表
  * @returns {Promise<void>}
- * @description 写库失败时降级写本地快照，数据库恢复后可重跑 migrate:cache 补齐
+ * @description 直接写库；数据库异常向上抛出，不再降级写本地 JSON
  */
 export const writeApiItems = async (items: ApiItem[]): Promise<void> => {
-  try {
-    await writeApiItemsToDb(items);
-  } catch (err) {
-    console.warn('[api-management] 写入 hp_api_items 失败，回退 JSON：', (err as Error).message);
-    writeLegacyApiItems(items);
-  }
+  await writeApiItemsToDb(items);
 };

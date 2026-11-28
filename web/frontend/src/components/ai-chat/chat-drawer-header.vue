@@ -65,6 +65,26 @@
           </div>
         </template>
       </t-popup>
+      <!-- 皮肤设置弹窗：内置预设 + 上传自定义背景图 -->
+      <t-popup
+        v-model:visible="skinOpen"
+        trigger="click"
+        placement="bottom-right"
+        :overlay-style="{ width: '300px', maxHeight: '440px', overflow: 'auto' }"
+      >
+        <t-tooltip :content="t.aiChat.skinTitle" placement="bottom">
+          <t-button
+            variant="text"
+            class="app-icon-btn"
+            :aria-label="t.aiChat.skinTitle"
+          >
+            <template #icon><t-icon name="palette" /></template>
+          </t-button>
+        </t-tooltip>
+        <template #content>
+          <chat-skin-panel :t="t" />
+        </template>
+      </t-popup>
       <!-- 分享 -->
       <t-tooltip :content="t.aiChat.share" placement="bottom">
         <t-button
@@ -93,8 +113,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import ChatSkinPanel from '@/components/ai-chat/chat-skin-panel.vue';
 import type { ChatConversationSummary } from '@/types/ai-chat';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 defineProps<{
   /** i18n 翻译函数（由父组件通过 LocaleStore.t 传入，响应式） */
@@ -120,6 +141,9 @@ const emit = defineEmits<{
 
 /** 历史会话弹窗显示状态（局部 UI 状态） */
 const historyOpen = ref(false);
+
+/** 皮肤设置弹窗显示状态（局部 UI 状态） */
+const skinOpen = ref(false);
 
 /**
  * 选择历史会话：先关弹窗，再向上抛事件

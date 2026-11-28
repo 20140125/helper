@@ -1,6 +1,4 @@
-import fs from 'fs';
 import {
-  AI_MODEL_CONFIGS_FILE,
   type AiModelGroup,
   type AiModelEntry,
   type AiModelEntryTestResult,
@@ -8,8 +6,11 @@ import {
   type AiModelPricing,
 } from '@/types/ai-model-config';
 import { DEFAULT_MAX_TOKENS } from '@/types/ai-chat';
-import { CACHE_DIR } from '@/utils/paths';
 import { formatDate } from '@/utils/script';
+import { readCacheJson, writeCacheJson } from '@/utils/database/cache-store';
+
+/** 模型配置缓存键（真源为 已有业务表） */
+const AI_MODEL_CONFIGS_KEY = 'ai-model-configs.json';
 
 /** 模型 ID 允许的字符集 */
 const MODEL_ID_PATTERN = /^[A-Za-z0-9._:-]+$/;
@@ -215,41 +216,33 @@ const parseGroupsFromRaw = (raw: unknown): AiModelGroup[] => {
 
 /**
  * 读取模型配置组
- * @returns {AiModelGroup[]} 配置组列表；文件缺失或内容损坏时返回空数组
- * @description 纯读取、无副作用；所有组一律平等，由配置页增删改
+ * @returns {Promise<AiModelGroup[]>} 配置组列表；缓存缺失或内容损坏时返回空数组
+ * @description 纯读取、无副作用；真源为缓存 KV，所有组一律平等，由配置页增删改
  */
-export const readAiModelGroups = (): AiModelGroup[] => {
-  if (!fs.existsSync(AI_MODEL_CONFIGS_FILE)) return [];
-  try {
-    return parseGroupsFromRaw(JSON.parse(fs.readFileSync(AI_MODEL_CONFIGS_FILE, 'utf-8')));
-  } catch {
-    return [];
-  }
+export const readAiModelGroups = async (): Promise<AiModelGroup[]> => {
+  const raw = await readCacheJson<unknown>(AI_MODEL_CONFIGS_KEY);
+  return parseGroupsFromRaw(raw);
 };
 
 /**
  * 按模型 ID 查找所属配置组
  * @param {string | undefined} modelId - 模型 ID
- * @returns {AiModelGroup | undefined} 命中的配置组
+ * @returns {Promise<AiModelGroup | undefined>} 命中的配置组
  * @description 长期记忆开关与自定义单价按组归属，运行时据当前模型反查所属组
  */
-export const findAiModelGroupByModel = (modelId?: string): AiModelGroup | undefined => {
+export const findAiModelGroupByModel = async (modelId?: string): Promise<AiModelGroup | undefined> => {
   if (!modelId) return undefined;
-  return readAiModelGroups().find((group) => group.models.some((m) => m.id === modelId));
+  return (await readAiModelGroups()).find((group) => group.models.some((m) => m.id === modelId));
 };
 
 /**
- * 写入模型配置组（原子替换，避免并发写坏文件）
+ * 写入模型配置组（UPSERT 原子替换）
  * @param {AiModelGroup[]} groups - 完整配置组列表
- * @returns {void}
+ * @returns {Promise<void>}
+ * @description 序列化格式与旧版一致（2 空格缩进），不再写磁盘临时文件
  */
-export const writeAiModelGroups = (groups: AiModelGroup[]): void => {
-  if (!fs.existsSync(CACHE_DIR)) {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
-  }
-  const tmp = `${AI_MODEL_CONFIGS_FILE}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(ensureSingleDefaultModel(groups), null, 2), 'utf-8');
-  fs.renameSync(tmp, AI_MODEL_CONFIGS_FILE);
+export const writeAiModelGroups = async (groups: AiModelGroup[]): Promise<void> => {
+  await writeCacheJson(AI_MODEL_CONFIGS_KEY, ensureSingleDefaultModel(groups));
 };
 
 /**

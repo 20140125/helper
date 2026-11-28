@@ -39,8 +39,8 @@ export interface UserRole {
 }
 
 /**
- * RBAC 配置文件结构
- * @description 持久化到 .cache/rbac.json
+ * RBAC 配置结构
+ * @description 持久化到数据库（hp_roles / hp_user_roles / hp_permissions 等表，数据库为唯一真源）
  */
 export interface RbacConfig {
   /** 角色列表 */

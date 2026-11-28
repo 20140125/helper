@@ -57,10 +57,11 @@ router.put('/raw', async (req, res) => {
     await writeRawTemplates(content);
     return returnResponse(res, ErrorCode.SUCCESS, {}, '保存成功');
   } catch (error) {
-    const msg = error instanceof SyntaxError
-      ? `JSON 格式错误：${error.message}`
-      : (error instanceof Error ? error.message : '保存失败');
-    return returnResponse(res, ErrorCode.BAD_REQUEST, {}, msg);
+    // JSON 格式错误属于参数问题（400）；缓存库写入失败属于服务端异常（500）
+    if (error instanceof SyntaxError) {
+      return returnResponse(res, ErrorCode.BAD_REQUEST, {}, `JSON 格式错误：${error.message}`);
+    }
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, error instanceof Error ? error.message : '保存失败');
   }
 });
 

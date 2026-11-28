@@ -1,12 +1,13 @@
-import fs from 'fs';
 import path from 'path';
-import { PROJECT_DIR } from '@/utils/paths';
-import { KNOWLEDGE_CONFIG_FILE, DEFAULT_KNOWLEDGE_DIRS } from '@/types/knowledge';
+import { DEFAULT_KNOWLEDGE_DIRS } from '@/types/knowledge';
+import { readCacheJson } from '@/utils/database/cache-store';
+import { getKnowledgeDocEntries } from '@/utils/knowledge';
 
 /**
  * 项目知识库（RAG 检索）
  * @description 让贾维斯能回答「这个项目怎么用 / 怎么加一条规则」这类文档问题，
- *   而不用把 25 篇文档全塞进上下文。
+ *   而不用把几十篇文档全塞进上下文。文档全文存 hp_knowledge_docs，
+ *   服务启动加载内存快照；数据库不可用时按配置目录扫描 Markdown 文件降级。
  *
  * 选型说明：**BM25 而不是向量库**。
  * - 文档总量只有几十篇，BM25 的准确率对「术语型提问」（query_logs 怎么用）已经足够；
@@ -49,25 +50,23 @@ const TITLE_TOKEN_WEIGHT = 3;
 
 /**
  * 知识目录（相对项目根）
- * @returns {string[]} 绝对路径列表
- * @description 优先读取管理页写入的 .cache/knowledge_config.json；
- *   配置文件不存在时回退到环境变量 KNOWLEDGE_DIRS（逗号分隔）；
+ * @returns {Promise<string[]>} 相对路径列表
+ * @description 优先读取管理页写入的缓存键 knowledge_config.json（真源为 已有业务表）；
+ *   配置缺省时回退到环境变量 KNOWLEDGE_DIRS（逗号分隔）；
  *   两者都没有时使用默认目录（项目文档 + 用户维护文档）。
+ *   目录用于过滤 hp_knowledge_docs 快照中的文档，配置变更无需重建库。
  */
-const resolveKnowledgeDirs = (): string[] => {
+const resolveKnowledgeDirs = async (): Promise<string[]> => {
   let raw = (process.env.KNOWLEDGE_DIRS ?? '').trim();
   try {
-    if (fs.existsSync(KNOWLEDGE_CONFIG_FILE)) {
-      const config = JSON.parse(fs.readFileSync(KNOWLEDGE_CONFIG_FILE, 'utf-8')) as { dirs?: unknown };
-      if (Array.isArray(config.dirs) && config.dirs.length > 0) {
-        raw = config.dirs.filter((d): d is string => typeof d === 'string').join(',');
-      }
+    const config = await readCacheJson<{ dirs?: unknown }>('knowledge_config.json');
+    if (config && Array.isArray(config.dirs) && config.dirs.length > 0) {
+      raw = config.dirs.filter((d): d is string => typeof d === 'string').join(',');
     }
   } catch {
     // 配置损坏时保持环境变量或默认值，不影响检索可用性
   }
-  const dirs = raw ? raw.split(',').map((d) => d.trim()).filter(Boolean) : DEFAULT_KNOWLEDGE_DIRS;
-  return dirs.map((d) => path.join(PROJECT_DIR, d));
+  return raw ? raw.split(',').map((d) => d.trim()).filter(Boolean) : DEFAULT_KNOWLEDGE_DIRS;
 };
 
 /** 内存索引（懒加载） */
@@ -176,60 +175,18 @@ const splitMarkdown = (content: string, source: string): KnowledgeChunk[] => {
   return chunks;
 };
 
-/** 递归扫描时忽略的目录 */
-const IGNORE_SCAN_DIRS = new Set([
-  'node_modules', '.git', '.cache', '.runtime', '.codebuddy', 'dist', 'build', 'public',
-]);
-
-/**
- * 递归收集目录下的 Markdown 文件
- * @param {string} dir - 根目录绝对路径
- * @returns {string[]} md 文件绝对路径列表
- * @description 支持 `KNOWLEDGE_DIRS` 指向带子目录的知识源（如 scripts/ 下的说明文档）；
- *   忽略依赖与构建产物目录，深度上限 4 层。
- */
-const collectMdFiles = (dir: string): string[] => {
-  const out: string[] = [];
-  const walk = (current: string, depth: number): void => {
-    if (depth > 4) return;
-    let items: fs.Dirent[];
-    try {
-      items = fs.readdirSync(current, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const item of items) {
-      const abs = path.join(current, item.name);
-      if (item.isDirectory()) {
-        if (IGNORE_SCAN_DIRS.has(item.name)) continue;
-        walk(abs, depth + 1);
-      } else if (item.isFile() && item.name.toLowerCase().endsWith('.md')) {
-        out.push(abs);
-      }
-    }
-  };
-  walk(dir, 1);
-  return out;
-};
-
 /**
  * 构建知识库索引（懒加载 + 内存缓存）
- * @returns {KnowledgeChunk[]} 全部片段
- * @description 文档体量小（几十篇），首次查询时一次性构建即可，无需落盘索引文件。
+ * @returns {Promise<KnowledgeChunk[]>} 全部片段
+ * @description 文档来自 hp_knowledge_docs 的内存快照（数据库不可用时按配置目录扫描文件降级），
+ *   按最终索引目录过滤后按标题切块；体量小（几十篇），首次查询一次性构建，无需落盘索引文件。
  */
-export const buildKnowledgeIndex = (): KnowledgeChunk[] => {
+export const buildKnowledgeIndex = async (): Promise<KnowledgeChunk[]> => {
   if (cachedChunks) return cachedChunks;
   const chunks: KnowledgeChunk[] = [];
-  for (const dir of resolveKnowledgeDirs()) {
-    if (!fs.existsSync(dir)) continue;
-    for (const abs of collectMdFiles(dir)) {
-      try {
-        const content = fs.readFileSync(abs, 'utf-8');
-        chunks.push(...splitMarkdown(content, path.relative(PROJECT_DIR, abs)));
-      } catch {
-        // 单篇读取失败跳过
-      }
-    }
+  const dirs = await resolveKnowledgeDirs();
+  for (const entry of await getKnowledgeDocEntries(dirs)) {
+    chunks.push(...splitMarkdown(entry.content, entry.path));
   }
   cachedChunks = chunks;
   cachedAvgLen = chunks.length
@@ -248,10 +205,10 @@ export const buildKnowledgeIndex = (): KnowledgeChunk[] => {
  * 检索知识库
  * @param {string} query - 查询词
  * @param {number} [topK] - 返回条数（默认 3）
- * @returns {KnowledgeHit[]} 按相关度降序的命中片段
+ * @returns {Promise<KnowledgeHit[]>} 按相关度降序的命中片段
  */
-export const searchKnowledge = (query: string, topK: number = 3): KnowledgeHit[] => {
-  const chunks = buildKnowledgeIndex();
+export const searchKnowledge = async (query: string, topK: number = 3): Promise<KnowledgeHit[]> => {
+  const chunks = await buildKnowledgeIndex();
   if (chunks.length === 0 || !query.trim()) return [];
 
   const df = cachedDf ?? new Map<string, number>();

@@ -52,7 +52,7 @@
 import { computed, ref, watch } from 'vue';
 import CardPanel from '@/components/common/card-panel.vue';
 import SqlEditor from '@/components/common/sql-editor.vue';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import type { DatabaseTable, SqlExecution } from '@/types/database';
 
 const props = defineProps<{

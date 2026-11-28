@@ -1,8 +1,3 @@
-import { PROJECT_DIR } from '@/utils/paths';
-
-/** Webhook 数据文件路径 */
-export const WEBHOOKS_FILE = `${PROJECT_DIR}/.cache/webhooks.json`;
-
 /** 企业微信机器人 Webhook */
 export interface Webhook {
   id: string;

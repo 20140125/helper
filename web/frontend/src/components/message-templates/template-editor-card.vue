@@ -42,7 +42,7 @@
 import AutoForm from '@/components/auto-form/index.vue';
 import CardPanel from '@/components/common/card-panel.vue';
 import MarkdownEditor from '@/components/common/markdown-editor.vue';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import type { AutoFormField } from '@/types/auto-form';
 
 withDefaults(defineProps<{

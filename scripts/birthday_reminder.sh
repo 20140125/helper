@@ -19,7 +19,7 @@
 #
 # 配置来源：
 #   - 环境变量：.env 文件中的 BIRTHDAY_LIST
-#   - 祝福语：.cache/greetings.json（birthday 分类）
+#   - 祝福语：greetings.json 对应的已有业务表（birthday 分类）
 #   - 祝福语加载器：greetings_loader.sh
 #   - 消息模板：template_utils.sh
 #

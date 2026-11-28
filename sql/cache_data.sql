@@ -23,8 +23,14 @@ SOURCE sql/cache_data/10_res_quote.sql;
 SOURCE sql/cache_data/11_res_video.sql;
 SOURCE sql/cache_data/12_res_image.sql;
 SOURCE sql/cache_data/13_res_news.sql;
-SOURCE sql/cache_data/14_res_ai_doc.sql;
+-- hp_cache_res_ai_doc（AI 文档响应分类）为空表且无运行时消费者，已移除表定义；
+-- 兼容旧库：单独执行本文件时也清理残留空表
+DROP TABLE IF EXISTS `hp_cache_res_ai_doc`;
 SOURCE sql/cache_data/15_res_other.sql;
-SOURCE sql/cache_data/16_meta.sql;
-SOURCE sql/cache_data/17_cache_files.sql;
-SOURCE sql/cache_data/18_shell_cache_files.sql;
+-- hp_shell_cache_files 兼容视图、hp_cache_files / hp_cache_store / hp_cache_meta 均已下线
+DROP VIEW IF EXISTS `hp_shell_cache_files`;
+DROP TABLE IF EXISTS `hp_shell_cache_files`;
+DROP TABLE IF EXISTS `hp_cache_store`;
+DROP TABLE IF EXISTS `hp_cache_meta`;
+-- 缓存键读写 sql/ 里已有的业务表（sql/**/*.sql）与 01~15 号分类表，不再新建表；
+-- 旧库残留的 hp_cache_item_* 表已废弃，可按表名手动清理

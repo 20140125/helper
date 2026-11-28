@@ -631,7 +631,7 @@ const persist = (report: RunReport, results: CaseResult[], updateBaseline: boole
  */
 const main = async (): Promise<void> => {
   const options = parseArgs(process.argv.slice(2));
-  const configError = validateLlmConfig(options.model);
+  const configError = await validateLlmConfig(options.model);
   if (configError) {
     console.error(`LLM 未配置：${configError}`);
     process.exit(1);

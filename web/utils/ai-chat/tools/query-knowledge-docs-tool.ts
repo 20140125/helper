@@ -1,5 +1,5 @@
 import type { ToolImpl, ToolResult } from '@/types/ai-chat';
-import { listKnowledgeDocs, readDocByPath } from '@/utils/knowledge/storage';
+import { listKnowledgeDocs, readDocByPath, refreshKnowledgeDocs } from '@/utils/knowledge';
 import { buildKnowledgeIndex, resetKnowledgeIndex } from '../knowledge';
 
 /**
@@ -38,7 +38,7 @@ export const queryKnowledgeDocsTool: ToolImpl = {
     const action = typeof args.action === 'string' ? args.action.trim() : '';
 
     if (action === 'list') {
-      const docs = listKnowledgeDocs();
+      const docs = await listKnowledgeDocs();
       return {
         ok: true,
         data: { count: docs.length, docs },
@@ -49,14 +49,15 @@ export const queryKnowledgeDocsTool: ToolImpl = {
     if (action === 'read') {
       const docPath = typeof args.path === 'string' ? args.path.trim() : '';
       if (!docPath) return { ok: false, data: 'path 不能为空' };
-      const content = readDocByPath(docPath);
+      const content = await readDocByPath(docPath);
       if (content === null) return { ok: false, data: `文档不存在或路径非法：${docPath}` };
       return { ok: true, data: { path: docPath, content }, summary: `已读取文档 ${docPath}` };
     }
 
     if (action === 'reindex') {
+      await refreshKnowledgeDocs();
       resetKnowledgeIndex();
-      const chunks = buildKnowledgeIndex();
+      const chunks = await buildKnowledgeIndex();
       const sources = new Set(chunks.map((chunk) => chunk.source)).size;
       return {
         ok: true,

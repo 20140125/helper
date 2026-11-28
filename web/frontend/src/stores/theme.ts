@@ -11,6 +11,20 @@ const STORAGE_DARK_TIME_KEY = 'helper-theme-dark-time';
 const AUTO_CHECK_INTERVAL_MS = 60 * 1000;
 const DEFAULT_LIGHT_TIME = '07:00';
 const DEFAULT_DARK_TIME = '19:00';
+const THEME_TRANSITION_MS = 300;
+
+/**
+ * 是否启用 View Transitions 圆形扩散动画
+ * @description Chromium 的 ViewTransitions 在部分版本会对整页生成两张全屏快照，
+ *              已知会让渲染进程崩溃（Aw, Snap! 错误代码 5）。默认关闭，统一走轻量过渡；
+ *              确认浏览器内核修复后可改为 true，开启时仍受顶层窗口与并发限制。
+ */
+const ENABLE_VIEW_TRANSITION = false;
+
+/** 支持 View Transitions 的 Document 类型 */
+type DocWithViewTransition = Document & {
+  startViewTransition: (cb: () => void) => { ready: Promise<void>; finished: Promise<void> };
+};
 
 /** 根据主色调 hex 计算 RGB 分量 */
 const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
@@ -286,8 +300,11 @@ export class ThemeStore {
   /** 自动切换定时器句柄 */
   private autoTimer: number | null = null;
 
-  /** 上次自动切换计算出的亮暗状态，避免同一时段反复触发动画 */
-  private lastAutoLight: boolean | null = null;
+  /** 恢复 CSS transition 的定时器句柄 */
+  private transitionTimer: number | null = null;
+
+  /** 是否正在执行 View Transitions 动画，避免叠加整页快照 */
+  private transitionActive = false;
 
   // ==============================
   // 计算属性（使用箭头函数+computed，便于 ...store 展开）
@@ -361,64 +378,121 @@ export class ThemeStore {
   }
 
   /**
+   * 清理恢复 CSS transition 的定时器
+   * @returns {void}
+   * @description 连续切换时只保留最后一个定时器，避免过渡类名被提前移除
+   */
+  private clearTransitionTimer = (): void => {
+    if (this.transitionTimer === null) return;
+    window.clearTimeout(this.transitionTimer);
+    this.transitionTimer = null;
+  };
+
+  /**
+   * 判断当前环境是否允许执行 View Transitions
+   * @returns {boolean} true 表示可以使用整页快照动画
+   * @description 默认关闭；开启时仍要求顶层窗口、API 可用且没有进行中的过渡
+   */
+  private canUseViewTransition = (): boolean =>
+    ENABLE_VIEW_TRANSITION
+    && window.top === window.self
+    && !this.transitionActive
+    && typeof (document as DocWithViewTransition).startViewTransition === 'function';
+
+  /**
+   * 以轻量方式应用主题（不生成整页快照）
+   * @param {() => void} doApply - 主题应用回调
+   * @returns {void}
+   * @description 暂时禁用全页 CSS transition，同步应用后恢复，避免大面积样式重算叠加
+   */
+  private applyWithoutTransition = (doApply: () => void): void => {
+    const root = document.documentElement;
+    this.clearTransitionTimer();
+    root.classList.add('theme-transitioning');
+    try {
+      doApply();
+    } finally {
+      this.transitionTimer = window.setTimeout(() => {
+        root.classList.remove('theme-transitioning');
+        this.transitionTimer = null;
+      }, THEME_TRANSITION_MS);
+    }
+  };
+
+  /**
    * 执行圆形扩散 View Transitions 动画（TDesign官网同款）
    * @param {() => void} doApply - 主题应用回调
    * @param {{ x: number; y: number }} [origin] - 动画起始坐标（点击位置）
    * @returns {void}
+   * @description 仅在开关打开且环境安全时调用；异常一律回退到轻量应用
    */
   private runViewTransition = (doApply: () => void, origin?: { x: number; y: number }): void => {
     const w = window.innerWidth;
     const h = window.innerHeight;
-
-    type DocWithViewTransition = Document & {
-      startViewTransition: (cb: () => void) => { ready: Promise<void>; finished: Promise<void> };
-    };
     const docWithTransition = document as DocWithViewTransition;
-    const transition = docWithTransition.startViewTransition(() => {
-      // 在回调里禁用 CSS transition，防止 new snapshot 截图时颜色提前渐变
-      document.documentElement.classList.add('theme-transitioning');
+    const cleanup = () => {
+      this.transitionActive = false;
+      this.clearTransitionTimer();
+      document.documentElement.classList.remove('theme-transitioning');
+    };
+    let applied = false;
+    const applyOnce = () => {
+      if (applied) return;
+      applied = true;
       doApply();
-    });
+    };
+
+    let transition: ReturnType<DocWithViewTransition['startViewTransition']>;
+    try {
+      this.transitionActive = true;
+      transition = docWithTransition.startViewTransition(() => {
+        // 在回调里禁用 CSS transition，防止 new snapshot 截图时颜色提前渐变
+        document.documentElement.classList.add('theme-transitioning');
+        applyOnce();
+      });
+    } catch {
+      // API 调用失败时仍要保证主题生效并清理状态
+      applyOnce();
+      cleanup();
+      return;
+    }
 
     // TDesign 官网同款：圆形从点击位置向外扩散
     transition.ready.then(() => {
-      const x = origin?.x ?? w / 2;
-      const y = origin?.y ?? h / 2;
-      const maxRadius = Math.hypot(Math.max(x, w - x), Math.max(y, h - y));
-      
-      // 优化动画参数，更接近TDesign官网效果
-      document.documentElement.animate(
-        { 
-          clipPath: [
-            `circle(0px at ${x}px ${y}px)`, 
-            `circle(${maxRadius}px at ${x}px ${y}px)`
-          ] 
-        },
-        { 
-          duration: 900, 
-          easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
-          pseudoElement: '::view-transition-new(root)' 
-        },
-      );
-      
-      // 同时为旧快照添加淡出效果
-      document.documentElement.animate(
-        { opacity: [1, 0] },
-        { 
-          duration: 600,
-          easing: 'ease-out',
-          pseudoElement: '::view-transition-old(root)' 
-        }
-      );
+      try {
+        const x = origin?.x ?? w / 2;
+        const y = origin?.y ?? h / 2;
+        const maxRadius = Math.hypot(Math.max(x, w - x), Math.max(y, h - y));
+        document.documentElement.animate(
+          {
+            clipPath: [
+              `circle(0px at ${x}px ${y}px)`,
+              `circle(${maxRadius}px at ${x}px ${y}px)`,
+            ],
+          },
+          {
+            duration: 900,
+            easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+            pseudoElement: '::view-transition-new(root)',
+          },
+        );
+        document.documentElement.animate(
+          { opacity: [1, 0] },
+          {
+            duration: 600,
+            easing: 'ease-out',
+            pseudoElement: '::view-transition-old(root)',
+          },
+        );
+      } catch {
+        // 快照伪元素已消失时跳过动画，主题切换结果不受影响
+      }
+    }).catch(() => {
+      // 过渡被跳过（例如页面隐藏或另一次更新插入）时忽略，finished 仍负责清理
     });
 
-    // 动画结束后恢复 CSS transition
-    transition.finished.then(() => {
-      document.documentElement.classList.remove('theme-transitioning');
-    }).catch(() => {
-      // 动画取消时也要清理状态
-      document.documentElement.classList.remove('theme-transitioning');
-    });
+    // 动画结束后恢复 CSS transition 并释放并发锁
+    transition.finished.then(cleanup).catch(cleanup);
   }
 
   /**
@@ -436,11 +510,11 @@ export class ThemeStore {
   }
 
   /**
-   * 切换主题（带 View Transitions 过渡动画）
+   * 切换主题（默认走轻量过渡）
    * @param {ThemeId} id - 目标主题ID
    * @param {{ x: number; y: number }} [origin] - 动画起始坐标（点击位置）
    * @returns {void}
-   * @description 切换到指定主题，并持久化存储到 localStorage
+   * @description 切换到指定主题并持久化；仅在开关打开且环境安全时生成整页快照动画
    */
   applyTheme = (id: ThemeId, origin?: { x: number; y: number }): void => {
     const doApply = () => {
@@ -463,24 +537,12 @@ export class ThemeStore {
       }
     };
 
-    // 不支持 View Transitions API 时使用 CSS 过渡动画
-    if (!('startViewTransition' in document)) {
-      const doc = document as Document;
-      // 添加过渡类名
-      doc.documentElement.classList.add('theme-transitioning');
-      
-      // 使用 requestAnimationFrame 确保样式更新在下一帧
-      requestAnimationFrame(() => {
-        doApply();
-        
-        // 动画结束后移除过渡类名
-        setTimeout(() => {
-          doc.documentElement.classList.remove('theme-transitioning');
-        }, 300);
-      });
+    if (this.canUseViewTransition()) {
+      this.runViewTransition(doApply, origin);
       return;
     }
-    this.runViewTransition(doApply, origin);
+    // 默认路径：不生成整页快照，避免 Chromium 渲染进程崩溃
+    this.applyWithoutTransition(doApply);
   }
 
   /**
@@ -494,8 +556,8 @@ export class ThemeStore {
   applyCustomColor = (color: string, isLight: boolean, origin?: { x: number; y: number }): void => {
     this.customColor.value = { accentPrimary: color, isLight: isLight };
     localStorage.setItem(STORAGE_CUSTOM_COLOR_KEY, JSON.stringify(this.customColor.value));
-    // 不在此处提前调用 applyCustomVars，让 applyTheme 的 doApply 回调在
-    // View Transitions 快照之后统一执行，保证动画效果与默认主题切换一致
+    // 不在此处提前调用 applyCustomVars，让 applyTheme 的应用回调统一执行，
+    // 保证自定义主题与普通主题的切换路径一致
     this.applyTheme('custom', origin);
     // 同步自定义风格的预览色
     const customStyle = THEME_STYLES.find((s) => s.id === 'custom');
@@ -507,32 +569,33 @@ export class ThemeStore {
   /**
    * 按当前风格应用指定的亮暗模式
    * @param {boolean} isLight - true 使用亮色，false 使用暗色
-   * @param {{ x: number; y: number }} [origin] - 动画起始坐标
+   * @returns {void}
+   * @description 定时切换不需要点击坐标，也不生成整页快照
    */
-  private applyAutoLight = (isLight: boolean, origin?: { x: number; y: number }): void => {
+  private applyAutoLight = (isLight: boolean): void => {
     const style = this.currentStyle.value;
     if (style === 'custom') {
-      this.applyCustomColor(this.customColor.value.accentPrimary, isLight, origin);
+      this.applyCustomColor(this.customColor.value.accentPrimary, isLight);
       return;
     }
     const option = THEME_STYLES.find((s) => s.id === style);
     if (!option) return;
-    this.applyTheme(isLight ? option.themeIds[1] : option.themeIds[0], origin);
+    this.applyTheme(isLight ? option.themeIds[1] : option.themeIds[0]);
   };
 
   /**
    * 检查是否需要根据用户设置的时间切换亮暗主题
-   * @param {{ x: number; y: number }} [origin] - 动画起始坐标
+   * @returns {void}
+   * @description 与当前亮暗状态一致时直接跳过，避免首屏和每次检查都重复应用主题
    */
-  private checkAutoTheme = (origin?: { x: number; y: number }): void => {
+  private checkAutoTheme = (): void => {
     const isLight = isLightPeriod(
       new Date(),
       this.autoTimes.value.lightTime,
       this.autoTimes.value.darkTime,
     );
-    if (this.lastAutoLight === isLight) return;
-    this.lastAutoLight = isLight;
-    this.applyAutoLight(isLight, origin);
+    if (this.isCurrentLight.value === isLight) return;
+    this.applyAutoLight(isLight);
   };
 
   /**
@@ -546,25 +609,24 @@ export class ThemeStore {
 
   /**
    * 启动自动主题：立即检查一次，之后每分钟检查
-   * @param {{ x: number; y: number }} [origin] - 动画起始坐标
+   * @returns {void}
    */
-  startAutoTheme = (origin?: { x: number; y: number }): void => {
+  startAutoTheme = (): void => {
     this.stopAutoTheme();
-    this.checkAutoTheme(origin);
+    this.checkAutoTheme();
     this.autoTimer = window.setInterval(() => this.checkAutoTheme(), AUTO_CHECK_INTERVAL_MS);
   };
 
   /**
    * 开启/关闭自动主题
    * @param {boolean} enabled - 是否开启
-   * @param {{ x: number; y: number }} [origin] - 动画起始坐标
+   * @returns {void}
    */
-  setAutoMode = (enabled: boolean, origin?: { x: number; y: number }): void => {
+  setAutoMode = (enabled: boolean): void => {
     this.autoMode.value = enabled;
     localStorage.setItem(STORAGE_AUTO_MODE_KEY, enabled ? '1' : '0');
-    this.lastAutoLight = null;
     if (enabled) {
-      this.startAutoTheme(origin);
+      this.startAutoTheme();
     } else {
       this.stopAutoTheme();
     }
@@ -582,7 +644,6 @@ export class ThemeStore {
     this.autoTimes.value = { lightTime: nextLight, darkTime: nextDark };
     localStorage.setItem(STORAGE_LIGHT_TIME_KEY, nextLight);
     localStorage.setItem(STORAGE_DARK_TIME_KEY, nextDark);
-    this.lastAutoLight = null;
     if (this.autoMode.value) this.startAutoTheme();
   };
 
@@ -591,12 +652,13 @@ export class ThemeStore {
    */
   dispose = (): void => {
     this.stopAutoTheme();
+    this.clearTransitionTimer();
   };
 
   /**
    * 初始化主题
    * @returns {void}
-   * @description 页面加载时直接应用主题，不触发过渡动画
+   * @description 页面加载时直接应用主题；自动模式仅在时段不符时轻量切换，不生成整页快照
    */
   init = (): void => {
     const id = this.currentTheme.value;

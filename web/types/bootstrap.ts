@@ -1,6 +1,6 @@
 import type { Rule } from '@/types/rule';
 import type { WebServiceStatus } from '@/types/web-service';
-import type { LogFileInfo } from '@/types/log';
+import type { LogSourceInfo } from '@/types/log';
 
 /**
  * 首屏聚合数据块标识
@@ -57,5 +57,5 @@ export interface BootstrapData {
   /** 自定义规则列表：需 rules:view */
   rules?: Rule[];
   /** 日志来源列表：需 logs:view */
-  logs?: LogFileInfo[];
+  logs?: LogSourceInfo[];
 }

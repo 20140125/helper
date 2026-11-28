@@ -21,7 +21,7 @@ import FormDrawer from '@/components/common/form-drawer.vue';
 import AutoForm from '@/components/auto-form/index.vue';
 import type { AutoFormField } from '@/types/auto-form';
 import type { FormMode } from '@/constants/form';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 defineProps<{
   /** i18n 翻译函数（由父组件通过 LocaleStore.t 传入，响应式） */

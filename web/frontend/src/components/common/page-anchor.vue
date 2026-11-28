@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 interface AnchorItem {
   /** 锚点目标 DOM 节点 */

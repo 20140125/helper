@@ -1,8 +1,3 @@
-import { CACHE_DIR } from '@/utils/paths';
-
-/** Greetings 数据文件路径 */
-export const GREETINGS_FILE = `${CACHE_DIR}/greetings.json`;
-
 /** Greetings 数据分组 key */
 export type GreetingsGroup = 'solar_terms' | 'holidays' | 'lunar_festivals' | 'special_days' | 'birthday';
 
@@ -31,7 +26,7 @@ export interface GreetingItem {
   content: string;
 }
 
-/** 原始 JSON 文件结构（.cache/greetings.json） */
+/** 原始 JSON 结构（数据库 已有业务表，缓存键 greetings.json） */
 export interface GreetingsFile {
   solar_terms: Record<string, string>;
   holidays: Record<string, string>;

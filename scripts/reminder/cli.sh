@@ -28,7 +28,7 @@ print_help() {
   bash scripts/reminder.sh "周报"
   bash scripts/reminder.sh "工作日管理"     # 默认 auto：按当前时间选 morning/lunch/evening
   bash scripts/reminder.sh "早安提醒"       # 显式选 morning
-  bash scripts/reminder.sh "晚餐提醒"       # 动态：匹配 .cache/custom_rules.json 里的 name
+  bash scripts/reminder.sh "晚餐提醒"       # 动态：匹配数据库 已有业务表（缓存键 custom_rules.json）里的 name
   bash scripts/reminder.sh --dry-run "周报" # 仅打印将要执行的命令，不真正触发
 
 关键字分组：
@@ -73,7 +73,7 @@ print_list() {
     # —— 动态部分（custom_rules.json 中 enabled=true 的规则 name）——
     if [[ -n "$dynamic_lines" ]]; then
         echo
-        echo "[custom_rules.sh test <ruleId>]（动态：来自 .cache/custom_rules.json）"
+        echo "[custom_rules.sh test <ruleId>]（动态：来自数据库 已有业务表，缓存键 custom_rules.json）"
         local norm id orig_name status_hint
         while IFS=$'\t' read -r norm id orig_name; do
             [[ -n "$norm" ]] || continue

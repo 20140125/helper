@@ -8,7 +8,7 @@
 #   1. 调用聚合数据老黄历API获取当日黄历信息（宜忌/五行/吉凶神）
 #   2. 调用聚合数据万年历【当日】API 获取阳历+农历+节日（calendar_day）
 #   3. 调用聚合数据万年历【当月】API 批量获取整月阳农对照（calendar_month）
-#   4. 原始 JSON 归档到 .cache/api_responses/（一月一文件）
+#   4. 原始 JSON 归档到 hp_cache_res_*（api_responses/ 下的月条目 KV）
 #
 # 数据来源：
 #   - 聚合数据老黄历API

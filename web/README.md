@@ -102,10 +102,9 @@ web/
         ├── services/          # HTTP 请求封装（BaseService 继承体系）
         ├── components/        # 公共组件 + 按业务分组（common/layout/rbac/…）
         ├── router/            # 路由配置（带权限元数据）
-        ├── types/             # 前端类型定义
+        ├── types/             # 前端类型定义（locale.ts 由数据库导出）
         ├── constants/         # 常量（access-log/auth/rules/trigger/…）
         ├── data/              # 静态数据（city-data.ts 等）
-        ├── locales/           # i18n 语言包（zh.ts / en.ts）
         ├── styles/            # 公共样式（common / panel-layout / scrollbar / style.css）
         └── utils/             # 工具函数（format/ · handler-registry/ · rbac/ · greetings/ · …）
 ```
@@ -137,7 +136,7 @@ web/
 | 路径 | 页面 | 功能 |
 |------|------|------|
 | `/logs` | 运行日志 | 查看/清空所有脚本日志 |
-| `/cache` | 缓存文件 | 查看/编辑 `.cache/` 下的 JSON 文件 |
+| `/cache` | 缓存文件 | 查看/编辑数据库中的缓存条目（缓存键） |
 | `/database` | 数据库管理 | 连接状态、库表结构与数据预览、SQL 控制台、建表脚本查看与初始化（仅超级管理员） |
 
 ### 开发工具
@@ -183,7 +182,7 @@ web/
 | `/api/daemon` | 守护进程 start / stop / restart | — / `DAEMON_EDIT` |
 | `/api/trigger` | 手动触发脚本 + 自定义规则 | 路由内细粒度判权 |
 | `/api/update-tools` | 年度更新工具列表 / 执行 | `TRIGGER_ANNUAL_UPDATE_VIEW` / `..._EDIT` |
-| `/api/cache` | 缓存文件读取 / 保存 | `CACHE_VIEW` / `CACHE_EDIT` |
+| `/api/cache` | 缓存条目（缓存键）读取 / 保存 | `CACHE_VIEW` / `CACHE_EDIT` |
 | `/api/rules` | 自定义规则 CRUD / 测试 | `RULES_VIEW` / `RULES_EDIT` |
 | `/api/templates` | 消息模板 CRUD / 预览 | `TEMPLATES_VIEW` / `TEMPLATES_EDIT` |
 | `/api/api-management/categories` | 接口分类 CRUD | `API_CATEGORY_VIEW` / `API_CATEGORY_EDIT` |
@@ -231,7 +230,7 @@ Type (types/*.ts)               TypeScript 类型定义（interface 归此处）
 - **常量归口**：全部放 `constants/`
 - **类型归口**：interface 全部放 `types/`
 - **utils 拆分阈值**：单文件 > 200 行拆子目录
-- **i18n**：所有面向用户的文案走 `locales/zh.ts` + `locales/en.ts`
+- **i18n**：文案统一维护在 MySQL `hp_i18n_messages`（管理页 `/i18n-messages`），静态类型由 `npm run i18n:sql` 导出到 `types/locale.ts`；前端启动读库并用 localStorage 缓存兜底
 - **双向绑定**：Vue 3.4+ `defineModel` 优先，消除 `computed` 桥接
 
 ---

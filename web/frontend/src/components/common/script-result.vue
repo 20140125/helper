@@ -32,7 +32,7 @@
 
 <script setup lang="ts">
 import LogOutput from '@/components/common/log-output.vue';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import type { ScriptResultBase } from '@/types/trigger';
 
 defineProps<{

@@ -1,7 +1,8 @@
-import fs from 'fs';
 import type { GreetingItem, GreetingsFile, GreetingsGroup } from '@/types/greetings';
-import { GREETINGS_FILE } from '@/types/greetings';
-import { CACHE_DIR } from './paths';
+import { readCacheJson, writeCacheJson } from '@/utils/database/cache-store';
+
+/** 祝福语缓存键（相对 .cache 的路径，真源为 已有业务表） */
+const GREETINGS_KEY = 'greetings.json';
 
 /** 默认文件结构（首次生成时使用） */
 const DEFAULT_FILE: GreetingsFile = {
@@ -13,36 +14,32 @@ const DEFAULT_FILE: GreetingsFile = {
 };
 
 /**
- * 读取原始 JSON 文件
- * @returns 原始嵌套结构
+ * 读取原始 JSON 数据
+ * @returns {Promise<GreetingsFile>} 原始嵌套结构；缓存缺失或格式错误时返回默认结构
+ * @description 真源为缓存 KV，不再触碰磁盘文件
  */
-export const readGreetingsFile = (): GreetingsFile => {
-  if (!fs.existsSync(GREETINGS_FILE)) {
+export const readGreetingsFile = async (): Promise<GreetingsFile> => {
+  const raw = await readCacheJson<Partial<GreetingsFile>>(GREETINGS_KEY);
+  if (!raw) {
     return { ...DEFAULT_FILE, birthday: { templates: [] } };
   }
-  try {
-    const raw = JSON.parse(fs.readFileSync(GREETINGS_FILE, 'utf-8')) as Partial<GreetingsFile>;
-    return {
-      solar_terms: raw.solar_terms ?? {},
-      holidays: raw.holidays ?? {},
-      lunar_festivals: raw.lunar_festivals ?? {},
-      special_days: raw.special_days ?? {},
-      birthday: { templates: raw.birthday?.templates ?? [] },
-    };
-  } catch {
-    return { ...DEFAULT_FILE, birthday: { templates: [] } };
-  }
+  return {
+    solar_terms: raw.solar_terms ?? {},
+    holidays: raw.holidays ?? {},
+    lunar_festivals: raw.lunar_festivals ?? {},
+    special_days: raw.special_days ?? {},
+    birthday: { templates: raw.birthday?.templates ?? [] },
+  };
 };
 
 /**
- * 写入原始 JSON 文件
- * @param data - 完整文件结构
+ * 写入原始 JSON 数据
+ * @param {GreetingsFile} data - 完整文件结构
+ * @returns {Promise<void>}
+ * @description 通过缓存 KV 全量覆盖，序列化格式与旧版一致（2 空格缩进）
  */
-export const writeGreetingsFile = (data: GreetingsFile): void => {
-  if (!fs.existsSync(CACHE_DIR)) {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
-  }
-  fs.writeFileSync(GREETINGS_FILE, JSON.stringify(data, null, 2), 'utf-8');
+export const writeGreetingsFile = async (data: GreetingsFile): Promise<void> => {
+  await writeCacheJson(GREETINGS_KEY, data);
 };
 
 /**
@@ -94,5 +91,9 @@ export const rebuildGreetingsFile = (items: GreetingItem[]): GreetingsFile => {
   return file;
 };
 
-/** 读取并展开为扁平化条目列表（路由层便捷使用） */
-export const readGreetingItems = (): GreetingItem[] => flattenGreetings(readGreetingsFile());
+/**
+ * 读取并展开为扁平化条目列表（路由层便捷使用）
+ * @returns {Promise<GreetingItem[]>} 扁平化条目列表
+ */
+export const readGreetingItems = async (): Promise<GreetingItem[]> =>
+  flattenGreetings(await readGreetingsFile());

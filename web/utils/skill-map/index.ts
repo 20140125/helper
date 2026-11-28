@@ -10,7 +10,7 @@ import {
 import type { SkillItem, SkillCategoryMeta, SkillParamMeta } from '@/types/skill-map';
 import { runScript } from '@/utils/script';
 import { readEnvFile } from '@/utils/env';
-import { PROJECT_DIR } from '@/utils/paths';
+import { readCacheJson } from '@/utils/database/cache-store';
 import type { AmapJsConfig, AmapRecentPlace } from '@/types/skill-map';
 
 /** scripts/tools 所在的相对目录（供 runScript 拼接相对路径使用） */
@@ -235,8 +235,8 @@ const resolveCardImageUrl = (stdout: string): string => {
   return `${TOOLS_IMAGES_URL_PREFIX}/${fileName}?t=${Date.now()}`;
 };
 
-/** 地理编码缓存文件路径（脚本侧写入，前端「常用地点」候选的唯一数据源） */
-const GEOCODE_CACHE_FILE = path.join(PROJECT_DIR, '.cache', 'amap_geocode.json');
+/** 地理编码缓存键（真源为 已有业务表，脚本侧写入，前端「常用地点」候选的唯一数据源） */
+const GEOCODE_CACHE_KEY = 'amap_geocode.json';
 
 /** 高德 JS 配置缓存与有效期（配置不常变，5 分钟内复用，避免频繁读 .env） */
 let cachedJsConfig: { at: number; config: AmapJsConfig } | null = null;
@@ -247,31 +247,32 @@ const MAX_RECENT_PLACES = 20;
 
 /**
  * 读取地理编码缓存作为「常用地点」候选
- * @returns {AmapRecentPlace[]} 地点名 + 坐标列表；文件缺失或格式异常时返回空数组
- * @description 缓存由 commute_card.sh 在成功解析地址后写入，形如 { "深圳北站": "114.02,22.60" }
+ * @returns {Promise<AmapRecentPlace[]>} 地点名 + 坐标列表；缓存缺失或格式异常时返回空数组
+ * @description 真源为缓存 KV amap_geocode.json，由 commute_card.sh 在成功解析地址后写入，
+ *   形如 { "深圳北站": "114.02,22.60" }
  */
-export const listRecentPlaces = (): AmapRecentPlace[] => {
+export const listRecentPlaces = async (): Promise<AmapRecentPlace[]> => {
   try {
-    if (!fs.existsSync(GEOCODE_CACHE_FILE)) return [];
-    const parsed: unknown = JSON.parse(fs.readFileSync(GEOCODE_CACHE_FILE, 'utf-8'));
+    const parsed = await readCacheJson<Record<string, unknown>>(GEOCODE_CACHE_KEY);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return [];
-    return Object.entries(parsed as Record<string, unknown>)
+    return Object.entries(parsed)
       .filter(([, v]) => typeof v === 'string' && /^\d+(\.\d+)?,\d+(\.\d+)?$/.test(v))
       .slice(-MAX_RECENT_PLACES)
       .map(([name, location]) => ({ name, location: location as string }));
   } catch {
+    // 常用地点只是候选，读失败返回空列表（与旧版容错一致）
     return [];
   }
 };
 
 /**
  * 读取高德地图 JS API 的前端配置
- * @returns {AmapJsConfig} JS Key / 安全密钥 / 默认城市 / 常用地点
+ * @returns {Promise<AmapJsConfig>} JS Key / 安全密钥 / 默认城市 / 常用地点
  * @description
  *   - 进程环境变量优先，为空时回退 readEnvFile() 读 web/.env，避免刚写入配置还没重启就不可用
  *   - configured=false 时前端地图选点不可用，降级为普通文本输入
  */
-export const getAmapJsConfig = (): AmapJsConfig => {
+export const getAmapJsConfig = async (): Promise<AmapJsConfig> => {
   const now = Date.now();
   if (cachedJsConfig && now - cachedJsConfig.at < JS_CONFIG_TTL_MS) return cachedJsConfig.config;
 
@@ -288,7 +289,7 @@ export const getAmapJsConfig = (): AmapJsConfig => {
     jsKey,
     securityCode: pick('AMAP_JS_SECRET'),
     city: pick('WEATHER_CITY_NAME') || '深圳',
-    recentPlaces: listRecentPlaces(),
+    recentPlaces: await listRecentPlaces(),
   };
   cachedJsConfig = { at: now, config };
   return config;

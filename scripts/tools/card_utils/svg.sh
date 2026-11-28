@@ -130,12 +130,17 @@ render_card() {
 # 返回: 全部成功=0；有任一失败=1；webhook 未配置=1
 #
 # 依赖：
-#   - CACHE_DIR（由 project_config.sh 导出）下存在 webhooks.json
+#   - webhooks.json 对应的已有业务表（KV，运行时不读磁盘）
 #   - python3、base64、md5sum
 # 日志：
 #   - 若上游已 source log_utils.sh，使用 log_info/log_success/log_error；否则静默
 send_card_image() {
   local img="$1" webhook_ids="${2:-}"
+
+  # 缓存数据库通道按需加载（card_utils.sh 上游通常已通过 api_archive.sh 加载过）
+  if ! declare -F cache_db_read >/dev/null 2>&1; then
+    source "${PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}/cache_db.sh"
+  fi
 
   # 日志函数按需降级（卡片脚本一般都 source 过 log_utils.sh，这里做兜底）
   local _log_info="true" _log_success="true" _log_error="true"
@@ -158,9 +163,9 @@ send_card_image() {
     return 1
   fi
 
-  local webhooks_json="${CACHE_DIR:-}/webhooks.json"
-  if [ ! -f "$webhooks_json" ]; then
-    $_log_error "[企微图片] webhooks.json 未找到：$webhooks_json"
+  local webhooks_key="webhooks.json"
+  if ! cache_db_exists "$webhooks_key"; then
+    $_log_error "[企微图片] webhooks.json 缓存条目未找到：$webhooks_key"
     return 1
   fi
 
@@ -182,14 +187,13 @@ payload = {'msgtype': 'image', 'image': {'base64': b64, 'md5': '${img_md5}'}}
 print(json.dumps(payload, ensure_ascii=False))
 " <<< "$img_base64")
 
-  # 根据 webhook_ids 过滤目标 URL；为空则取全部
+  # 根据 webhook_ids 过滤目标 URL；为空则取全部（webhooks.json 全文走 stdin）
   local target_urls
-  target_urls=$(python3 -c "
-import json, sys, os
-webhooks_file = '${webhooks_json}'
+  target_urls=$(cache_db_read "$webhooks_key" | python3 -c "
+import json, sys
 ids_str = '''${webhook_ids}'''
 try:
-    hooks = json.load(open(webhooks_file))
+    hooks = json.loads(sys.stdin.read())
 except Exception:
     sys.exit(1)
 if ids_str.strip():

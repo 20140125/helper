@@ -1,14 +1,8 @@
-import fs from 'fs';
-import path from 'path';
-import { CACHE_DIR, listApiResponses, readApiResponse } from '@/routes/utils';
 import {
   syncCalendarCacheIfStale,
   readApiResponseEntriesFromDb,
 } from '@/utils/database/calendar-cache';
 import type { ToolImpl, ToolResult } from '@/types/ai-chat';
-
-/** API 响应缓存目录（.cache/api_responses/） */
-const API_RESPONSES_DIR = path.join(CACHE_DIR, 'api_responses');
 
 /** 单个文件返回的内容上限（字符），防止上下文爆炸 */
 const MAX_CONTENT_LEN = 3000;
@@ -38,23 +32,6 @@ const apiTypeOf = (file: string): string => file.replace(/\.json$/i, '').split('
  */
 const isSafeFilename = (file: string): boolean =>
   !file.includes('..') && !file.includes('/') && !file.includes('\\');
-
-/**
- * 读取文件大小与更新时间（文件降级实现用）
- * @param {string} file - 缓存文件名
- * @returns {{ size_kb: number; updated_at: string }} 大小（KB）与本地更新时间
- */
-const statOf = (file: string): { size_kb: number; updated_at: string } => {
-  try {
-    const s = fs.statSync(path.join(API_RESPONSES_DIR, file));
-    return {
-      size_kb: Number((s.size / 1024).toFixed(1)),
-      updated_at: new Date(s.mtimeMs).toLocaleString('zh-CN', { hour12: false }),
-    };
-  } catch {
-    return { size_kb: 0, updated_at: '' };
-  }
-};
 
 /**
  * 从镜像表条目计算大小与更新时间
@@ -136,7 +113,7 @@ const buildListResult = (
 };
 
 /**
- * 查库实现：从 hp_cache_files 镜像读取 API 响应归档
+ * 查库实现：从 hp_cache_res_* 分类表读取 API 响应归档
  * @param {Record<string, unknown>} args - 工具参数
  * @returns {Promise<ToolResult>} 查询结果
  */
@@ -177,61 +154,9 @@ const queryFromDb = async (args: Record<string, unknown>): Promise<ToolResult> =
 };
 
 /**
- * 文件降级实现：数据库不可用时读 .cache/api_responses
- * @param {Record<string, unknown>} args - 工具参数
- * @returns {ToolResult} 查询结果
- */
-const queryFromFile = (args: Record<string, unknown>): ToolResult => {
-  const filename = typeof args.filename === 'string' ? args.filename.trim() : '';
-  if (filename) {
-    const data = readApiResponse(CACHE_DIR, filename);
-    if (!data) {
-      const files = listApiResponses(CACHE_DIR);
-      return {
-        ok: false,
-        data: `缓存文件不存在：${filename}。可用文件：${files.join('、')}`,
-      };
-    }
-    const entries = summarizeEntries(data);
-    return {
-      ok: true,
-      data: {
-        filename,
-        api: apiTypeOf(filename),
-        ...statOf(filename),
-        entry_count: entries?.entry_keys.length ?? null,
-        entry_keys: entries?.entry_keys ?? null,
-        content: truncate(JSON.stringify(data)),
-      },
-      summary: `${filename}${entries ? `（${entries.summary}）` : ''}`,
-    };
-  }
-  const all = listApiResponses(CACHE_DIR);
-  const { apiKw, kw, limit } = parseFilters(args);
-  const matched = all.filter((file) => {
-    if (apiKw && !apiTypeOf(file).toLowerCase().includes(apiKw)) return false;
-    if (kw && !file.toLowerCase().includes(kw)) return false;
-    return true;
-  });
-  const list = matched.slice(0, limit).map((file) => ({
-    filename: file,
-    api: apiTypeOf(file),
-    ...statOf(file),
-  }));
-  const apiTypes = Array.from(new Set(all.map(apiTypeOf))).filter(Boolean);
-  return {
-    ok: true,
-    data: { files: list, total: matched.length, returned: list.length, available_apis: apiTypes },
-    summary: matched.length === 0
-      ? `没有匹配的缓存文件，可用来源类型：${apiTypes.join('、')}`
-      : `命中 ${matched.length} 个缓存文件，返回 ${list.length} 个；来源类型：${apiTypes.join('、')}`,
-  };
-};
-
-/**
  * query_api_responses 工具实现
  * @description 查询外部 API 响应缓存（天气 / 黄历 / 星座 / 每日一言 / 历史今天 等接口的原始返回）。
- *              优先读数据库镜像 hp_cache_files，失败时降级读 .cache/api_responses 文件。
+ *              直接读数据库镜像 已有业务表，库不可用时返回明确错误，不再读 .cache 文件。
  *
  * 触发示例（仅供维护者参考，不会发送给 LLM）：
  *   - "缓存了哪些 API 响应？"                       → {}
@@ -273,8 +198,7 @@ export const queryApiResponsesTool: ToolImpl = {
       await syncCalendarCacheIfStale();
       return await queryFromDb(args);
     } catch (err) {
-      console.warn('[query_api_responses] 查库失败，回退 JSON：', (err as Error).message);
-      return queryFromFile(args);
+      return { ok: false, data: `查询 API 响应缓存失败：${(err as Error).message}` };
     }
   },
 };

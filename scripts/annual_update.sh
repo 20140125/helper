@@ -5,7 +5,7 @@
 # ======================================
 # 
 # 功能说明：
-#   1. 获取国务院节假日数据并保存到本地JSON文件
+#   1. 获取国务院节假日数据并保存到缓存库
 #   2. 生成公司定制版节假日配置文件（自动识别春节前调休日应用公司特别假政策）
 #   3. 更新月份配置数据（动态计算闰年2月天数）
 #   4. 发送企业微信更新通知
@@ -15,22 +15,25 @@
 #   - 农历节日：使用 date_utils.py 本地工具动态转换
 # 
 # 数据存储：
-#   - 节假日数据：.cache/holiday_data.json（每年覆盖）
-#   - 月份配置：.cache/month_config.json（每年覆盖）
+#   - 节假日数据：holiday_data.json 对应的已有业务表（每年覆盖）
+#   - 月份配置：month_config.json 对应的已有业务表（每年覆盖）
 #   - 节假日配置：holiday_config.sh（追加新年份数据）
 # 
 # 注意事项：
 #   - 农历生日无需年度更新（使用 lunar:MM-DD 格式永久有效）
 #   - 建议每年12月运行，为下一年准备数据
-#   - 如遇API失败，可手动保存JSON数据后重新运行
+#   - 如遇API失败，可手动补充JSON数据后重新运行
 # 
 # 作者：智能提醒系统
-# 更新：2026-03-23
+# 更新：2026-11-28
 # ======================================
 
 # 获取脚本所在目录，加载项目路径配置
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/project_config.sh"
+
+# 缓存数据库通道（放在 project_config.sh 之后）
+source "${PROJECT_DIR}/cache_db.sh"
 
 # 加载统一配置（包含 TZ 和 WECOM_WEBHOOK）
 source "${PROJECT_DIR}/weather_config.sh" 2>/dev/null
@@ -59,23 +62,23 @@ log_info "🏢 放假标准: 公司员工福利政策"
 # ======================================
 # 说明：
 #   - 调用独立工具文件获取节假日数据
-#   - 优先使用已存在的本地JSON文件
-#   - 如无本地文件，则从API获取
+#   - 优先使用缓存库中已有的数据
+#   - 如无数据，则从API获取
 #   - 支持多个备用API，提高成功率
-#   - 数据保存到 .cache/holiday_data.json
+#   - 数据保存到 holiday_data.json KV
 # ======================================
 
 log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 log_info "【1️⃣  获取国务院节假日基础数据】"
 log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# 节假日数据文件路径（不带年份，每年覆盖最新数据）
-HOLIDAY_JSON_FILE="${CACHE_DIR}/holiday_data.json"
+# 节假日数据缓存 key（不带年份，每年覆盖最新数据）
+HOLIDAY_CACHE_KEY="holiday_data.json"
 
 # 调用独立工具文件获取节假日数据
 log_info "🔧 调用独立工具获取节假日数据..."
-if "${PROJECT_DIR}/update-tools/get_holidays.sh" "$NEXT_YEAR" "$HOLIDAY_JSON_FILE"; then
-    holiday_api_data="$(cat /tmp/holiday_api_data.txt 2>/dev/null)"
+if "${PROJECT_DIR}/update-tools/get_holidays.sh" "$NEXT_YEAR" "$HOLIDAY_CACHE_KEY"; then
+    holiday_api_data="$(cache_db_read "${HOLIDAY_CACHE_KEY}" 2>/dev/null)"
     if [ -n "$holiday_api_data" ]; then
         holiday_data_status="成功"
         log_success "节假日数据获取成功"
@@ -107,7 +110,7 @@ log_info "━━━━━━━━━━━━━━━━━━━━━━━�
 
 # 调用独立工具文件生成节假日配置（自动识别公司特别假）
 log_info "🔧 调用独立工具生成节假日配置..."
-if "${PROJECT_DIR}/update-tools/generate_holiday_config.sh" "$NEXT_YEAR" "$HOLIDAY_JSON_FILE"; then
+if "${PROJECT_DIR}/update-tools/generate_holiday_config.sh" "$NEXT_YEAR" "$HOLIDAY_CACHE_KEY"; then
     holiday_config_status="成功"
     log_success "节假日配置生成成功"
 else
@@ -125,9 +128,9 @@ log_success "节假日配置生成完成（状态: $holiday_config_status）"
 # 说明：
 #   - 调用独立工具文件更新月份配置数据
 #   - 动态计算闰年2月天数
-#   - 生成月份配置JSON文件
+#   - 生成月份配置JSON
 #   - 包含月份中英文名称、天数、描述
-#   - 数据保存到 .cache/month_config.json
+#   - 数据保存到 month_config.json KV
 # ======================================
 
 log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

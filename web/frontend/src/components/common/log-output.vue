@@ -62,7 +62,7 @@ import {
   ACCESS_LOG_STATUS_MARKER,
   ACCESS_LOG_DURATION_MARKER,
 } from '@/constants/access-log';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 const stdoutRef = ref<HTMLElement | null>(null);
 

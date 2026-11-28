@@ -7,14 +7,14 @@ const TEST_TIMEOUT_MS = 15000;
 /**
  * 解析测试请求应使用的端点与 API Key
  * @param {AiModelTestBody} input - 测试请求体
- * @returns {{ baseUrl: string; apiKey: string }} 端点与真实 Key
+ * @returns {Promise<{ baseUrl: string; apiKey: string }>} 端点与真实 Key
  * @description 新增配置时表单里是明文 Key，优先使用；编辑时拿到的是脱敏串，
  *   先按 groupId 取当前配置组的真实 Key（能覆盖组内新增的未保存模型），
  *   没有 groupId 时再按模型 ID 反查已保存配置组
  */
-const resolveTestTarget = (input: AiModelTestBody): { baseUrl: string; apiKey: string } => {
+const resolveTestTarget = async (input: AiModelTestBody): Promise<{ baseUrl: string; apiKey: string }> => {
   const modelId = String(input.modelId ?? '').trim();
-  const groups = readAiModelGroups();
+  const groups = await readAiModelGroups();
   const saved = (input.groupId ? groups.find((group) => group.id === input.groupId) : undefined)
     ?? groups.find((group) => group.models.some((model) => model.id === modelId));
   const rawBaseUrl = String(input.baseUrl ?? '').trim() || String(saved?.baseUrl ?? '').trim();
@@ -50,7 +50,7 @@ export const describeFetchError = (err: unknown): string => {
 export const testModelAvailability = async (input: AiModelTestBody): Promise<AiModelTestResult> => {
   const modelId = String(input.modelId ?? '').trim();
   if (!modelId) throw new Error('请先填写模型 ID');
-  const { baseUrl, apiKey } = resolveTestTarget(input);
+  const { baseUrl, apiKey } = await resolveTestTarget(input);
   if (!/^https?:\/\//i.test(baseUrl)) throw new Error('请先填写 http(s) 开头的接口地址');
   if (!apiKey) throw new Error('请先填写 API Key 或先保存配置组');
 

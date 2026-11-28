@@ -72,7 +72,7 @@ const truncate = (s: string | undefined, max: number): string => {
  * @returns {Promise<ZhipuWebSearchResp>} 响应
  */
 const callZhipuSearch = async (body: ZhipuWebSearchBody): Promise<ZhipuWebSearchResp> => {
-  const cfg = getLlmConfigForModel(undefined);
+  const cfg = await getLlmConfigForModel(undefined);
   if (!cfg.apiKey) {
     throw new Error('模型配置未填写 API Key，请到「系统配置 → AI 模型与记忆」补全');
   }

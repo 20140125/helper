@@ -1,5 +1,5 @@
 /** AI Chat 模块常量 */
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 /** 默认会话标题（后端创建时也用同样的） */
 export const DEFAULT_CONVERSATION_TITLE = '新对话';

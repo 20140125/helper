@@ -1,4 +1,4 @@
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 
 /** 常用时间单位对应的秒数 */
 const SECONDS_PER_MINUTE = 60;

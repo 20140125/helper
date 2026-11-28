@@ -1,27 +1,5 @@
-import fs from 'fs';
 import type { PermissionMeta } from '@/types/rbac';
-import { PROJECT_DIR } from '@/utils/paths';
 import { readPermissionMetasFromDb, writePermissionMetasToDb } from './db';
-
-/** 权限元信息 JSON 快照路径（数据库不可用时的降级数据） */
-const PERMISSION_METAS_FILE = `${PROJECT_DIR}/.cache/permission_metas.json`;
-
-// ==============================
-// 本地 JSON 降级
-// ==============================
-
-/**
- * 读取本地权限元信息快照
- * @returns {PermissionMeta[]} 权限元信息数组
- */
-const readLegacyPermissionMetas = (): PermissionMeta[] => {
-  try {
-    return JSON.parse(fs.readFileSync(PERMISSION_METAS_FILE, 'utf-8')) as PermissionMeta[];
-  } catch {
-    console.warn('[RBAC] 读取 permission_metas.json 失败，权限元信息为空');
-    return [];
-  }
-};
 
 // ==============================
 // 权限元信息（数据库 hp_permissions 为唯一真源）
@@ -30,16 +8,9 @@ const readLegacyPermissionMetas = (): PermissionMeta[] => {
 /**
  * 读取权限元信息列表
  * @returns {Promise<PermissionMeta[]>} 权限元信息数组
- * @description 优先查库；数据库不可用时降级读取本地 JSON 快照
+ * @description 直接查库；数据库异常向上抛出，由路由转成 500，不再降级读本地 JSON
  */
-export const readPermissionMetas = async (): Promise<PermissionMeta[]> => {
-  try {
-    return await readPermissionMetasFromDb();
-  } catch (err) {
-    console.warn('[RBAC] 读取 hp_permissions 失败，回退 JSON：', (err as Error).message);
-    return readLegacyPermissionMetas();
-  }
-};
+export const readPermissionMetas = async (): Promise<PermissionMeta[]> => readPermissionMetasFromDb();
 
 /**
  * 提取全部权限码

@@ -73,3 +73,16 @@ export const formatBytesUsage = (used: number, total: number): string => {
  */
 export const encodeFilenamePath = (filename: string): string =>
   filename.split('/').map(encodeURIComponent).join('/');
+
+/**
+ * 为秒级日志时间补齐毫秒
+ * @description 列表接口只返回到秒（DATE_FORMAT），用同一条记录的 ts_ms 补出 .mmm，
+ *              表格列与日志详情共用；ts_ms 缺失时退回原始秒级时间
+ * @param {string} loggedAt - 秒级时间字符串（如 2026-11-28 17:04:51）
+ * @param {number | null} tsMs - 原始毫秒时间戳
+ * @returns {string} 形如 2026-11-28 17:04:51.123 的时间
+ */
+export const formatLogTime = (loggedAt: string, tsMs: number | null): string => {
+  if (tsMs === null || !Number.isFinite(tsMs)) return loggedAt;
+  return `${loggedAt}.${String(tsMs % 1000).padStart(3, '0')}`;
+};

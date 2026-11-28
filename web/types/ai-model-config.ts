@@ -1,8 +1,3 @@
-import { PROJECT_DIR } from '@/utils/paths';
-
-/** AI 模型配置文件路径（配置页新增/编辑/删除的唯一存储，不再读写 .env） */
-export const AI_MODEL_CONFIGS_FILE = `${PROJECT_DIR}/.cache/ai-model-configs.json`;
-
 /**
  * 同一组接口下的单个模型
  * @description id 同时作为聊天请求里的 model 参数

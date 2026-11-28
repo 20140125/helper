@@ -12,7 +12,7 @@ CREATE TABLE `hp_run_logs` (
   `ts_ms`        BIGINT          NULL COMMENT '原始毫秒时间戳（JSONL 的 ts）',
   `level`        VARCHAR(16)     NOT NULL DEFAULT 'INFO' COMMENT '级别：DEBUG/INFO/SUCCESS/WARNING/WARN/ERROR/LOG 等',
   `source_type`  VARCHAR(24)     NOT NULL DEFAULT 'script' COMMENT '来源类型：script/web/access/daemon/ai/system',
-  `source`       VARCHAR(64)     NOT NULL COMMENT '日志来源标识（LOG_SOURCES 的 key 或模块名）',
+  `source`       VARCHAR(64)     NOT NULL COMMENT '日志来源标识（写入方模块名，按 source 聚合统计）',
   `log_file`     VARCHAR(255)    NULL COMMENT '兼容字段：历史日志文件相对路径，新日志一律为 NULL',
   `message`      TEXT            NOT NULL COMMENT '日志正文（访问日志按原文整块入库）',
   `context`      TEXT            NULL COMMENT '结构化上下文 JSON（log_utils 的 extra / console 的 args / 访问日志详情）',

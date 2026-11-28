@@ -5,7 +5,7 @@
 # ======================================
 #
 # 功能说明：
-#   凌晨预获取所有数据并缓存到 JSON 文件
+#   凌晨预获取所有数据并写入缓存数据库
 #   包含：天气、历史、黄历、星座、励志语录
 #
 # 依赖：
@@ -17,7 +17,7 @@
 #   - inspirational_quotes.sh（励志语录）
 #
 # 作者：智能提醒系统
-# 更新：2026-03-24
+# 更新：2026-11-28
 # ======================================
 
 cmd_prefetch() {
@@ -109,7 +109,7 @@ cmd_prefetch() {
     # 被 source 时不执行 main，可直接复用「归档缓存 → API → 降级」整套逻辑。
     # 旧版这里另写了一份 hitokoto+iciba 抓取兜底，正是 2026-10-28 起把空英文
     # 写进归档 / 历史库的源头（jq 对空 body 无输出，.content // 默认值不生效）。
-    # 归档位置：.cache/api_responses/dailyword_<YYYY-MM>.json（一月一文件）
+    # 归档位置：hp_cache_res_* 的 api_responses/dailyword_<YYYY-MM>.json（一月一文件）
     log_info "5️⃣  获取每日一言（金山词霸 + 一言API）..."
     inspirational_quote=""
     # 每日一词历史库（只增不删；fetch_data 内部会自行加载归档库等依赖）
@@ -163,16 +163,20 @@ PYEOF
         inspirational_quote="> 成功不是终点，失败也不是末日，唯有勇气才能永续。\n> —— 丘吉尔"
     fi
 
-    # 6. 保存到缓存文件（使用 Python json.dumps 序列化，避免特殊字符截断问题）
+    # 6. 保存到缓存数据库（Python 原子写临时文件，随后 cache_db_persist 入库）
     log_info "6️⃣  保存到缓存文件..."
 
     local fetch_time
     fetch_time="$(date '+%Y-%m-%d %H:%M:%S')"
 
-    python3 - "$CACHE_FILE" "$TODAY" "$fetch_time" \
-        "$weather_data" "$history_data" "$almanac_data" \
-        "$horoscope_data" "$inspirational_quote" << 'PYEOF'
-import json, sys
+    local cache_tmp
+    cache_tmp="$(mktemp "${TMPDIR:-/tmp}/helper-daily-data.XXXXXX" 2>/dev/null || printf '')"
+
+    if [ -n "$cache_tmp" ]; then
+        python3 - "$cache_tmp" "$TODAY" "$fetch_time" \
+            "$weather_data" "$history_data" "$almanac_data" \
+            "$horoscope_data" "$inspirational_quote" << 'PYEOF'
+import json, os, sys
 
 cache_file   = sys.argv[1]
 today        = sys.argv[2]
@@ -197,22 +201,28 @@ tmp_file = cache_file + '.tmp'
 with open(tmp_file, 'w', encoding='utf-8') as f:
     json.dump(payload, f, ensure_ascii=False, indent=2)
     f.flush()
-    import os
     os.fsync(f.fileno())
 os.replace(tmp_file, cache_file)
 PYEOF
+    fi
 
-    if [ -f "$CACHE_FILE" ]; then
-        cache_size=$(du -h "$CACHE_FILE" | cut -f1)
-        log_success "缓存文件已保存：${CACHE_FILE} (${cache_size})"
+    if [ -f "$cache_tmp" ] && cache_db_persist "$CACHE_KEY" "$cache_tmp"; then
+        cache_size=$(du -h "$cache_tmp" | cut -f1)
+        log_success "缓存文件已保存：${CACHE_KEY} (${cache_size})"
     else
         log_error "缓存文件保存失败"
     fi
+    [ -z "$cache_tmp" ] || rm -f "$cache_tmp" "${cache_tmp}.tmp" 2>/dev/null
 
-    # 7. 清理旧缓存
+    # 7. 清理旧缓存（改为删库内历史 key，仅保留今天）
     log_info "7️⃣  清理旧缓存..."
-    find "$CACHE_DIR" -name "daily_data_*.json" ! -name "daily_data_${TODAY}.json" -delete 2>/dev/null
-    remaining=$(ls -1 "$CACHE_DIR"/daily_data_*.json 2>/dev/null | wc -l)
+    local old_key
+    while IFS= read -r old_key; do
+        [ -n "$old_key" ] || continue
+        [ "$old_key" = "$CACHE_KEY" ] && continue
+        cache_db_delete "$old_key"
+    done < <(cache_db_list 'daily_data_')
+    remaining=$(cache_db_list 'daily_data_' | wc -l | tr -d ' ')
     log_success "旧缓存已清理，保留 ${remaining} 个缓存文件（仅今天）"
 
     log_success "脚本执行完成"

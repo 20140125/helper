@@ -61,7 +61,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { Locale } from '@/locales/zh';
+import type { Locale } from '@/types/locale';
 import type { AiInspectionResult, AiInspectionStatus } from '@/types/ai-cost';
 import { renderChatMarkdown } from '@/utils/ai-chat';
 
