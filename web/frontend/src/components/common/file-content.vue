@@ -66,13 +66,9 @@ const props = withDefaults(defineProps<{
   /** 是否只读（仅 JSON 模式生效） */
   readonly?: boolean;
 }>(), {
-  /** TODO: loading 描述 */
   loading: false,
-  /** TODO: emptyText 描述 */
   emptyText: '',
-  /** TODO: emptyContentText 描述 */
   emptyContentText: '',
-  /** TODO: readonly 描述 */
   readonly: false,
 });
 

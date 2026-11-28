@@ -94,19 +94,12 @@ const props = withDefaults(defineProps<{
   /** 无内容时的提示文字 */
   emptyText?: string;
 }>(), {
-  /** TODO: stdout 描述 */
   stdout: '',
-  /** TODO: stderr 描述 */
   stderr: '',
-  /** TODO: loading 描述 */
   loading: false,
-  /** TODO: maxHeight 描述 */
   maxHeight: '280px',
-  /** TODO: stderrMaxHeight 描述 */
   stderrMaxHeight: '140px',
-  /** TODO: fontSize 描述 */
   fontSize: '12px',
-  /** TODO: emptyText 描述 */
   emptyText: '',
 
 

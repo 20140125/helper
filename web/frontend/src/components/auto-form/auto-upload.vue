@@ -64,15 +64,10 @@ const props = withDefaults(defineProps<{
   /** 自定义上传方法：由调用方通过 service 实现（优先级高于 action） */
   requestMethod?: (files: AutoFormUploadFile | AutoFormUploadFile[]) => Promise<RequestMethodResponse>;
 }>(), {
-  /** TODO: multiple 描述 */
   multiple: false,
-  /** TODO: draggable 描述 */
   draggable: false,
-  /** TODO: showUploadProgress 描述 */
   showUploadProgress: true,
-  /** TODO: autoUpload 描述 */
   autoUpload: true,
-  /** TODO: theme 描述 */
   theme: 'file-input',
 
 

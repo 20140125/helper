@@ -48,11 +48,8 @@ withDefaults(defineProps<{
   /** 自定义副标题文本（size/mtime 均未传时显示） */
   meta?: string;
 }>(), {
-  /** TODO: active 描述 */
   active: false,
-  /** TODO: icon 描述 */
   icon: 'file',
-  /** TODO: iconColor 描述 */
   iconColor: '',
 });
 

@@ -70,9 +70,7 @@ const props = withDefaults(defineProps<{
   /** 空状态文案 */
   emptyText?: string;
 }>(), {
-  /** TODO: loading 描述 */
   loading: false,
-  /** TODO: emptyText 描述 */
   emptyText: '',
 });
 

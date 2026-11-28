@@ -68,19 +68,12 @@ const props = withDefaults(defineProps<{
   /** 是否禁用（例如某个页面不需要） */
   disabled?: boolean;
 }>(), {
-  /** TODO: containerSelector 描述 */
   containerSelector: '.page-content',
-  /** TODO: itemSelector 描述 */
   itemSelector: '.card-panel',
-  /** TODO: labelSelector 描述 */
   labelSelector: '.card-title',
-  /** TODO: minCount 描述 */
   minCount: 2,
-  /** TODO: threshold 描述 */
   threshold: 0,
-  /** TODO: offsetTop 描述 */
   offsetTop: 16,
-  /** TODO: disabled 描述 */
   disabled: false,
 });
 

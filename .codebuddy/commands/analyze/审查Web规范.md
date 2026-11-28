@@ -41,7 +41,7 @@ argument-hint: "[文件或目录路径，留空则全量；可加 --only=style|i
 | `model-jsdoc-class` / `model-jsdoc-member` | Model 类与公共字段/方法必须有 JSDoc | `models/*.ts` |
 | `service-jsdoc-class` / `service-jsdoc-method` / `service-jsdoc-param` / `service-jsdoc-returns` | Service 类需 `@description`、方法需 `@param`/`@returns` | `services/*.ts` |
 
-> 详细规则：`references/11-vue-props-emits-jsdoc.md` / `references/09-jsdoc-model-comments.md` / `references/10-jsdoc-service-comments.md`
+> 详细规则：`references/11-vue-props-emits-comments.md` / `references/09-jsdoc-model-comments.md` / `references/10-jsdoc-service-comments.md`
 
 ### B. `npm run lint:i18n` — 中文硬编码扫描
 

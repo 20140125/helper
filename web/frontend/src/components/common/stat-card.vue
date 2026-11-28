@@ -70,9 +70,7 @@ const props = withDefaults(defineProps<{
   /** 是否可点击 */
   clickable?: boolean;
 }>(), {
-  /** TODO: theme 描述 */
   theme: 'green',
-  /** TODO: clickable 描述 */
   clickable: false,
 });
 

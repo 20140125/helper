@@ -26,9 +26,7 @@ const props = withDefaults(defineProps<{
   /** 触发显示按钮的滚动距离阈值（px） */
   threshold?: number;
 }>(), {
-  /** TODO: containerSelector 描述 */
   containerSelector: '.page-content',
-  /** TODO: threshold 描述 */
   threshold: 300,
 });
 

@@ -70,8 +70,8 @@ npx ts-node -P .codebuddy/skills/helper-web-spec/scripts/tsconfig.json \
 ## 🔄 工具失败时的兜底
 
 若 `npm run gen` 失败（路径错/重名/参数错），AI 应：
-1. 读 `.codebuddy/skills/helper-web-spec/references/12-cli-tool-reference.md` 重新核对参数
-2. 若仍不可用，**回退到手写**——读 `references/02-frontend-mvc-layers.md` + `references/11-vue-props-emits-jsdoc.md`，按规范手写脚手架
+1. 读 `.codebuddy/skills/helper-web-spec/references/12-scripts-cli-reference.md` 重新核对参数
+2. 若仍不可用，**回退到手写**——读 `references/02-frontend-mvc-layers.md` + `references/11-vue-props-emits-comments.md`，按规范手写脚手架
 
 ### 额外补充说明
 $1  !!IMPORTANT

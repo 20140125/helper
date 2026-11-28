@@ -11,7 +11,7 @@ argument-hint: "[问题描述或文件路径]"
 
 | 步骤 | 操作 | 必须 |
 |-----|------|-----|
-| 1️⃣ | 读 SKILL.md + `references/06-common-pitfalls-checklist.md`，按需展开 `references/05-styles-and-i18n.md` / `references/08-define-model-migration.md`（双向绑定违规时） | ✅ |
+| 1️⃣ | 读 SKILL.md + `references/06-common-pitfalls-checklist.md`，按需展开 `references/05-styles-and-i18n.md` / `references/08-vue-defineModel-vmodel.md`（双向绑定违规时） | ✅ |
 | 2️⃣ | 定位违规项（审查报告或用户指定） | ✅ |
 | 3️⃣ | **工具优先批改**：先 `cd web && npm run auto-fix -- --dry-run` 预览 → 确认后 `npm run auto-fix` 落盘（详见下方"auto-fix 规则与边界"） | ✅ |
 | 4️⃣ | 逐项修复剩余违规，**填实**工具遗留的 `/** TODO: ... 描述 */` 占位；新增文件按 `01-architecture` 分层骨架选路径 | ✅ |
@@ -58,7 +58,7 @@ npx ts-node -P .codebuddy/skills/helper-web-spec/scripts/tsconfig.json \
 若 `auto-fix` 报错或修出语法错：
 1. `git checkout -- web/frontend/src` 回退
 2. 缩小目录依次跑，定位是哪个文件让工具崩溃
-3. 改 AI 手修（参考 `references/11-vue-props-emits-jsdoc.md` 的 N1~N5 迁移表）
+3. 改 AI 手修（参考 `references/11-vue-props-emits-comments.md` 的 N1~N5 迁移表）
 
 ### ✅ 注意
 - 修 i18n：先补 `locales/{zh,en}.ts` key，再改引用；`template` 用 `t.xxx`、`script` 用 `t.value.xxx`

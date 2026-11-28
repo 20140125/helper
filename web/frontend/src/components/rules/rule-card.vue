@@ -157,41 +157,23 @@ withDefaults(defineProps<{
   /** 是否显示操作按钮（启停开关、测试、编辑、删除，权限控制） */
   showActions?: boolean;
 }>(), {
-  /** TODO: icon 描述 */
   icon: '📅',
-  /** TODO: tagLabel 描述 */
   tagLabel: '',
-  /** TODO: tagTheme 描述 */
   tagTheme: 'primary',
-  /** TODO: enabled 描述 */
   enabled: true,
-  /** TODO: disabled 描述 */
   disabled: false,
-  /** TODO: condition 描述 */
   condition: '',
-  /** TODO: time 描述 */
   time: '09:00',
-  /** TODO: message 描述 */
   message: '',
-  /** TODO: custom_content 描述 */
   custom_content: false,
-  /** TODO: templateLabel 描述 */
   templateLabel: '',
-  /** TODO: webhookCount 描述 */
   webhookCount: 0,
-  /** TODO: created_at 描述 */
   created_at: '',
-  /** TODO: updated_at 描述 */
   updated_at: '',
-  /** TODO: executedToday 描述 */
   executedToday: false,
-  /** TODO: lastTriggeredAt 描述 */
   lastTriggeredAt: '',
-  /** TODO: testing 描述 */
   testing: false,
-  /** TODO: result 描述 */
   result: null,
-  /** TODO: showActions 描述 */
   showActions: true,
 });
 

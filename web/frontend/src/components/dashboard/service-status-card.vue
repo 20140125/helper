@@ -86,11 +86,8 @@ withDefaults(defineProps<{
   /** 是否显示启停控制按钮（权限控制） */
   showControls?: boolean;
 }>(), {
-  /** TODO: pids 描述 */
   pids: () => [],
-  /** TODO: loading 描述 */
   loading: false,
-  /** TODO: showControls 描述 */
   showControls: true,
 });
 

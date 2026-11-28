@@ -19,13 +19,9 @@ const props = withDefaults(defineProps<{
   /** 平铺间距（px），默认 120 */
   gap?: number;
 }>(), {
-  /** TODO: opacity 描述 */
   opacity: 0.08,
-  /** TODO: fontSize 描述 */
   fontSize: 14,
-  /** TODO: rotate 描述 */
   rotate: -25,
-  /** TODO: gap 描述 */
   gap: 20,
 });
 

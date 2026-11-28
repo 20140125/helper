@@ -819,23 +819,14 @@ const props = withDefaults(defineProps<{
   /** 是否阻止表单默认提交行为，默认 true */
   preventSubmitDefault?: boolean;
 }>(), {
-  /** TODO: colon 描述 */
   colon: false,
-  /** TODO: size 描述 */
   size: 'large',
-  /** TODO: disabled 描述 */
   disabled: false,
-  /** TODO: labelWidth 描述 */
   labelWidth: undefined,
-  /** TODO: labelAlign 描述 */
   labelAlign: 'left',
-  /** TODO: requiredMark 描述 */
   requiredMark: undefined,
-  /** TODO: layout 描述 */
   layout: 'vertical',
-  /** TODO: scrollToFirstError 描述 */
   scrollToFirstError: 'smooth',
-  /** TODO: preventSubmitDefault 描述 */
   preventSubmitDefault: true,
 
 

@@ -16,13 +16,13 @@ argument-hint: "[页面名称或功能描述]"
 | 3️⃣ | **建后端**（有 API 时） | `types/ → utils/<模块>/ → routes/utils.ts barrel → routes/<模块>.ts → server.ts 注册` | 有 API |
 | 4️⃣ | **建前端** | `types/ → services/ → models/ → constants/(如有) → views/ → locales/ → router/`；其中 model/service 推荐用 `/生成Vue组件 <name> -t model\|service` 起脚手架 | ✅ |
 | 5️⃣ | **按需拆组件** | View 预计 >200 行 → 拆 `components/<模块>/`；**优先调用 `/生成Vue组件 <name> -t basic\|card\|drawer`** 生成合规脚手架，再填业务字段 | 酌情 |
-| 6️⃣ | **同步数据配置** | 按 `references/07-data-config-checklist.md` 的一键脚本补齐 `permission_metas` / `rbac` / `api_categories` / `api_items` | ✅ |
+| 6️⃣ | **同步数据配置** | 按 `references/07-cache-json-sync.md` 的一键脚本补齐 `permission_metas` / `rbac` / `api_categories` / `api_items` | ✅ |
 | 7️⃣ | **自检 + 规范审查** | 跑 07 的自检脚本 + `/审查Web规范` | ✅ |
 
 ### 详细说明
 
 #### 1️⃣ 读 skill
-直接读取 `.codebuddy/skills/helper-web-spec/SKILL.md` 内容并按指令执行——**不要调用 `use_skill` 工具**。骨架代码参考 `references/01-architecture.md`《最小骨架》。
+直接读取 `.codebuddy/skills/helper-web-spec/SKILL.md` 内容并按指令执行——**不要调用 `use_skill` 工具**。骨架代码参考 `references/01-architecture-overview.md`《最小骨架》。
 
 #### 6️⃣ 同步数据配置（最易漏）
 `web/` 的管理页（权限/角色/接口管理）运行时从 `.cache/*.json` 现读现渲染，不会扫描代码。**Permission 枚举或后端路由加了，但 JSON 没补 = 功能用户看不到**。使用 07 清单里的一键 Python 脚本，只改顶部 `MOD` / `CAT_NAME` / `ROUTES` 即可同步 4 张表；脚本采用 `os.replace` 原子写，规避运行中 web 服务的文件竞争。

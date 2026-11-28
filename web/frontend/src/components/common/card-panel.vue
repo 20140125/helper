@@ -45,7 +45,6 @@ const props = withDefaults(defineProps<{
   /** 是否撑满父容器高度（flex 列方向，card-body 自动 flex:1） */
   fullHeight?: boolean;
 }>(), {
-  /** TODO: iconTheme 描述 */
   iconTheme: 'primary',
 
 

@@ -25,17 +25,11 @@ const props = withDefaults(defineProps<{
   /** 是否居中 */
   center?: boolean;
 }>(), {
-  /** TODO: text 描述 */
   text: '',
-  /** TODO: size 描述 */
   size: 14,
-  /** TODO: textSize 描述 */
   textSize: '13px',
-  /** TODO: paddingY 描述 */
   paddingY: '',
-  /** TODO: paddingX 描述 */
   paddingX: '',
-  /** TODO: center 描述 */
   center: false,
 });
 

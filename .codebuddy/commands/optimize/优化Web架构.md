@@ -13,7 +13,7 @@ argument-hint: "[目标文件或方向，如 view/model/utils/styles]"
 
 | 步骤 | 操作 | 必须 |
 |-----|------|-----|
-| 1️⃣ | 读 SKILL.md，按需展开 `references/02-frontend-mvc-layers.md` / `references/04-backend-api-layers.md` / `references/05-styles-and-i18n.md` / `references/06-common-pitfalls-checklist.md` / `references/08-define-model-migration.md` | ✅ |
+| 1️⃣ | 读 SKILL.md，按需展开 `references/02-frontend-mvc-layers.md` / `references/04-backend-routes-utils.md` / `references/05-styles-and-i18n.md` / `references/06-common-pitfalls-checklist.md` / `references/08-vue-defineModel-vmodel.md` | ✅ |
 | 2️⃣ | 识别优化点（见下方典型场景） | ✅ |
 | 3️⃣ | 产出方案：文件清单 + 职责边界，**先确认再动手** | ✅ |
 | 4️⃣ | 落盘，跑 `/审查Web规范` 验证 | ✅ |

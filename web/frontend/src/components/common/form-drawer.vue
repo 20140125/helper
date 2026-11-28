@@ -48,23 +48,14 @@ const props = withDefaults(defineProps<{
   /** 是否在 header 右上角显示 t-drawer 自带的关闭按钮，默认 false */
   showHeaderClose?: boolean;
 }>(), {
-  /** TODO: loading 描述 */
   loading: false,
-  /** TODO: mode 描述 */
   mode: FormMode.Create,
-  /** TODO: confirmText 描述 */
   confirmText: '',
-  /** TODO: desktopSize 描述 */
   desktopSize: '50%',
-  /** TODO: mobileSize 描述 */
   mobileSize: '100vw',
-  /** TODO: isMobile 描述 */
   isMobile: false,
-  /** TODO: readonly 描述 */
   readonly: false,
-  /** TODO: cancelBtn 描述：undefined 表示走默认逻辑（readonly→关闭，否则→取消） */
   cancelBtn: undefined,
-  /** TODO: showHeaderClose 描述：默认 false，即默认不展示 header 右上角关闭按钮 */
   showHeaderClose: false,
 });
 

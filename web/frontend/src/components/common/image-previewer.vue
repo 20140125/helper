@@ -55,17 +55,11 @@ const props = withDefaults(defineProps<{
   /** 是否常亮显示遮罩（默认仅 hover 时显示） */
   alwaysShowMask?: boolean;
 }>(), {
-  /** TODO: alt 描述 */
   alt: '',
-  /** TODO: maxHeight 描述 */
   maxHeight: '100%',
-  /** TODO: hoverText 描述 */
   hoverText: '预览',
-  /** TODO: fit 描述 */
   fit: 'contain',
-  /** TODO: radius 描述 */
   radius: '16px',
-  /** TODO: alwaysShowMask 描述 */
   alwaysShowMask: false,
 
 
