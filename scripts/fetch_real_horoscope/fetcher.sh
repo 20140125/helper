@@ -266,7 +266,8 @@ get_real_horoscope() {
         log_info "🗂  命中归档缓存: $(horoscope_cache_path "${zodiac_cn}") [${type}]（bytes=${#response}），跳过 API 请求"
     else
         # 调用聚合数据API
-        local api_url="http://web.juhe.cn/constellation/getAll"
+        # 聚合数据已停用 http 端口（返回 403），统一走 https
+        local api_url="https://web.juhe.cn/constellation/getAll"
         log_info "🌐 调用聚合数据星座API: ${api_url} (type=${type})"
         local start_ts
         start_ts=$(now_ms)

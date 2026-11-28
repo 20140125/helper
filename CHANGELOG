@@ -10,12 +10,20 @@
 ## [Unreleased]
 
 ### 新增
+- **背景遮挡层不透明度（按用户）**：系统背景图开启后，顶栏主题菜单可拖动滑杆统一调整卡片 / 顶栏 / 侧边栏 / 标签栏这些遮挡层的不透明度（20–100，默认 86），数值越大越不透明、背景图越淡
+  - 新增 `/api/user-appearance`（GET / PUT，全局 JWT 登录后即可，按 `req.userEmail` 隔离）与 `hp_user_appearance` 表（`sql/config/40_user_appearance.sql`）；存量库由 `ensureUserAppearanceSchema()` 启动幂等建表，不透明度只接受 20–100 整数
+  - `styles/app-background.css` 用 `--app-bg-surface-opacity` 在根节点统一重定义项目自身与 TDesign 的背景变量（按主题另存原色副本，避免变量自引用），卡片 / 顶栏 / 侧边栏 / 标签栏 / 表格 / 弹层 / 按钮等所有遮挡层自动使用同一个不透明度；逐类名覆盖会漏掉 `.t-layout__sider` / `.t-tabs` 等 TDesign 容器，故改为变量级统一；表格的 `.t-table` / `tr` / `th` / `td` 再单独置为透明，避免多层半透明叠加把内容区重新堆成实色（仅保留 hover 淡主色）；卡片 / 顶栏去掉毛玻璃模糊与投影、侧栏内层置透明，保证所有遮挡层只叠加一层底色、与侧边栏观感一致；主内容区统一铺一层底色（卡片改透明避免叠加）、标签栏去掉外层与标签项的重复底色，解决页面标题白字直接压在背景图上、以及标签栏发黑的问题。前端 `useUserAppearanceStore` 拖动时即时写 CSS 变量、松手后写库，`topbar.*` 中英文案各 2 条随启动补种子
+  - 接口登记到 `cat_config`；`22_api_items.sql`、`helper_database.sql`、`01_drop_tables.sql` 同步补齐
+- **系统背景图**：「系统配置 → 系统背景」支持上传图片作为全站背景，对所有登录用户（含登录页）生效
+  - 新增 `/api/app-background`（GET 公开、写操作 `CONFIG_EDIT`）与 `web/utils/app-background.ts`：图片落 `web/public/uploads`，白名单 JPG / PNG / WEBP / GIF、上限 5MB，服务端生成文件名并只接受 `/uploads/<文件名>` 站内相对地址；配置值存 `hp_env_config.APP_BACKGROUND_URL`
+  - 前端 `useAppBackgroundStore` 启动时读取配置并把 `--app-bg-image` / `html[data-app-bg]` 应用到根节点；`styles/app-background.css` 用根节点变量统一半透明化项目自身与 TDesign 背景，背景图只在 `body` 单层绘制并按 `cover` 铺满视口，深浅主题均可读（后续显示细节调整见「变更」）
+  - 权限复用 `CONFIG_EDIT`、接口登记到 `cat_config`；`22_api_items.sql` 与 `32_env_config.sql` 补种子，`config.*` 中英文案各 10 条经 `npm run i18n:sql` 导出
 - **项目知识库文档全量入库**：新增 `hp_knowledge_docs` 表（`sql/knowledge/38_knowledge_docs.sql`）与 `npm run knowledge:sql` 生成/同步脚本，把 `docs/` 25 篇 + `knowledge/` 3 篇 Markdown 全文入库（202 KB / 4 批 INSERT / 28 条）
   - 列含 `name` / `source_dir` / `is_system` / `content` LONGTEXT / `content_hash` SHA-256 / `size_bytes` / `file_mtime`；`doc_path` 由 `source_dir` + `name` 派生、不再单独入库，唯一键为 `uk_doc (source_dir, name)`；38 号脚本与 `--apply` 复用同一份 DDL / 列清单 / UPSERT，系统文档按文件回灌、用户文档只补缺失，保护管理页编辑过的正文
   - 索引目录固定为一级扫描；服务启动与 38 号脚本均带幂等迁移，自动删除旧库的 `doc_path` 列并补上复合唯一键
   - 已接入 `helper_database.sql` 初始化入口；`sql/01_drop_tables.sql` 不删除该表，避免全库重建冲掉维护内容
-  - **知识库运行时切到数据库**：`web/utils/knowledge/` 拆为 `files` / `dirs` / `state` / `mutations`，新增 `web/utils/database/knowledge.ts`；服务启动自动建表、按 `content_hash` 增量同步系统文档并加载内存快照，列表 / 正文 / BM25 检索 / 贾维斯工具全部读库，数据库不可用时降级读本地 Markdown 文件
-  - 新建 / 编辑 / 删除 / 导入改为先写库，再更新内存快照与 `knowledge/*.md` 文件镜像；`/api/knowledge/reindex` 与 `query_knowledge_docs{action:reindex}` 刷新库快照，`PUT /api/knowledge/dirs` 变更后自动把新目录文档同步入库
+  - **知识库运行时切到数据库**：`web/utils/knowledge/` 拆为 `files` / `dirs` / `state` / `mutations`，新增 `web/utils/database/knowledge.ts`；服务启动自动建表、按 `content_hash` 增量同步系统文档并加载内存快照，列表 / 正文 / BM25 检索 / 贾维斯工具全部读库，数据库不可用时接口直接返回错误、不再降级读文件
+  - 新建 / 编辑 / 删除 / 导入改为写库并更新内存快照，不再写 `knowledge/*.md` 文件镜像；`/api/knowledge/reindex` 与 `query_knowledge_docs{action:reindex}` 刷新库快照，`PUT /api/knowledge/dirs` 变更后自动把新目录文档同步入库
   - 改完 `docs/` 或 `knowledge/` 文档重跑 `npm run knowledge:sql` 重建种子 SQL；现有库增量同步用 `npm run knowledge:sql -- --apply`
 - **前端 i18n 语言包入库**：新增 `hp_i18n_messages` 表（`sql/i18n/35_i18n_messages.sql`）与 `npm run i18n:sql` 生成/同步脚本，把 `web/frontend/src/locales/{zh,en}.ts` 全量展平入库（当前 3034 条：zh 1506 / en 1528，两种语言各含 63 个插值函数，按 JS 源码保真）
   - 列含 `id`（自增主键）/ `lang` / `key_path` / `namespace` / `path_json` / `value` / `value_type` / `sort_order`；`lang` + `key_path` 改由唯一约束 `uk_lang_key` 保证去重，便于数据库管理页按 ID 预览
@@ -25,7 +33,7 @@
   - 新增 `GET /api/i18n/translations`（公开，一次返回 zh / en 两份文案，登录页与首屏可用）、`GET /api/i18n/messages`（database:view）、`PUT /api/i18n/messages/:id`（database:edit）；`server.ts` 白名单按精确路径放行，管理接口逐条校验权限
   - zh / en 语言包合并为单个接口：后端一条 SQL 取回两种语言并按 `lang` 分组返回，前端启动只发一次请求；接口元数据、`22_api_items.sql` 种子与降级快照同步到 `/api/i18n/translations`
   - `web/utils/database/i18n.ts` 负责读库重建嵌套路径、分页检索与更新静态文案；插值函数条目只读（源码仍在 TS 语言包维护），避免前端执行数据库里的 JS 源码
-  - `main.ts` 启动时一次拉取 zh / en，`stores/locale.ts` 按 `path_json` 覆盖全部文案；数据库不可用时静默降级到内置语言包
+  - `main.ts` 启动时一次拉取 zh / en，`stores/locale.ts` 按 `path_json` 覆盖全部文案；数据库不可用时静默降级到 localStorage 缓存
   - 运行时查询补齐 128 个插值函数：`web/frontend/src/utils/i18n-template.ts` 用受限表达式解析还原函数（不使用 `eval` / `new Function`，非法源码回退内置实现），语言包请求加 8s 超时避免鉴权异常时永久挂起
   - 新增 `/i18n-messages` 页面：按语言/命名空间/关键字检索、分页、编辑静态文案，保存后 `localeStore.reload()` 立即生效；`PAGE_REGISTRY`、路由、中英文案与接口元数据 / `22_api_items.sql` 镜像同步
   - 语言包查看对所有登录用户开放：`/i18n-messages` 页面与 `GET /api/i18n/messages` 不再限超管 / `database:view`；编辑仍要求 `database:edit`
@@ -63,8 +71,27 @@
   - 「系统配置 → 邮件配置」卡片可编辑（留空关闭，仅 `MAIL_USERNAME` 超管邮箱可用，保存后立即生效）；`/api/config` 改为 `web/.env` + 数据库混合真源，数据库项优先
   - 公开接口 `GET /api/auth/admin-contact` 仅开发模式回显该验证码，生产环境不泄露；登录页预填逻辑同步改名
   - `sql/config/32_env_config.sql` 加种子、`sql/01_drop_tables.sql` 补 DROP、`sql/playground/34_playground_templates.sql` 的 `config-mail` 模板加字段；接口元数据与 `22_api_items.sql` 镜像同步
+- **运行日志页新增「地址」列**：列表外层直接展示 `GET /api/xxx?...` 形式的请求地址，不必展开详情；访问日志优先读 `context` 的 `method` / `url`，老数据与普通日志从正文头部 / 内联 URL 兜底解析，无地址显示 `-`
+  - 列定义与解析逻辑在 `models/logs-model.ts`（`columns` + `addressOf`），展示在 `views/logs.vue` 的 `#address` 单元格，超长省略并 hover 显示完整地址；列表接口无需改动（`message` / `context` 本就随行返回）
+  - 新增 i18n `logs.colAddress`（zh「地址」/ en「Address」）写入 `hp_i18n_messages`，经 `npm run i18n:sql` 同步 `sql/i18n/35_i18n_messages.sql` 与 `types/locale.ts`；种子 SQL 因生成器按 200 行分批会有少量行移位
 
 ### 变更
+- **缓存数据管理页表清单按表名去重**：`hp_cache_res_hot_list` 由 5 个平台前缀共用，`web/utils/database/cache-admin.ts` 构造 `RES_TABLES` 时按表名去重（保留首条路由），下拉不再出现 5 个同名选项，列表 UNION 也不再把该表拼 5 次；13 张唯一表、全量 `total` 与实际行数一致，筛选热搜表由 10 条回到 2 条
+- **系统背景图改为单层铺满绘制**：`styles/app-background.css` 只在 `body` 上绘制一次背景图，`.app-layout` / `.main-layout` / `.page-content` 保持透明；所有 `background` 长属性加 `!important` 以压过 `style.css` 的简写 `!important`（否则 `background-size` 被压回 `auto`，图片按原始像素只露局部）；图片层用 `cover` 铺满视口、按短边裁切不留左右黑边，压暗层由 0.5 降到 0.22，并隐藏 `.page-content::before` 网格线
+- **微博 / B站 / 抖音 / 爱奇艺热搜归档也落到 `hp_cache_res_hot_list`**：新增 `weibohot_` / `bilibilihot_` / `douyinhot_` / `iqiyihot_` 四条路由（与 `tencenthot_` 一样保留平台前缀），汇总查询按表去重，避免同一张表被多个前缀重复拼接
+- **热搜榜单表 `asset_key` 按平台区分**：`hp_cache_res_hot_list` 的 `asset_key` 由 `2026-11` 改为 `tencenthot_2026-11`；Web / shell 路由新增 `keepPrefix` 规则，读写与缓存键列表拼回时不再重复前缀，SQL 种子、列注释与文档同步
+- **星座运势归档改为按当前年份标记，并修复周期类快捷指令**：`hp_cache_res_horoscope` 的 `period_type` 由 `static` 改为 `year`、`period_key` 取当前年份（UTC+8）；`web/utils/database/cache-routing.ts` 与 `scripts/cache_db.sh` 新增 `current-year` 粒度，`sql/cache_data/06_res_horoscope.sql`、`sql/cache_data.sql`、`docs/07-数据与规则.md` 同步
+  - `reminder/keyword_map.sh` 里「明日 / 本周 / 本月 / 今年运势」的 `_` 占位符现在由 `fetch_real_horoscope.sh` 回退到默认星座，不再把 `_` 当星座名请求 API 或写出 `api_responses/horoscope__.json`
+  - 聚合数据星座接口 `http://` 已返回 403，`fetch_real_horoscope/fetcher.sh` 统一改走 `https://web.juhe.cn/constellation/getAll`
+- **删除切库后遗留的读文件操作**：知识库取消「数据库故障降级读本地 Markdown」与用户文档 `knowledge/*.md` 文件镜像双写，写操作先写库成功再更新快照，数据库异常由路由转 500；`resolveDocPath` 的文件存在校验改为纯路径白名单校验 `normalizeKnowledgeDocPath`
+  - `web/utils/cache.ts` 去掉全部 `_cacheDir` 兼容参数与 5 个无调用方的死函数，调用方同步改签名；删除 `CACHE_DIR`（Web / shell）、`API_ITEMS_FILE`、`KNOWLEDGE_CONFIG_FILE` 死常量与 `scripts/date_utils.py` 无调用方的 JSON 读写死方法
+  - `web/types/update-tools.ts` 的节假日更新工具第二个参数由 `.cache` 绝对路径改回缓存键 `holiday_data.json`（脚本侧早已按缓存键读写数据库）
+  - 删除磁盘上 `.cache/` 下已全量入库的残留 JSON；同步清理描述「降级读文件 / 内置语言包 / .cache JSON / 日志文件」的过时注释、AI 工具描述与文档
+  - shell 侧删除 `cache_db_materialize` / `cache_db_persist` 文件物化兼容层：`dailyword_library.sh` 与 `daily_data_manager/prefetch.sh` 改为 stdin / stdout 直读直写数据库；油价卡片的 `.oil_price_cache_v2` 磁盘缓存改入 `oil_price_last.json` 缓存条目，并删除无调用方的 `pc_file_mtime` / `pc_file_size`
+  - 保留：系统文档按 `content_hash` 增量回灌与种子 SQL 生成、PID 文件、`.env`、`sql/` 建表脚本、AI 读项目源码等必要的文件读取；改动 `docs/` / `knowledge/` 后需重跑 `npm run knowledge:sql` 重建种子
+- **`hp_cache_res_*` 分类表补时间粒度列**：新增 `period_type`（`day` / `month` / `year` / `static`）+ `period_key`（`YYYY-MM-DD` / `YYYY-MM` / `YYYY`）与 `idx_cache_period` 索引，让按天（历史上的今天）、按月归档（黄历 / 天气 / 行情 / 热搜 / 每日一言）、按年（节假日）的数据在库里有显式日期；`body` 原始响应全文不变
+  - `sql/cache_data/03~15` 种子补 DDL 与回填 UPDATE；`web/utils/database/cache-routing.ts` 负责粒度推导、运行时建表与旧库补列，`cache-tables.ts` 写入时同步两列；`scripts/cache_db.sh` 生成同样的 UPSERT，并在 shell 首次写入时幂等补列 / 补索引
+  - 例外：`hp_cache_dailyword_library` 的 `row_key` 已是 `YYYY-MM-DD`，`hp_cache_amap_geocode` 为静态坐标；星座表按星座一行，`body` 内自带 `date` / `week` / `month` / `year` 标签，文件级标为 `static`；`hp_cache_res_other` 按缓存键自动推断粒度
 - **缓存运行时全量切库，删除 `.cache` 缓存文件**：所有 Web 接口（含 `/api/cache`、内容库、规则、AI 会话/记忆/审批、模型配置、知识库配置）与 shell 脚本统一按缓存键读写数据库，运行时不再读写 `.cache/` 下的文件
   - 缓存数据以数据库为唯一真源，按缓存键读写数据库缓存表（具体落表以路由模块为准）；Web 经 `web/utils/database/cache-store.ts`、shell 经 `scripts/cache_db.sh` 读写
   - 删除按文件修改时间自动同步、查询镜像表与「数据库不可用时降级读 JSON 快照」等兼容逻辑：数据库不可用时不再降级读文件，错误直接向上返回
@@ -87,7 +114,14 @@
   - 全量重建 `helper_database.sql` 直接由 `sql/cache_data/*.sql` 缓存种子完成，不需要重跑任何迁移批次
 
 ### 修复
+- 修复运行日志页必须展开详情才能看到请求地址、缓存数据管理筛选下拉重复与列表重复计数、系统背景图只露出局部且左右留黑边的问题
+- 修复 `web/public/index.html` 缺失导致 9527 返回 404：重新执行 `npm run build` 生成 `index.html` 与 `assets/`；改前端 CSS 后生产模式必须重建才会生效
 - 修复贾维斯「删除会话二次确认」气泡不跟随主题：亮色主题里硬编码的 `#fff !important` 会压过 AI 皮肤变量，深色皮肤下形成白底白字；改为统一使用 `--bg-card`，把 `.t-popconfirm__content` 纳入皮肤变量重映射，并补齐 warning / danger 图标与 danger 确认按钮的主题色覆盖
+
+### 文档
+- 同步 `README.md`、`web/README.md`、`docs/06`（页面导览与高频操作）、`docs/07`（缓存表清单去重）、`docs/11`（日志页地址列）、`docs/12`（i18n 新 key 与全局样式覆盖）、`docs/13`（前端构建）、`knowledge/web开发规范摘要.md`、`scripts/README.md`、`web/skills/*` 与 Web 开发规范踩坑清单
+- 重跑 `npm run knowledge:sql -- --apply` 重建 `sql/knowledge/38_knowledge_docs.sql`（211.8 KB / 28 篇）并回灌 `hp_knowledge_docs` 的 25 篇系统文档；`knowledge/` 下 3 篇是用户文档，UPSERT 按设计只在缺失时插入、不覆盖已有正文，本轮修改的 `web开发规范摘要.md` 已单独按文件回灌（content / hash / size / mtime），其余两篇保持库中内容
+- 语言包种子 `sql/i18n/35_i18n_messages.sql` 与 `types/locale.ts` 由 `npm run i18n:sql` 同步（`logs.colAddress`）
 
 ---
 

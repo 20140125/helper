@@ -3,8 +3,7 @@
  *
  * 设计说明：
  *   - 三份 JSON 已迁入缓存分表（已有业务表），运行时通过 cache-store 读 KV，不再读磁盘文件；
- *   - 查询函数把 KV 原始 JSON 转换成原有的扁平 / 字典返回结构，供 AI 工具与路由复用；
- *   - 结构化查询表与文件 mtime 水位同步已下线，sync / diff 系列仅保留导出名与「无差异」兼容结构。
+ *   - 查询函数把 KV 原始 JSON 转换成原有的扁平 / 字典返回结构，供 AI 工具与路由复用。
  */
 import { readCacheJson } from './cache-store';
 import type { GreetingItem, GreetingsFile } from '@/types/greetings';
@@ -23,63 +22,6 @@ const NAMED_GROUPS = ['solar_terms', 'holidays', 'lunar_festivals', 'special_day
 /** 三餐与星期（用于寄语桶扁平化） */
 const MEALS = ['breakfast', 'lunch', 'dinner'] as const;
 const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'weekend'] as const;
-
-/** 内容库条目数量快照 */
-interface ContentCounts {
-  greetings: number;
-  quotes: number;
-  templates: number;
-  styles: number;
-  names: number;
-}
-
-/** 文件与数据库的差异报告（保留兼容结构，恒为「无差异」） */
-export interface ContentLibraryDiff {
-  file: ContentCounts;
-  db: ContentCounts;
-  stale: boolean;
-}
-
-/** 空计数（sync / diff 共用的零值结构） */
-const zeroCounts = (): ContentCounts => ({
-  greetings: 0, quotes: 0, templates: 0, styles: 0, names: 0,
-});
-
-/**
- * 从 KV 重建结构化查询表
- * @returns {Promise<ContentCounts>} 各类条数
- * @description KV 已是唯一真源、查询侧直接读 KV，无需再重建结构化表；保留导出名与签名，返回零值
- */
-export const syncContentLibraryFromFiles = async (): Promise<ContentCounts> => zeroCounts();
-
-/**
- * 文件有更新时自动同步查询表
- * @returns {Promise<void>}
- * @description KV 为唯一真源，不存在文件 mtime 水位；保留导出名为 no-op，供既有调用方 await
- */
-export const syncContentLibraryIfStale = async (): Promise<void> => {
-  // 真源在库，无需按文件水位触发同步
-};
-
-/**
- * 统计文件与数据库的条目数差异
- * @returns {Promise<ContentLibraryDiff>} 差异报告
- * @description 恒返回「无差异」结构：file 与 db 计数一致且不 stale
- */
-export const collectContentLibraryDiff = async (): Promise<ContentLibraryDiff> => ({
-  file: zeroCounts(),
-  db: zeroCounts(),
-  stale: false,
-});
-
-/**
- * 判断内容库是否需要同步
- * @param {ContentLibraryDiff} diff - 差异报告
- * @returns {boolean} 任一数量不一致或标记为 stale 时返回 true
- */
-export const hasContentLibraryDiff = (diff: ContentLibraryDiff): boolean =>
-  diff.stale
-  || (Object.keys(diff.file) as Array<keyof ContentCounts>).some((key) => diff.file[key] !== diff.db[key]);
 
 /**
  * 把祝福语 KV JSON 展开为扁平条目

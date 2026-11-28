@@ -7,7 +7,9 @@
           <h1 class="page-title">{{ title }}</h1>
           <p class="page-subtitle">{{ subtitle }}</p>
         </div>
-        <slot name="actions" />
+        <div v-if="$slots.actions" class="flex items-center gap-3 flex-wrap">
+          <slot name="actions" />
+        </div>
       </div>
 
       <!-- 页面内容区 -->

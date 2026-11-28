@@ -570,6 +570,15 @@ export class ConfigModel extends BaseModel {
         form: this.scheduleForm,
         fields: this.scheduleFields,
       },
+      {
+        key: 'background',
+        title: this.localeStore.t.config.sectionBackground,
+        icon: 'image',
+        iconColor: '#ec4899',
+        barColor: 'linear-gradient(180deg, #ec4899, #f472b6)',
+        form: null,
+        fields: [],
+      },
     ];
     const columns = this.sectionColumnKeys.value;
     const order = columns.length === 2 ? this.interleaveColumns(columns) : [];

@@ -38,7 +38,7 @@ export class TemplatesStore {
   /**
    * 获取当前语言下的 messageTemplates 文案 override
    * @returns {{ templateNames: Record<string,string>; styleNames: Record<string,string> }}
-   * @description 从 locale store 读取 key→显示名称映射（en.ts 提供完整英文、zh.ts 为空对象降级到 json 原值），
+   * @description 从 locale store 读取 key→显示名称映射（文案来自数据库语言包），
    *              用于覆盖数据库 已有业务表（缓存键 message_templates.json）里的中文原值实现下拉选项双语切换
    */
   private get localeOverride(): {

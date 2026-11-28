@@ -7,7 +7,7 @@ import { getKnowledgeDocEntries } from '@/utils/knowledge';
  * 项目知识库（RAG 检索）
  * @description 让贾维斯能回答「这个项目怎么用 / 怎么加一条规则」这类文档问题，
  *   而不用把几十篇文档全塞进上下文。文档全文存 hp_knowledge_docs，
- *   服务启动加载内存快照；数据库不可用时按配置目录扫描 Markdown 文件降级。
+ *   服务启动加载内存快照；数据库不可用时接口直接返回错误，不再降级读文件。
  *
  * 选型说明：**BM25 而不是向量库**。
  * - 文档总量只有几十篇，BM25 的准确率对「术语型提问」（query_logs 怎么用）已经足够；
@@ -178,8 +178,8 @@ const splitMarkdown = (content: string, source: string): KnowledgeChunk[] => {
 /**
  * 构建知识库索引（懒加载 + 内存缓存）
  * @returns {Promise<KnowledgeChunk[]>} 全部片段
- * @description 文档来自 hp_knowledge_docs 的内存快照（数据库不可用时按配置目录扫描文件降级），
- *   按最终索引目录过滤后按标题切块；体量小（几十篇），首次查询一次性构建，无需落盘索引文件。
+ * @description 文档来自 hp_knowledge_docs 的内存快照，按最终索引目录过滤后按标题切块；
+ *   体量小（几十篇），首次查询一次性构建，无需落盘索引文件。
  */
 export const buildKnowledgeIndex = async (): Promise<KnowledgeChunk[]> => {
   if (cachedChunks) return cachedChunks;

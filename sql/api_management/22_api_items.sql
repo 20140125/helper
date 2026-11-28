@@ -208,3 +208,90 @@ SELECT 'api_i18n_messages_update', c.id, '更新语言文案', 'PUT', '/api/i18n
        '更新单条静态文案；函数型条目只读，请在语言包源码中维护（database:edit）',
        1, '2026-11-28 14:05:00', '2026-11-28 14:05:00'
 FROM `hp_api_categories` c WHERE c.category_key = 'cat_database';
+
+-- ── 缓存数据管理页（13 张 hp_cache_* 表）────────────────────────────
+-- 旧库里 api_cache_read / api_cache_write 的方法与路径已过时，先同步修正
+UPDATE `hp_api_items` SET `method` = 'GET', `path` = '/api/cache/:filename(*)',
+       `description` = '读取指定缓存键的内容（键可含子目录，如 api_responses/foo.json）'
+WHERE `item_key` = 'api_cache_read';
+UPDATE `hp_api_items` SET `method` = 'PUT', `path` = '/api/cache/:filename(*)',
+       `description` = '保存指定缓存键的内容（仅接受合法 JSON 字符串）'
+WHERE `item_key` = 'api_cache_write';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_cache_list', c.id, '缓存条目列表', 'GET', '/api/cache',
+       '列出数据库中的缓存条目（缓存键）', 1, '2026-11-28 18:00:00', '2026-11-28 18:00:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_cache';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_cache_admin_tables', c.id, '缓存表清单', 'GET', '/api/cache-admin/tables',
+       '列出 13 张可管理的 hp_cache_* 表及其存储形态与粒度约定', 1, '2026-11-28 18:00:00', '2026-11-28 18:00:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_cache';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_cache_admin_entries', c.id, '缓存条目分页列表', 'GET', '/api/cache-admin/entries',
+       '按表 / 时间粒度 / 关键字分页检索缓存行，返回正文预览与总数', 1, '2026-11-28 18:00:00', '2026-11-28 18:00:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_cache';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_cache_admin_entry_get', c.id, '读取缓存行全文', 'GET', '/api/cache-admin/entry',
+       '按表名 / section / 缓存键读取单条缓存行全文', 1, '2026-11-28 18:00:00', '2026-11-28 18:00:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_cache';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_cache_admin_entry_put', c.id, '写入缓存行', 'PUT', '/api/cache-admin/entry',
+       '新增或更新一条缓存行；分类表按路由声明重算 period_type / period_key', 1, '2026-11-28 18:00:00', '2026-11-28 18:00:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_cache';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_cache_admin_entry_delete', c.id, '删除缓存行', 'DELETE', '/api/cache-admin/entry',
+       '按表名 / section / 缓存键删除一条缓存行', 1, '2026-11-28 18:00:00', '2026-11-28 18:00:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_cache';
+
+-- ── 高德地理编码缓存独立页（hp_cache_amap_geocode）────────────────────
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_amap_geocode_list', c.id, '地址坐标列表', 'GET', '/api/amap-geocode',
+       '按地址关键字列出 hp_cache_amap_geocode 的扁平行', 1, '2026-11-28 18:00:00', '2026-11-28 18:00:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_cache';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_amap_geocode_put', c.id, '新增或更新地址坐标', 'PUT', '/api/amap-geocode',
+       '写入一条地址坐标；地址变更时在事务内删除旧行，避免主键残留', 1, '2026-11-28 18:00:00', '2026-11-28 18:00:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_cache';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_amap_geocode_delete', c.id, '删除地址坐标', 'DELETE', '/api/amap-geocode',
+       '按地址删除一条地理编码缓存记录', 1, '2026-11-28 18:00:00', '2026-11-28 18:00:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_cache';
+
+-- ── 系统背景图（上传 / 读取 / 设置 / 清除）────────────────────────
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_app_background_get', c.id, '读取系统背景', 'GET', '/api/app-background',
+       '读取当前系统背景图地址（登录页与首屏公开）', 1, '2026-11-28 19:00:00', '2026-11-28 19:00:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_config';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_app_background_upload', c.id, '上传系统背景图', 'POST', '/api/app-background/upload',
+       '上传 JPG / PNG / WEBP / GIF 图片（最大 5MB），返回站内相对地址', 1, '2026-11-28 19:00:00', '2026-11-28 19:00:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_config';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_app_background_set', c.id, '设置系统背景', 'PUT', '/api/app-background',
+       '把上传得到的站内地址写入 hp_env_config（config:edit）', 1, '2026-11-28 19:00:00', '2026-11-28 19:00:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_config';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_app_background_clear', c.id, '清除系统背景', 'DELETE', '/api/app-background',
+       '清空背景配置，恢复默认主题（config:edit）', 1, '2026-11-28 19:00:00', '2026-11-28 19:00:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_config';
+
+-- ── 按用户外观偏好（背景图遮挡层不透明度）────────────────────────
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_user_appearance_get', c.id, '读取个人外观偏好', 'GET', '/api/user-appearance',
+       '读取当前登录用户的背景图遮挡层不透明度（按 JWT 用户隔离）', 1, '2026-11-28 19:20:00', '2026-11-28 19:20:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_config';
+
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_user_appearance_set', c.id, '保存个人外观偏好', 'PUT', '/api/user-appearance',
+       '保存当前登录用户的背景图遮挡层不透明度（20–100 整数，无需额外权限）', 1, '2026-11-28 19:20:00', '2026-11-28 19:20:00'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_config';

@@ -69,7 +69,7 @@ export const getDefaultAuthCode = async (): Promise<string> => {
     const map = await readEnvConfigMap();
     return map[DEFAULT_AUTH_CODE_KEY] ?? '';
   } catch {
-    // 数据库不可用时降级读取 .env（需重启 Web 才生效）
+    // 数据库不可用时回退到已加载的进程环境变量（需重启 Web 才生效）
     return process.env[DEFAULT_AUTH_CODE_KEY] ?? '';
   }
 };

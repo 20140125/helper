@@ -6,7 +6,7 @@
 #
 # 功能说明：
 #   1. 将聚合数据等三方 API 的原始 JSON 响应按"接口+参数+月份"
-#      归档到 hp_cache_res_* 表（key 为 api_responses/<文件名>），一月一条，
+#      归档到 hp_cache_res_* 表（key 为 api_responses/<缓存键>），一月一条，
 #      便于后续溯源、二次渲染、审计；运行时不再读写 .cache 下的任何文件
 #   2. 提供日内复用能力：同一天、同一接口、同一参数，命中缓存时
 #      直接读库里的 JSON，不再调用远端 API（节省免费额度）
@@ -14,7 +14,7 @@
 #      API_ARCHIVE_KEEP_MONTHS / prune_api_archive）。归档的定位是
 #      "日内复用 + 当日溯源"，过期即清
 #
-# 归档 key（月条目，内部按日聚合，相对 .cache 的路径）：
+# 归档 key（月条目，内部按日聚合，数据库缓存键）：
 #   api_responses/<api>_<key>_<YYYY-MM>.json
 #   例：
 #     weather_深圳_2026-05.json
@@ -54,8 +54,8 @@ if ! declare -F cache_db_read >/dev/null 2>&1; then
     source "${_ARCHIVE_PROJECT_DIR}/cache_db.sh"
 fi
 
-# 归档 key 前缀（相对 .cache 的路径，对应 hp_cache_res_* 分类表的 asset_key）
-# 说明：保留变量名 API_ARCHIVE_DIR 以兼容既有引用，值已从磁盘目录改为 KV 前缀
+# 归档 key 前缀（库内缓存键前缀，对应 hp_cache_res_* 分类表的 asset_key）
+# 说明：保留变量名 API_ARCHIVE_DIR 以兼容既有引用，值为缓存键前缀
 API_ARCHIVE_DIR="api_responses"
 
 # 归档保留月数：默认 1（只留当月）。想多留几个月用

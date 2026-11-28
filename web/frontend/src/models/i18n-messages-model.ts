@@ -130,6 +130,7 @@ export class I18nMessagesModel extends BaseModel {
       label: t.i18nMessages.fieldValue,
       type: 'textarea',
       placeholder: t.i18nMessages.fieldValuePlaceholder,
+      autosize: { minRows: 5, maxRows: 18 },
       rules: [{ required: true, message: t.common.required }],
     }];
   });

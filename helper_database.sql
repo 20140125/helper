@@ -89,6 +89,9 @@ SOURCE sql/knowledge/38_knowledge_docs.sql;
 -- ──────────────── 热搜榜单结构化数据（多站点共用明细表） ────────────────
 SOURCE sql/hot_search/39_hot_search.sql;
 
+-- ──────────────── 按用户外观偏好（背景图遮挡层不透明度） ────────────────
+SOURCE sql/config/40_user_appearance.sql;
+
 -- ──────────────── 补充缓存数据（其它 SQL 文件未覆盖的 .cache/ 数据） ────────────────
 SOURCE sql/cache_data.sql;
 

@@ -1,8 +1,3 @@
-import { CACHE_DIR } from '@/utils/paths';
-
-/** API 条目数据文件路径（兼容保留；运行时数据源为数据库 已有业务表，缓存键 api_items.json） */
-export const API_ITEMS_FILE = `${CACHE_DIR}/api_items.json`;
-
 /** 代理请求超时时间（毫秒） */
 export const PROXY_TIMEOUT_MS = 30000;
 

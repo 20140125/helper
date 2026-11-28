@@ -163,31 +163,26 @@ PYEOF
         inspirational_quote="> 成功不是终点，失败也不是末日，唯有勇气才能永续。\n> —— 丘吉尔"
     fi
 
-    # 6. 保存到缓存数据库（Python 原子写临时文件，随后 cache_db_persist 入库）
-    log_info "6️⃣  保存到缓存文件..."
+    # 6. 保存到缓存数据库（Python 直接产出 JSON，由 cache_db_write 入库）
+    log_info "6️⃣  保存到缓存数据库..."
 
-    local fetch_time
+    local fetch_time payload
     fetch_time="$(date '+%Y-%m-%d %H:%M:%S')"
 
-    local cache_tmp
-    cache_tmp="$(mktemp "${TMPDIR:-/tmp}/helper-daily-data.XXXXXX" 2>/dev/null || printf '')"
+    payload="$(python3 - "$TODAY" "$fetch_time" \
+        "$weather_data" "$history_data" "$almanac_data" \
+        "$horoscope_data" "$inspirational_quote" << 'PYEOF'
+import json, sys
 
-    if [ -n "$cache_tmp" ]; then
-        python3 - "$cache_tmp" "$TODAY" "$fetch_time" \
-            "$weather_data" "$history_data" "$almanac_data" \
-            "$horoscope_data" "$inspirational_quote" << 'PYEOF'
-import json, os, sys
+today        = sys.argv[1]
+fetch_time   = sys.argv[2]
+weather      = sys.argv[3]
+history      = sys.argv[4]
+almanac      = sys.argv[5]
+horoscope    = sys.argv[6]
+inspirational= sys.argv[7]
 
-cache_file   = sys.argv[1]
-today        = sys.argv[2]
-fetch_time   = sys.argv[3]
-weather      = sys.argv[4]
-history      = sys.argv[5]
-almanac      = sys.argv[6]
-horoscope    = sys.argv[7]
-inspirational= sys.argv[8]
-
-payload = {
+print(json.dumps({
     "date":               today,
     "fetch_time":         fetch_time,
     "weather":            weather,
@@ -195,24 +190,15 @@ payload = {
     "almanac":            almanac,
     "horoscope":          horoscope,
     "inspirational_quote":inspirational,
-}
-
-tmp_file = cache_file + '.tmp'
-with open(tmp_file, 'w', encoding='utf-8') as f:
-    json.dump(payload, f, ensure_ascii=False, indent=2)
-    f.flush()
-    os.fsync(f.fileno())
-os.replace(tmp_file, cache_file)
+}, ensure_ascii=False, indent=2))
 PYEOF
-    fi
+    )" || payload=''
 
-    if [ -f "$cache_tmp" ] && cache_db_persist "$CACHE_KEY" "$cache_tmp"; then
-        cache_size=$(du -h "$cache_tmp" | cut -f1)
-        log_success "缓存文件已保存：${CACHE_KEY} (${cache_size})"
+    if [ -n "$payload" ] && cache_db_write "$CACHE_KEY" "$payload"; then
+        log_success "缓存已保存：${CACHE_KEY}"
     else
-        log_error "缓存文件保存失败"
+        log_error "缓存保存失败"
     fi
-    [ -z "$cache_tmp" ] || rm -f "$cache_tmp" "${cache_tmp}.tmp" 2>/dev/null
 
     # 7. 清理旧缓存（改为删库内历史 key，仅保留今天）
     log_info "7️⃣  清理旧缓存..."
@@ -223,7 +209,7 @@ PYEOF
         cache_db_delete "$old_key"
     done < <(cache_db_list 'daily_data_')
     remaining=$(cache_db_list 'daily_data_' | wc -l | tr -d ' ')
-    log_success "旧缓存已清理，保留 ${remaining} 个缓存文件（仅今天）"
+    log_success "旧缓存已清理，保留 ${remaining} 个缓存条目（仅今天）"
 
     log_success "脚本执行完成"
     log_info "======================================"

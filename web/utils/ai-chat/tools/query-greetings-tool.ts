@@ -1,5 +1,5 @@
 import { GREETINGS_GROUPS } from '@/routes/utils';
-import { syncContentLibraryIfStale, readGreetingsFromDb } from '@/utils/database/content-library';
+import { readGreetingsFromDb } from '@/utils/database/content-library';
 import type { GreetingsGroup } from '@/types/greetings';
 import type { ToolImpl, ToolResult } from '@/types/ai-chat';
 
@@ -50,7 +50,6 @@ export const queryGreetingsTool: ToolImpl = {
       }
       const kw = typeof args.keyword === 'string' ? args.keyword.toLowerCase().trim() : '';
 
-      await syncContentLibraryIfStale();
       const allItems = await readGreetingsFromDb();
 
       const list = allItems

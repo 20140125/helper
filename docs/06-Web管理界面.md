@@ -51,8 +51,9 @@ bash -c 'source scripts/weather_config.sh 2>/dev/null; echo "MAIL_HOST=${MAIL_HO
 | 功能管理 | API 管理 / 接口分类 | `/interface-management`、`/interface-categories` | 内部接口登记与调试执行 |
 | 功能管理 | 节日祝福语 / 提醒寄语 | `/greetings`、`/reminder-quotes` | 文案库维护 |
 | 功能管理 | AI 审批 | `/approvals` | 贾维斯增删改审批单：通过并执行 / 驳回（仅超级管理员可决策） |
-| 系统运维 | 运行日志 | `/logs` | 各脚本日志查看与清空 |
-| 系统运维 | 缓存文件 | `/cache` | 查看/编辑数据库中的缓存条目（缓存键） |
+| 系统运维 | 运行日志 | `/logs` | 按记录筛选 / 分页 / 展开详情，列表直接显示请求地址 |
+| 系统运维 | 缓存文件 | `/cache` | 按缓存键查看/编辑数据库缓存条目 |
+| 系统运维 | 缓存数据管理 | `/cache-admin` | 按表 / 粒度 / 关键字检索 13 张 `hp_cache_*` 表并编辑单条缓存行 |
 | 权限管理 | 角色/用户/权限/申请 | `/rbac/*` | RBAC 与权限审批 |
 | 开发工具 | 表单配置器 | `/auto-form-playground` | auto-form 表单调试 |
 
@@ -62,11 +63,13 @@ bash -c 'source scripts/weather_config.sh 2>/dev/null; echo "MAIL_HOST=${MAIL_HO
 
 **改配置**：系统配置 → 修改 → 保存。普通 env 项写入 `web/.env`，改 `MAIL_*`/`JWT_SECRET` 后**需重启 Web**；`AI_INSPECTOR_*` 例外，调度器每分钟重读一次，保存后 60 秒内自动生效。模型配置存数据库（`ai-model-configs.json` 缓存键），保存后立即生效、无需重启。
 
-系统配置的分区：企业微信机器人、天气 / 老黄历 / 星座、项目配置、生日提醒、卡片全局配置、**邮件配置**（`MAIL_*`，登录验证码）、**AI 模型与记忆**（模型配置组 / `AI_MEMORY_ENABLED` / `AI_COST_PRICING_JSON`）、**定时巡检与外部消息入口**（`AI_INSPECTOR_*` / `AI_CHAT_WEBHOOK_*`）。
+系统配置的分区：企业微信机器人、天气 / 老黄历 / 星座、项目配置、生日提醒、卡片全局配置、**邮件配置**（`MAIL_*`，登录验证码）、**AI 模型与记忆**（模型配置组 / `AI_MEMORY_ENABLED` / `AI_COST_PRICING_JSON`）、**定时巡检与外部消息入口**（`AI_INSPECTOR_*` / `AI_CHAT_WEBHOOK_*`）、**系统背景**（上传全站背景图，顶栏主题菜单可调「背景遮挡不透明度」）。
 
 **跑一次脚本**：命令行 `bash scripts/xxx.sh`，或直接让贾维斯执行（它会调 `trigger_script`）。原「手动触发」页已下线。
 
-**看日志**：运行日志 → 选日志来源 → 查看/清空（数据来自 `hp_run_logs`）。等价于 `view_logs.sh`；也可以让贾维斯查（`query_logs`）或清（`manage_logs`，默认会先建审批单）。
+**看日志**：运行日志 → 按来源类型 / 级别 / 关键词筛选 → 分页浏览 → 点击行展开完整正文与上下文（数据来自 `hp_run_logs`）。列表的「地址」列直接显示 `GET /api/xxx?...` 请求地址，不必展开详情。等价于 `view_logs.sh`；也可以让贾维斯查（`query_logs`）或清（`manage_logs`，默认会先建审批单）。
+
+**管缓存**：`缓存文件`（`/cache`）按缓存键维护数据库条目；`缓存数据管理`（`/cache-admin`）按表 / 粒度 / 关键字检索 13 张 `hp_cache_*` 表并编辑单条缓存行，表清单按表名去重（五个平台共用的热搜表只出现一次）。
 
 **批贾维斯的增删改**：AI 审批 → 待审批 → 通过并执行 / 驳回。详见 [14 贾维斯使用说明](14-贾维斯使用说明.md) 第 9.5 节。
 
@@ -90,6 +93,8 @@ cd web/frontend && npm run dev     # 5173
 cd web/frontend && npm run build
 ```
 
+> 生产模式（9527）托管构建产物，改前端源码（含 `styles/*.css`）后必须重新构建并刷新；`index.html` 缺失时 9527 会返回 404。5173 开发模式自动热更新，无需构建。
+
 ---
 
 ## 6. 页面背后的进程
@@ -101,14 +106,16 @@ cd web/frontend && npm run build
 
 页面上的「重启」走 3001，避免在 9527 进程内自杀导致响应中断。
 
+> 注意：通过页面 / 启动器触发重启时，`start_web.sh` 会先清理 3001 端口进程，若重启后 9527 未恢复，直接在终端执行 `bash scripts/start_web.sh start` 拉回主服务与启动器。
+
 ---
 
 ## 7. 检查清单
 
 - [ ] 能启动 Web 并打开页面
 - [ ] 能用邮箱验证码登录
-- [ ] 知道改配置、看日志、批审批单分别在哪个页面
-- [ ] 知道改前端要跑 Vite（5173）+ 后端开发模式
+- [ ] 知道改配置、看日志、批审批单分别在哪个页面，以及缓存文件 / 缓存数据管理两个页面的区别
+- [ ] 知道改前端要跑 Vite（5173）+ 后端开发模式，生产模式（9527）改完源码需 `npm run build`
 
 ---
 

@@ -1,10 +1,17 @@
 export type { Rule } from '@/types/rule';
 export type { Webhook } from '@/types/webhook';
 
-export { PROJECT_DIR, CACHE_DIR } from '@/utils/paths';
+export { PROJECT_DIR } from '@/utils/paths';
 
 // 通用响应（从独立模块重导出，避免循环依赖）
-export { ErrorCode, returnResponse } from '@/utils/response';
+export {
+  ErrorCode,
+  returnResponse,
+  createHttpError,
+  badRequest,
+  notFound,
+  resolveHttpErrorCode,
+} from '@/utils/response';
 
 // 从各 utils 模块重新导出，保持路由文件的引用路径不变
 export { ENV_FILE } from '@/types/env';
@@ -36,15 +43,6 @@ export {
 } from '@/utils/ai-model-config';
 export { fetchRemoteModels } from '@/utils/ai-model-config-fetch';
 export { testModelAvailability } from '@/utils/ai-model-config-test';
-// 缓存 KV 查询函数（缓存分表）
-export {
-  readCacheJsonFile,
-  listDailyDataFiles,
-  readDailyData,
-  listApiResponses,
-  readApiResponse,
-} from '@/utils/cache';
-
 export {
   saveAuthCode,
   getAuthCode,
@@ -126,6 +124,19 @@ export {
 export { notifyAllWebhooks } from '@/utils/wecom-notify';
 export { getOsRelease, getMemoryInfo, getDiskInfo, getSystemUptime, readDaemonPidInfo, readAnnualPid } from '@/utils/system';
 export { handleFileUpload, handleSkinBackgroundUpload } from '@/utils/upload';
+export {
+  handleAppBackgroundUpload,
+  readAppBackground,
+  saveAppBackground,
+  clearAppBackground,
+  isSafeAppBackgroundUrl,
+} from '@/utils/app-background';
+export {
+  normalizeSurfaceOpacity,
+  readUserAppearance,
+  upsertUserAppearance,
+  ensureUserAppearanceSchema,
+} from '@/utils/user-appearance';
 export { UPDATE_TOOLS_SCRIPTS } from '@/types/update-tools';
 export {
   validateRequiredArgs,
@@ -180,7 +191,6 @@ export type {
   ApprovePermissionBody,
   RejectPermissionBody,
 } from '@/types/permission-request';
-export { API_ITEMS_FILE } from '@/types/api-management';
 export {
   readApiCategories,
   writeApiCategories,
@@ -341,13 +351,41 @@ export type {
   I18nValueType,
 } from '@/types/i18n';
 
+// 缓存数据管理页（按 13 张 hp_cache_* 表检索、读写与删除；高德地理编码表已独立成页）
+export {
+  listCacheAdminTables,
+  listCacheAdminEntries,
+  readCacheAdminEntry,
+  writeCacheAdminEntry,
+  deleteCacheAdminEntry,
+  validateCacheAdminWrite,
+} from '@/utils/database';
+export type {
+  CacheAdminTable,
+  CacheAdminEntry,
+  CacheAdminList,
+  CacheAdminQuery,
+  CacheAdminDetail,
+  CacheAdminWriteBody,
+  CacheAdminPeriod,
+} from '@/types/cache-admin';
+
+// 高德地理编码缓存独立页（hp_cache_amap_geocode）
+export {
+  listAmapGeocodeEntries,
+  writeAmapGeocodeEntry,
+  deleteAmapGeocodeEntry,
+  validateAmapGeocodeWrite,
+} from '@/utils/database';
+export type { AmapGeocodeEntry, AmapGeocodeWriteBody } from '@/types/amap-geocode';
+
 export {
   normalizeDocName,
   isUserDocPath,
   listKnowledgeDocs,
   readKnowledgeDoc,
   readDocByPath,
-  resolveDocPath,
+  normalizeKnowledgeDocPath,
   writeKnowledgeDoc,
   deleteKnowledgeDoc,
   importSystemDoc,
@@ -355,7 +393,6 @@ export {
   normalizeKnowledgeDirs,
   writeKnowledgeDirs,
   getDocContentBytes,
-  resolveKnowledgeDirPaths,
   initKnowledgeDocs,
   refreshKnowledgeDocs,
   getKnowledgeDocEntries,
@@ -364,3 +401,13 @@ export {
 // 首页首屏聚合
 export type { BootstrapData, BootstrapDataKey, SystemStatusSnapshot } from '@/types/bootstrap';
 export { getSystemStatus, buildBootstrapData, parseBootstrapOnly } from '@/utils/bootstrap';
+
+// AI 回话管理页（运行追踪 + 消息流水，只读）
+export { listAiChatAdminRuns, getAiChatAdminRunDetail } from '@/utils/ai-chat/admin-queries';
+export type {
+  AiChatAdminRunRow,
+  AiChatAdminRunQuery,
+  AiChatAdminRunPage,
+  AiChatAdminMessage,
+  AiChatAdminRunDetail,
+} from '@/types/ai-chat-admin';

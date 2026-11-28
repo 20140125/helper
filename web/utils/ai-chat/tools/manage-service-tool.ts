@@ -217,7 +217,7 @@ export const manageServiceTool: ToolImpl = {
         alive: probe.alive,
         pid: probe.pid,
         output,
-        note: output ? undefined : '管理脚本的状态输出写在 web/.runtime/web_server.log（或 reminder_daemon.log），stdout 为空属正常',
+        note: output ? undefined : '管理脚本 stdout 为空属正常；运行日志已写入 hp_run_logs，可在日志查看页检索',
       },
       summary: isReadonly
         ? `${TARGET_LABEL[target]}：${probe.alive ? `运行中（PID ${probe.pid}）` : '未运行'}${output ? `；${output}` : ''}`

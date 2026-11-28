@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import {
   ErrorCode,
   returnResponse,
+  resolveHttpErrorCode,
   getDatabaseStatus,
   listTables,
   describeTable,
@@ -19,10 +20,15 @@ const router = Router();
 
 /**
  * 统一处理接口异常
- * @description 业务校验失败与连接失败都把 message 透传给前端展示
+ * @description 校验失败返回 400、表/脚本不存在返回 404、连接与服务端故障保留 500，message 一律透传
  */
 const handleError = (res: Response, err: unknown): Response =>
-  returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, (err as Error).message);
+  returnResponse(
+    res,
+    resolveHttpErrorCode(err),
+    {},
+    err instanceof Error ? err.message : String(err),
+  );
 
 /** @route GET /status - 连接状态 */
 router.get('/status', async (_req: Request, res: Response) => {

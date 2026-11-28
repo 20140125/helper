@@ -9,6 +9,7 @@ import {
   type DatabaseScriptFile,
 } from '@/types/database';
 import { readDatabaseConfig } from './connection';
+import { badRequest, notFound } from '@/utils/response';
 
 /** 模块化建表 SQL 目录 */
 const SQL_DIR = path.join(PROJECT_DIR, 'sql');
@@ -19,11 +20,11 @@ const SQL_DIR = path.join(PROJECT_DIR, 'sql');
  */
 const resolveSqlFile = (relPath: string): string => {
   if (relPath !== DATABASE_INIT_ENTRY && !relPath.startsWith('sql/')) {
-    throw new Error('只允许访问 helper_database.sql 与 sql/ 目录下的脚本');
+    throw badRequest('只允许访问 helper_database.sql 与 sql/ 目录下的脚本');
   }
   const abs = path.resolve(PROJECT_DIR, relPath);
   if (!abs.startsWith(PROJECT_DIR + path.sep) || path.extname(abs) !== '.sql') {
-    throw new Error('SQL 脚本路径不合法');
+    throw badRequest('SQL 脚本路径不合法');
   }
   return abs;
 };
@@ -69,7 +70,7 @@ export const listSqlScripts = (): DatabaseScriptFile[] => {
  */
 export const readSqlScript = (relPath: string): string => {
   const abs = resolveSqlFile(relPath);
-  if (!fs.existsSync(abs)) throw new Error(`SQL 脚本不存在：${relPath}`);
+  if (!fs.existsSync(abs)) throw notFound(`SQL 脚本不存在：${relPath}`);
   return fs.readFileSync(abs, 'utf8');
 };
 
@@ -114,7 +115,7 @@ export const initializeDatabase = async (confirmName: string): Promise<DatabaseI
   const config = readDatabaseConfig();
   if (!config) throw new Error('数据库未配置');
   if (confirmName !== config.database) {
-    throw new Error(`确认名称与当前数据库「${config.database}」不一致，初始化已取消`);
+    throw badRequest(`确认名称与当前数据库「${config.database}」不一致，初始化已取消`);
   }
   const { content, files } = expandInitScript(DATABASE_INIT_ENTRY);
   const connection = await mysql.createConnection({

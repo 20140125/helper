@@ -71,6 +71,9 @@
         <template #source="{ row }">
           <span class="logs-source">{{ sourceLabel(row.source) }}</span>
         </template>
+        <template #address="{ row }">
+          <span class="logs-address" :title="addressOf(row)">{{ addressOf(row) || '-' }}</span>
+        </template>
         <template #actions="{ row }">
           <t-button variant="text" theme="primary" size="small" @click.stop="openDetail(row)">
             {{ t.logs.viewDetail }}
@@ -136,6 +139,7 @@ const {
   closeDetail,
   levelTheme,
   sourceLabel,
+  addressOf,
 } = useLogsModel();
 </script>
 
@@ -166,6 +170,17 @@ const {
 
 .logs-source {
   font-size: 13px;
+}
+
+.logs-address {
+  display: block;
+  overflow: hidden;
+  min-width: 0;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .logs-expanded-row {

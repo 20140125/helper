@@ -307,12 +307,29 @@ const readBusiness = async (key: string): Promise<string | null> => {
         const messages = await query('SELECT * FROM hp_ai_messages WHERE conversation_id = ? ORDER BY seq', [id]);
         doc = {
           id: String(conv[0].id), title: String(conv[0].title ?? ''), user: String(conv[0].user ?? ''),
-          messages: messages.map((row) => ({
-            role: String(row.role ?? ''), content: String(row.content ?? ''),
-            tool_calls: row.tool_calls ? JSON.parse(String(row.tool_calls)) : null,
-            tool_call_id: row.tool_call_id ?? null, name: row.name ?? null,
-            created_at: Number(row.created_at ?? 0),
-          })),
+          messages: messages.map((row) => {
+            const rawContent = String(row.content ?? '');
+            let content: unknown = rawContent;
+            let toolCalls: unknown = null;
+            // 多模态消息以 JSON 数组落库，读回时还原成内容片段数组
+            if (rawContent.startsWith('[')) {
+              try { content = JSON.parse(rawContent); } catch { content = rawContent; }
+            }
+            if (row.tool_calls) {
+              try { toolCalls = JSON.parse(String(row.tool_calls)); } catch { toolCalls = null; }
+            }
+            const promptTokens = Number(row.prompt_tokens ?? 0);
+            const completionTokens = Number(row.completion_tokens ?? 0);
+            const totalTokens = Number(row.total_tokens ?? 0);
+            return {
+              role: String(row.role ?? ''), content,
+              tool_calls: toolCalls,
+              tool_call_id: row.tool_call_id ?? null, name: row.name ?? null,
+              created_at: Number(row.created_at ?? 0),
+              // usage 只在确实记录过 token 时才回填，避免旧消息显示成 0 token
+              ...(totalTokens > 0 ? { usage: { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: totalTokens } } : {}),
+            };
+          }),
           created_at: Number(conv[0].created_at ?? 0), updated_at: Number(conv[0].updated_at ?? 0),
         };
       } else if (isMemoryKey(key)) {
@@ -516,12 +533,25 @@ const writeBusiness = async (key: string, body: string): Promise<void> => {
           );
           for (let index = 0; index < messages.length; index += 40) {
             const chunk = messages.slice(index, index + 40);
-            const placeholders = chunk.map(() => '(?, ?, ?, ?, ?)').join(', ');
+            const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
             const values = chunk.flatMap((msg: any, i: number) => [
-              id, index + i, String(msg.role ?? ''), String(msg.content ?? ''), Number(msg.created_at ?? 0),
+              id,
+              index + i,
+              String(msg.role ?? ''),
+              typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content ?? ''),
+              msg.tool_calls ? JSON.stringify(msg.tool_calls) : null,
+              msg.tool_call_id ?? null,
+              msg.name ?? null,
+              Number(msg.usage?.prompt_tokens ?? 0),
+              Number(msg.usage?.completion_tokens ?? 0),
+              Number(msg.usage?.total_tokens ?? 0),
+              Number(msg.created_at ?? 0),
             ]);
             await conn.execute(
-              `INSERT INTO hp_ai_messages (conversation_id, seq, role, content, created_at) VALUES ${placeholders}`,
+              `INSERT INTO hp_ai_messages
+               (conversation_id, seq, role, content, tool_calls, tool_call_id, name,
+                prompt_tokens, completion_tokens, total_tokens, created_at)
+               VALUES ${placeholders}`,
               values,
             );
           }

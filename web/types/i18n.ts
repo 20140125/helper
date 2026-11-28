@@ -3,7 +3,7 @@
 // @description 前后端共用的语言代码白名单、运行时文案结构与管理页列表结构
 // ==============================
 
-/** 支持的语言代码（与 frontend/src/locales/{zh,en}.ts 对应） */
+/** 支持的语言代码（对应 hp_i18n_messages 的 lang 列） */
 export type I18nLang = 'zh' | 'en';
 
 /** 语言代码白名单 */

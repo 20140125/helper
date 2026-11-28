@@ -1,0 +1,171 @@
+/* ===== 系统背景图 ===== */
+/* 说明：style.css 里 .app-layout/.main-layout/.page-content 用
+   `background: var(--bg-primary) !important` 简写把背景写死，简写带出的
+   background-size / attachment 同样是 !important；旧写法没加 !important 会被覆盖成
+   auto，图片按原始像素渲染，只看得到中间一小块。这里改为只在 body 上画一次背景，
+   布局容器保持透明，并把所有 background 长属性都提升为 !important。 */
+
+:root {
+  --app-bg-image: none;
+  /* 所有遮挡层共用的不透明度，由「顶栏主题菜单」按用户保存到数据库 */
+  --app-bg-surface-opacity: 86%;
+}
+
+/* ===== 主题原色副本 ===== */
+/* 下方会把 --bg-card 等变量改写成半透明色，变量不能自引用，因此按主题另存一份原色。
+   custom 主题沿用 theme store 写入的 --custom-* 变量，切换主题 / 明暗模式时自动重算。 */
+:root[data-theme='dark'],
+:root:not([data-theme]) {
+  --app-bg-primary-solid: #0d1117;
+  --app-bg-secondary-solid: #161b22;
+  --app-bg-card-solid: #1c2333;
+  --app-bg-card-hover-solid: #212a3e;
+  /* 顶栏原色自带 0.95 alpha，这里取不带透明度的同色，保证混合后与其它元素完全一致 */
+  --app-bg-topbar-solid: #0d1117;
+}
+
+:root[data-theme='light'] {
+  --app-bg-primary-solid: #f5f7fa;
+  --app-bg-secondary-solid: #eef0f5;
+  --app-bg-card-solid: #ffffff;
+  --app-bg-card-hover-solid: #f8f9ff;
+  --app-bg-topbar-solid: #ffffff;
+}
+
+:root[data-theme='eye-care'] {
+  --app-bg-primary-solid: #1a2420;
+  --app-bg-secondary-solid: #1f2e28;
+  --app-bg-card-solid: #243530;
+  --app-bg-card-hover-solid: #2a3d36;
+  --app-bg-topbar-solid: #1a2420;
+}
+
+:root[data-theme='eye-care-light'] {
+  --app-bg-primary-solid: #f0f5f0;
+  --app-bg-secondary-solid: #e5ede5;
+  --app-bg-card-solid: #f8fbf8;
+  --app-bg-card-hover-solid: #edf5ed;
+  --app-bg-topbar-solid: #f8fbf8;
+}
+
+:root[data-theme='custom'] {
+  --app-bg-primary-solid: var(--custom-bg-primary, #0d1117);
+  --app-bg-secondary-solid: var(--custom-bg-secondary, #161b22);
+  --app-bg-card-solid: var(--custom-bg-card, #1c2333);
+  --app-bg-card-hover-solid: var(--custom-bg-card-hover, #212a3e);
+  --app-bg-topbar-solid: var(--custom-bg-primary, #0d1117);
+}
+
+/* ===== 统一半透明化 ===== */
+/* 项目自身与 TDesign 的背景变量全部指向同一组混合色，卡片 / 顶栏 / 侧边栏 / 标签栏 /
+   表格 / 输入框 / 弹层 / 按钮等所有元素自动使用同一个不透明度，无需逐个类名打补丁。
+   带 [theme-mode] 提升特异性，压过 TDesign 的 :root[theme-mode="dark"] 声明。 */
+:root[data-app-bg='1'][theme-mode] {
+  --bg-primary: color-mix(in srgb, var(--app-bg-primary-solid) var(--app-bg-surface-opacity, 86%), transparent);
+  --bg-secondary: color-mix(in srgb, var(--app-bg-secondary-solid) var(--app-bg-surface-opacity, 86%), transparent);
+  --bg-card: color-mix(in srgb, var(--app-bg-card-solid) var(--app-bg-surface-opacity, 86%), transparent);
+  --bg-card-hover: color-mix(in srgb, var(--app-bg-card-hover-solid) var(--app-bg-surface-opacity, 86%), transparent);
+  --topbar-bg: color-mix(in srgb, var(--app-bg-topbar-solid) var(--app-bg-surface-opacity, 86%), transparent);
+  /* --sidebar-bg 原为渐变，color-mix 无法混合渐变，侧边栏统一改用卡片底色 */
+  --sidebar-bg: color-mix(in srgb, var(--app-bg-card-solid) var(--app-bg-surface-opacity, 86%), transparent);
+  --log-code-bg: color-mix(in srgb, var(--app-bg-primary-solid) var(--app-bg-surface-opacity, 86%), transparent);
+
+  --td-bg-color-page: transparent;
+  --td-bg-color-container: var(--bg-card);
+  --td-bg-color-container-hover: var(--bg-card-hover);
+  --td-bg-color-container-active: var(--bg-card-hover);
+  --td-bg-color-container-select: var(--bg-card-hover);
+  --td-bg-color-secondarycontainer: var(--bg-secondary);
+  --td-bg-color-secondarycontainer-hover: var(--bg-card-hover);
+  --td-bg-color-secondarycontainer-active: var(--bg-card-hover);
+  --td-bg-color-component: var(--bg-secondary);
+  --td-bg-color-component-hover: var(--bg-card-hover);
+  --td-bg-color-component-active: var(--bg-card-hover);
+  --td-bg-color-secondarycomponent: var(--bg-secondary);
+  --td-bg-color-secondarycomponent-hover: var(--bg-card-hover);
+  --td-bg-color-secondarycomponent-active: var(--bg-card-hover);
+}
+
+/* 根节点保持不透明底色，避免半透明变量让浏览器画布色透出；body 负责绘制背景图 */
+html[data-app-bg='1'] {
+  background-color: var(--app-bg-primary-solid) !important;
+}
+
+html[data-app-bg='1'] body {
+  background-color: var(--bg-primary) !important;
+  /* 两层：压暗层与图片都铺满视口，不留左右黑边；图片按短边等比裁切 */
+  background-image:
+    linear-gradient(rgba(9, 12, 20, 0.22), rgba(9, 12, 20, 0.22)),
+    var(--app-bg-image, none) !important;
+  background-size: cover, cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+html[data-app-bg='1'] .app-layout,
+html[data-app-bg='1'] .main-layout,
+html[data-app-bg='1'] .page-content {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* 背景图模式下隐藏网格线，避免叠在图片上影响观感 */
+html[data-app-bg='1'] .page-content::before {
+  display: none;
+}
+
+/* 背景图模式下所有遮挡层只保留「一层」半透明底色：
+   卡片不再加毛玻璃模糊与投影，顶栏也不再模糊，避免中间内容看起来比侧栏多蒙一层 */
+html[data-app-bg='1'] .card,
+html[data-app-bg='1'] .stat-card,
+html[data-app-bg='1'] .card:hover,
+html[data-app-bg='1'] .stat-card:hover {
+  backdrop-filter: none;
+  box-shadow: none !important;
+}
+
+html[data-app-bg='1'] .topbar {
+  backdrop-filter: none;
+}
+
+/* 侧边栏外层与内层原本各自半透明，叠加后会比卡片更实；内层透明后所有区域一致 */
+html[data-app-bg='1'] .sidebar-inner {
+  background: transparent !important;
+}
+
+/* 表格：卡片 / t-table / tr / td 若各自半透明，层层叠加后内容区会重新变成接近不透明。
+   只让最外层卡片承担底色，内部行与单元格保持透明，背景图才能真正透出来。 */
+html[data-app-bg='1'] .t-table,
+html[data-app-bg='1'] .t-table tr,
+html[data-app-bg='1'] .t-table th,
+html[data-app-bg='1'] .t-table td {
+  background-color: transparent !important;
+}
+
+/* 保留行 hover 高亮，用极淡的主色而不是实色 */
+html[data-app-bg='1'] .t-table tr:hover > td {
+  background-color: rgba(var(--accent-primary-rgb, 99, 102, 241), 0.08) !important;
+}
+
+/* 主内容区补上与侧边栏相同的一层半透明底色，页面标题不再直接压在背景图上 */
+html[data-app-bg='1'] .page-content {
+  background-color: var(--bg-card) !important;
+}
+
+/* 卡片不再重复铺底色，避免与主内容区叠加后又变成「多一层」的实色块 */
+html[data-app-bg='1'] .card,
+html[data-app-bg='1'] .stat-card {
+  background-color: transparent !important;
+}
+
+/* 标签栏原本外层 / t-tabs / 标签项三层叠加显得发黑，只留 t-tabs 一层 */
+html[data-app-bg='1'] .tab-bar,
+html[data-app-bg='1'] .t-tabs__operations,
+html[data-app-bg='1'] .t-tabs__nav-item:not(.t-is-active) {
+  background-color: transparent !important;
+}
+
+html[data-app-bg='1'] .t-tabs__nav-item.t-is-active {
+  background-color: rgba(var(--accent-primary-rgb, 99, 102, 241), 0.12) !important;
+}

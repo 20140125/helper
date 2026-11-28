@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import {
-  CACHE_DIR,
   ErrorCode,
   returnResponse,
   isValidFilename,
@@ -23,7 +22,7 @@ const router = Router();
  */
 router.get('/', async (_req, res) => {
   try {
-    const files = await listCacheFiles(CACHE_DIR);
+    const files = await listCacheFiles();
     return returnResponse(res, ErrorCode.SUCCESS, { files }, 'success');
   } catch (err) {
     return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, (err as Error).message);
@@ -43,7 +42,7 @@ router.get('/:filename(*)', async (req, res) => {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '非法文件名');
   }
   try {
-    const result = await readCacheFile(CACHE_DIR, filename);
+    const result = await readCacheFile(filename);
     if ('notFound' in result) {
       return returnResponse(res, ErrorCode.NOT_FOUND, {}, '条目不存在');
     }
@@ -79,7 +78,7 @@ router.put('/:filename(*)', async (req, res) => {
   }
 
   try {
-    const writeError = await writeCacheFile(CACHE_DIR, filename, content as string);
+    const writeError = await writeCacheFile(filename, content as string);
     if (writeError) {
       return returnResponse(res, ErrorCode.NOT_FOUND, {}, writeError);
     }

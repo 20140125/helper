@@ -1,5 +1,3 @@
-import path from 'path';
-import { PROJECT_DIR } from '@/utils/paths';
 import { readEnvFile } from '@/utils/env';
 
 /** 下拉选项定义 */
@@ -34,7 +32,7 @@ export const UPDATE_TOOLS_SCRIPTS: Record<string, UpdateToolScript> = {
   get_holidays: {
     filename: 'scripts/update-tools/get_holidays.sh',
     label: '获取节假日数据',
-    autoArgs: (_args, year) => [year, path.join(PROJECT_DIR, '.cache', 'holiday_data.json')],
+    autoArgs: (_args, year) => [year, 'holiday_data.json'],
     params: [],
   },
   generate_holiday_config: {
@@ -42,7 +40,7 @@ export const UPDATE_TOOLS_SCRIPTS: Record<string, UpdateToolScript> = {
     label: '生成节假日配置文件',
     autoArgs: (args, year) => [
       year,
-      path.join(PROJECT_DIR, '.cache', 'holiday_data.json'),
+      'holiday_data.json',
       ...(args[0] ? [args[0]] : []),
     ],
     params: [

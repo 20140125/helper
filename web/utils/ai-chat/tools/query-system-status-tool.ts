@@ -2,7 +2,6 @@ import path from 'path';
 import os from 'os';
 import {
   PROJECT_DIR,
-  CACHE_DIR,
   countCacheFiles,
   getOsRelease,
   getMemoryInfo,
@@ -105,7 +104,7 @@ export const querySystemStatusTool: ToolImpl = {
           pid: annualPid,
         },
       },
-      cache_files: await countCacheFiles(CACHE_DIR),
+      cache_files: await countCacheFiles(),
     };
 
     return {

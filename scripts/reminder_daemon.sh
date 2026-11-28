@@ -160,7 +160,7 @@ CUSTOM_RULES_KEY="custom_rules.json"
 # 加载自定义规则读取工具（提供 get_matching_rule_ids、update_last_triggered_at、get_rule_name_by_id 等函数）
 # shellcheck source=custom_rules/rule_reader.sh
 # 说明：rule_reader.sh / custom_rules.sh 已统一从 custom_rules.json KV 读取，
-#       不再需要 RULES_FILE 磁盘路径，本进程也不再引用 CACHE_DIR。
+#       不再需要 RULES_FILE 磁盘路径，运行时按缓存键读写数据库。
 source "${PROJECT_DIR}/custom_rules/rule_reader.sh"
 
 ## 辅助函数：判断当前时间是否在指定小时:分钟的触发窗口内

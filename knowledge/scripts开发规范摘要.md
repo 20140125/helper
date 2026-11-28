@@ -24,7 +24,7 @@
 - 先设 `SCRIPT_DIR` 和 `_SELF_DIR`
 - 再 `source "${SCRIPT_DIR}/../project_config.sh"`
 
-`project_config.sh` 提供 `PROJECT_DIR`、`ROOT_DIR`、`CACHE_DIR`、`ENV_FILE`（其中 `CACHE_DIR` 仅保留给一次性迁移/兼容用途，脚本运行时通过 `scripts/cache_db.sh` 按缓存键读写数据库，不再读写 `.cache/` 文件）。环境变量文件优先级是 `web/.env` 优先，缺失时才回退 `scripts/.env`，Web 服务和脚本读同一份配置。
+`project_config.sh` 提供 `PROJECT_DIR`、`ROOT_DIR`、`ENV_FILE`；脚本运行时通过 `scripts/cache_db.sh` 按缓存键读写数据库，不再读写 `.cache/` 文件。环境变量文件优先级是 `web/.env` 优先，缺失时才回退 `scripts/.env`，Web 服务和脚本读同一份配置。
 
 ## 配置加载顺序
 

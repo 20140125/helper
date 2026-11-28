@@ -1,6 +1,6 @@
 import os from 'os';
 import path from 'path';
-import { PROJECT_DIR, CACHE_DIR } from '@/utils/paths';
+import { PROJECT_DIR } from '@/utils/paths';
 import { formatDate } from '@/utils/script';
 import { countCacheFiles } from '@/utils/cache';
 import {
@@ -36,7 +36,7 @@ export const getSystemStatus = async (): Promise<SystemStatusSnapshot> => {
     daemonPid,
     daemonStartTime,
     annualPid,
-    cacheFiles: await countCacheFiles(CACHE_DIR),
+    cacheFiles: await countCacheFiles(),
     serverTime: formatDate(),
     hostname: os.hostname(),
     osRelease: getOsRelease(),

@@ -1,5 +1,6 @@
 import { DATABASE_QUERY_ROWS_LIMIT, DATABASE_SQL_MAX_BYTES, type SqlExecution } from '@/types/database';
 import { executeSql } from './connection';
+import { badRequest } from '@/utils/response';
 
 /** 只读查询允许的起始关键字 */
 const READ_STATEMENTS = new Set(['SELECT', 'SHOW', 'DESCRIBE', 'DESC', 'EXPLAIN', 'WITH']);
@@ -14,17 +15,17 @@ const FORBIDDEN_READ_PATTERN = /\b(insert|update|delete|drop|alter|create|trunca
  *   避免行注释把子查询包装的右括号吞掉
  */
 const normalizeSql = (raw: string): string => {
-  if (typeof raw !== 'string') throw new Error('SQL 内容不合法');
-  if (Buffer.byteLength(raw, 'utf8') > DATABASE_SQL_MAX_BYTES) throw new Error('SQL 超过 64KB 限制');
+  if (typeof raw !== 'string') throw badRequest('SQL 内容不合法');
+  if (Buffer.byteLength(raw, 'utf8') > DATABASE_SQL_MAX_BYTES) throw badRequest('SQL 超过 64KB 限制');
   const sql = raw.trim().replace(/;+\s*$/, '');
-  if (!sql) throw new Error('SQL 不能为空');
+  if (!sql) throw badRequest('SQL 不能为空');
   const bare = sql
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/--[^\n]*/g, '')
     .replace(/#[^\n]*/g, '')
     .trim();
-  if (!bare) throw new Error('SQL 不能为空');
-  if (bare.includes(';')) throw new Error('一次只能执行一条 SQL 语句');
+  if (!bare) throw badRequest('SQL 不能为空');
+  if (bare.includes(';')) throw badRequest('一次只能执行一条 SQL 语句');
   return bare;
 };
 
@@ -37,10 +38,10 @@ export const runReadOnlyQuery = async (raw: string): Promise<SqlExecution> => {
   const sql = normalizeSql(raw);
   const keyword = sql.split(/\s+/)[0]?.toUpperCase() ?? '';
   if (!READ_STATEMENTS.has(keyword)) {
-    throw new Error('只读查询仅支持 SELECT / SHOW / DESCRIBE / EXPLAIN / WITH');
+    throw badRequest('只读查询仅支持 SELECT / SHOW / DESCRIBE / EXPLAIN / WITH');
   }
   if (FORBIDDEN_READ_PATTERN.test(sql)) {
-    throw new Error('只读查询不允许包含写入语句或危险函数');
+    throw badRequest('只读查询不允许包含写入语句或危险函数');
   }
   const limit = DATABASE_QUERY_ROWS_LIMIT;
   const needsWrapper = keyword === 'SELECT' && !/\blimit\s+\d+/i.test(sql);

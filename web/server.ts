@@ -29,18 +29,23 @@ import { AI_CHAT_SKIN_BODY_LIMIT } from '@/types/ai-chat-skin';
 import { ensureRbacSchema } from '@/utils/rbac/db';
 import { ensureEnvConfigSeed } from '@/utils/env-config';
 import { ensureAiChatSkinSchema } from '@/utils/ai-chat/skin-store';
+import { ensureUserAppearanceSchema } from '@/utils/user-appearance';
 import { initKnowledgeDocs } from '@/utils/knowledge';
 
 setupTimestampLogger();
 import systemRouter from '@/routes/system';
 import bootstrapRouter from '@/routes/bootstrap';
 import configRouter from '@/routes/config';
+import appBackgroundRouter from '@/routes/app-background';
+import userAppearanceRouter from '@/routes/user-appearance';
 import aiModelConfigsRouter from '@/routes/ai-model-configs';
 import logsRouter from '@/routes/logs';
 import daemonRouter from '@/routes/daemon';
 import triggerRouter from '@/routes/trigger';
 import updateToolsRouter from '@/routes/update-tools';
 import cacheRouter from '@/routes/cache';
+import cacheAdminRouter from '@/routes/cache-admin';
+import amapGeocodeRouter from '@/routes/amap-geocode';
 import rulesRouter from '@/routes/rules';
 import webhooksRouter from '@/routes/webhooks';
 import webServiceRouter from '@/routes/web-service';
@@ -59,6 +64,7 @@ import greetingsRouter from '@/routes/greetings';
 import reminderQuotesRouter from '@/routes/reminder-quotes';
 import skillMapRouter from '@/routes/skill-map';
 import aiChatRouter, { aiWebhookRouter } from '@/routes/ai-chat';
+import aiChatAdminRouter from '@/routes/ai-chat-admin';
 import knowledgeRouter from '@/routes/knowledge';
 import databaseRouter from '@/routes/database';
 import amapRouter from '@/routes/amap';
@@ -168,6 +174,12 @@ app.use('/api', async (req, res, next) => {
     return next();
   }
 
+  // 系统背景配置：登录页与首屏也要显示背景，只放行精确 GET；
+  // 写操作（POST/PUT/DELETE）仍必须走 JWT 与 CONFIG_EDIT 校验
+  if (req.method === 'GET' && req.path === '/app-background') {
+    return next();
+  }
+
   // 获取 token
   const token = getAuthToken(req);
 
@@ -221,6 +233,14 @@ app.use('/api/config', ...withPermission(configRouter, {
   write: Permission.CONFIG_EDIT,
 }));
 
+// 系统背景图：GET 公开（登录页首屏），写操作需要 CONFIG_EDIT
+app.use('/api/app-background', ...withPermission(appBackgroundRouter, {
+  write: Permission.CONFIG_EDIT,
+}));
+
+// 按用户外观偏好：全局 JWT 已保证登录态，读写按 req.userEmail 隔离，不额外要求权限码
+app.use('/api/user-appearance', userAppearanceRouter);
+
 // 自定义 AI 模型配置：权限收拢到超级管理员
 // requireSuperAdmin 做身份兜底；withPermission 用专属权限码做 RBAC 校验
 // /test-model 只做连通性探测、不修改配置，按只读权限放行
@@ -252,6 +272,18 @@ app.use('/api/update-tools', ...withPermission(updateToolsRouter, {
 
 // 缓存相关路由
 app.use('/api/cache', ...withPermission(cacheRouter, {
+  read: Permission.CACHE_VIEW,
+  write: Permission.CACHE_EDIT,
+}));
+
+// 缓存数据管理页（按表浏览与编辑 hp_cache_* 缓存行）
+app.use('/api/cache-admin', ...withPermission(cacheAdminRouter, {
+  read: Permission.CACHE_VIEW,
+  write: Permission.CACHE_EDIT,
+}));
+
+// 高德地理编码缓存独立页（地址 → 经纬度）
+app.use('/api/amap-geocode', ...withPermission(amapGeocodeRouter, {
   read: Permission.CACHE_VIEW,
   write: Permission.CACHE_EDIT,
 }));
@@ -362,6 +394,12 @@ app.use('/api/ai-chat', ...withPermission(aiChatRouter, {
   read: Permission.AI_CHAT_VIEW,
   write: Permission.AI_CHAT_VIEW,
   readPaths: ['/send', '/conversations'],
+}));
+
+// AI 回话管理页：只读运行追踪与消息流水，普通用户在路由内限定为本人数据
+app.use('/api/ai-chat-admin', ...withPermission(aiChatAdminRouter, {
+  read: Permission.AI_CHAT_VIEW,
+  write: Permission.AI_CHAT_VIEW,
 }));
 
 // 知识库管理：文档维护与索引重建按 edit 权限；检索测试只是读操作，按 view 放行
@@ -494,13 +532,18 @@ void (async (): Promise<void> => {
   } catch (err) {
     console.warn('[DB] 皮肤表结构/预设种子初始化失败，皮肤将使用内置兜底：', (err as Error).message);
   }
-  // 知识库文档：按文件增量同步后加载数据库快照；初始化异常时提示检查 DB_* 配置
+  // 按用户外观偏好表结构与顶栏文案种子
+  try {
+    await ensureUserAppearanceSchema();
+  } catch (err) {
+    console.warn('[DB] 外观偏好表结构初始化失败，遮挡层将使用默认不透明度：', (err as Error).message);
+  }
+  // 知识库文档：按 content_hash 增量同步后加载数据库快照；异常不再降级读本地文件
   try {
     const knowledgeDocCount = await initKnowledgeDocs();
-    if (knowledgeDocCount > 0) console.log(`📚 知识库文档已加载 ${knowledgeDocCount} 篇`);
-    else console.warn('[DB] 知识库文档未加载，数据库不可用请检查 DB_* 配置');
+    console.log(`📚 知识库文档已加载 ${knowledgeDocCount} 篇`);
   } catch (err) {
-    console.warn('[DB] 知识库初始化失败，数据库不可用请检查 DB_* 配置：', (err as Error).message);
+    console.warn('[DB] 知识库初始化失败，相关接口将返回错误（不再降级读文件），请检查 DB_* 配置：', (err as Error).message);
   }
   startWebServer();
 })();

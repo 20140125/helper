@@ -70,6 +70,11 @@
 | 页面独有布局/配色 | 页面 `<style scoped>` | 隔离不污染 |
 | 组件内部样式 | 组件 `<style scoped>` | 跟组件走 |
 | 全局主题/过渡/动画 | `styles/style.css` | 全局生效 |
+| 全站背景图与遮挡层 | `styles/app-background.css` | 与 `style.css` 的写死底色互相覆盖，需单独维护 |
+
+### 覆盖写死的全局背景
+
+`style.css` 用 `background: var(--bg-primary) !important` 简写给 `.app-layout` / `.main-layout` / `.page-content` 设底色，**简写带出的 `background-size` / `background-attachment` 等长属性同样是 `!important`**。覆盖时所有 `background` 长属性都要加 `!important`，否则 `background-size` 被压回 `auto`，背景图按原始像素渲染、只露局部。背景只在 `body` 绘制一次、布局容器保持透明；图片层用 `cover` 铺满视口（`contain` 会留边）。改完 CSS 走 9527 生产模式必须 `npm run build`，5173 开发模式才自动热更新。细则见 `06-common-pitfalls-checklist.md` 6.8。
 
 ---
 
@@ -180,3 +185,15 @@ export class ExampleModel extends BaseModel { }
   <auto-form v-model="formData" :fields="fields" />
 </form-drawer>
 ```
+
+---
+
+## i18n 文案维护
+
+文案唯一真源是 MySQL `hp_i18n_messages`（管理页 `/i18n-messages`），没有 TS 语言包文件。新增 key 的流程：
+
+1. zh / en 各写一条到 `hp_i18n_messages`（含 `path_json` 层级、`namespace`、`sort_order`）。
+2. `cd web && npm run i18n:sql`：从库导出 `sql/i18n/35_i18n_messages.sql` 种子与 `frontend/src/types/locale.ts` 静态 `Locale` 接口。
+3. 前端用 `useLocaleStore().t.xxx`；`locale.ts` 是生成文件，不要手改。
+
+种子 SQL 由脚本按 200 行分批生成，新增 key 会让后续批次边界产生少量行移位，属正常生成结果。现有库补 key 用 `npm run i18n:sql -- --apply`（幂等 UPSERT，不覆盖管理页编辑过的文案）。

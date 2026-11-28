@@ -5,7 +5,7 @@
 #
 # 功能说明：
 #   1. 抓取 qiyoujiage.com 广东地区 92/95/98 汽油价格
-#   2. 与本地缓存对比，展示涨跌幅
+#   2. 与上次入库的价格对比，展示涨跌幅
 #   3. 抓取最新调价信息
 #   4. 生成卡片
 #
@@ -13,7 +13,7 @@
 #   bash scripts/tools/oil_price_card_gen.sh
 #
 # 作者：智能提醒系统
-# 更新：2026-04-27
+# 更新：2026-11-28
 # ======================================
 
 set -euo pipefail
@@ -23,10 +23,14 @@ source "${SCRIPT_DIR}/../project_config.sh"
 LOG_FILE="${SCRIPT_DIR}/tools.log"
 source "${PROJECT_DIR}/log_utils.sh"
 source "${SCRIPT_DIR}/card_utils.sh"
+# 上次价格存库内缓存条目（card_utils.sh 经 api_archive.sh 已加载通道，这里做幂等兜底）
+if ! declare -F cache_db_read >/dev/null 2>&1; then
+    source "${PROJECT_DIR}/cache_db.sh"
+fi
 
 OUTPUT_FILE="${CARD_OUTPUT_DIR}/oil_price_card.png"
 SVG_FILE="/tmp/oil_price_card.svg"
-CACHE_FILE="${SCRIPT_DIR}/.oil_price_cache_v2"
+LAST_PRICE_KEY='oil_price_last.json'
 
 # 1) 抓取数据：当前油价 + 缓存价格 + 调价信息 → JSON
 fetch_data() {
@@ -43,15 +47,21 @@ fetch_data() {
         return 1
     fi
 
-    # 缓存读取
-    local lp92="$p92" lp95="$p95" lp98="$p98"
-    if [ -f "$CACHE_FILE" ]; then
-        lp92=$(sed -n '1p' "$CACHE_FILE" 2>/dev/null); [ -z "$lp92" ] && lp92="$p92"
-        lp95=$(sed -n '2p' "$CACHE_FILE" 2>/dev/null); [ -z "$lp95" ] && lp95="$p95"
-        lp98=$(sed -n '3p' "$CACHE_FILE" 2>/dev/null); [ -z "$lp98" ] && lp98="$p98"
+    # 上次价格：从库内缓存条目读取，缺失时用本次价格（展示持平）
+    local lp92="$p92" lp95="$p95" lp98="$p98" cached c92 c95 c98
+    cached="$(cache_db_read "$LAST_PRICE_KEY" 2>/dev/null | jq -r '[.p92 // "", .p95 // "", .p98 // ""] | @tsv' 2>/dev/null || printf '')"
+    if [ -n "$cached" ]; then
+        IFS=$'\t' read -r c92 c95 c98 <<< "$cached"
+        lp92="${c92:-$lp92}"
+        lp95="${c95:-$lp95}"
+        lp98="${c98:-$lp98}"
     fi
-    # 更新缓存
-    printf '%s\n%s\n%s\n' "$p92" "$p95" "$p98" > "$CACHE_FILE"
+    # 本次价格入库，供下次对比
+    local current
+    current="$(jq -n --arg p92 "$p92" --arg p95 "$p95" --arg p98 "$p98" \
+        '{p92:$p92,p95:$p95,p98:$p98}')"
+    cache_db_write "$LAST_PRICE_KEY" "$current" 2>/dev/null \
+        || log_warning "上次油价写入缓存失败，不影响本次卡片"
 
     # 调价信息
     local home adjust_date adjust_change adjust_info

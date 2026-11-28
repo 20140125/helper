@@ -49,3 +49,4 @@ DROP TABLE IF EXISTS `hp_hot_search_snapshot`;
 --       初始化 / 同步按文件回灌系统文档、只补齐用户文档缺失项；见 sql/knowledge/38_knowledge_docs.sql
 DROP TABLE IF EXISTS `hp_ai_chat_skins`;
 DROP TABLE IF EXISTS `hp_ai_chat_skin_presets`;
+DROP TABLE IF EXISTS `hp_user_appearance`;

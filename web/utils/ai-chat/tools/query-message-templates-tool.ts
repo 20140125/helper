@@ -1,4 +1,4 @@
-import { syncContentLibraryIfStale, readTemplatesFromDb } from '@/utils/database/content-library';
+import { readTemplatesFromDb } from '@/utils/database/content-library';
 import type { ToolImpl, ToolResult } from '@/types/ai-chat';
 
 /** 单条模板内容预览长度（字符） */
@@ -69,7 +69,6 @@ export const queryMessageTemplatesTool: ToolImpl = {
   invoke: async (args): Promise<ToolResult> => {
     let raw: Record<string, unknown>;
     try {
-      await syncContentLibraryIfStale();
       raw = await readTemplatesFromDb();
     } catch (err) {
       return { ok: false, data: `读取消息模板失败：${(err as Error).message}` };

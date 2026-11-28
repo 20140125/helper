@@ -1,5 +1,6 @@
 import { DATABASE_QUERY_ROWS_LIMIT, DATABASE_ROWS_LIMIT, DATABASE_TABLES_LIMIT, type DatabaseColumn, type DatabaseIndex, type DatabaseTable, type DatabaseTableSchema, type SqlExecution } from '@/types/database';
 import { executeSql, readDatabaseConfig } from './connection';
+import { badRequest, notFound } from '@/utils/response';
 
 /** 合法表名：仅字母、数字、下划线，避免拼接 SQL 时注入 */
 const TABLE_NAME_PATTERN = /^[A-Za-z0-9_]+$/;
@@ -10,7 +11,7 @@ const TABLE_NAME_PATTERN = /^[A-Za-z0-9_]+$/;
  */
 const quoteIdentifier = (name: string): string => {
   if (typeof name !== 'string' || !TABLE_NAME_PATTERN.test(name)) {
-    throw new Error('表名不合法：仅支持字母、数字与下划线');
+    throw badRequest('表名不合法：仅支持字母、数字与下划线');
   }
   return `\`${name}\``;
 };
@@ -27,7 +28,7 @@ const assertTableExists = async (name: string): Promise<void> => {
     [config.database, name],
     1,
   );
-  if (result.rows.length === 0) throw new Error(`表或视图不存在：${name}`);
+  if (result.rows.length === 0) throw notFound(`表或视图不存在：${name}`);
 };
 
 /**

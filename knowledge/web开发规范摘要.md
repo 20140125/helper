@@ -43,6 +43,9 @@
 - View 超过 200 行时拆到 `components/<模块>/`；子组件不新建 Model，通过 props/emits 与父页面协作。
 - 样式重复达到 2 个文件就提取到 `frontend/src/styles/*.css`。
 - 定时器必须在 `beforeUnmount` 清理。
+- 新增文案先写 zh / en 两条到 `hp_i18n_messages`，再 `cd web && npm run i18n:sql` 导出 `sql/i18n/35_i18n_messages.sql` 与 `types/locale.ts`；`locale.ts` 是生成文件，不要手改。
+- 覆盖 `style.css` 里 `background: ... !important` 简写时，所有 `background` 长属性都要加 `!important`（简写会同时把 `background-size` 等设为 `!important`）；全局背景图只在 `body` 绘制一次，布局容器透明，避免多层叠加与原始像素裁切。改完 CSS 走 9527 生产模式需重新 `npm run build`。
+- 缓存数据管理页的表清单按表名去重（多个前缀路由可共用一张表，如 `hp_cache_res_hot_list`），不要把路由清单直接当表清单，否则下拉与 UNION 都会重复。
 
 ## 后端关键约定
 
@@ -77,6 +80,8 @@
 - `npm run lint:unused`：基于 TypeScript AST 检查未使用 import。
 - `npm run lint:i18n`：扫描中文硬编码并输出 i18n key 建议。
 - `npm run auto-fix`：调用项目 ESLint 自动修复；全量执行前先 `npm run auto-fix -- --dry-run`。
+- `npm run i18n:sql`：新增文案写库后，从 `hp_i18n_messages` 导出 `sql/i18n/35_i18n_messages.sql` 与 `types/locale.ts`。
+- `npm run knowledge:sql`：改完 `docs/` / `knowledge/` 后重建 `sql/knowledge/38_knowledge_docs.sql`；同步现有库加 `--apply`。
 
 注意：`check-code-style`、`check-model-service`、`check-a11y`、`check-timer` 只检查不改写；可自动修复的问题统一走 `npm run auto-fix`。
 

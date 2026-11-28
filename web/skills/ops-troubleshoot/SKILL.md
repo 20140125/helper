@@ -31,7 +31,7 @@ tools:
 2. **主机**：`query_system_status` —— 内存 / 磁盘占用、运行时长、
    提醒守护进程 `reminder_daemon` 与年度调度进程 `annual_scheduler` 是否在跑、数据库缓存条目数量
 3. **日志**：`query_logs` —— 先不传 `log_key` 拿到 `hp_run_logs` 里实际存在的来源清单，
-   再用清单里的 `source` 原值读末尾 N 行（`lines` 默认 50、最大 500）
+   再用清单里的 `source` 原值读末尾 N 行（`lines` 默认 50、最大 500）；Web「运行日志」页列表已直接显示请求地址，便于先定位接口记录
 4. **配置**：`query_config` —— 用 `keyword` 过滤（`LLM` / `EMAIL` / `CITY`），确认关键项有没有配
 5. **规则**：`query_rules` —— 确认触发时间与启用状态（`enabled_only: true` 只看启用的）
 

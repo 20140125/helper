@@ -16,7 +16,6 @@ CREATE TABLE `hp_cache_dailyword_library` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='基于 .cache/dailyword_library.json 生成';
 
 INSERT INTO `hp_cache_dailyword_library` (`section`, `row_key`, `data`) VALUES
-  ('updated_at', '', '2026-11-28') ,
   ('entries', '2026-05-09', '{"english":"You can, you should, and if you’re brave, you will.","chinese":"你可以，你应该，若你勇敢，你会做到。","quote":"很多人在喧嚣声中登场，也有少数人在静默中退出。","from":"单独中的洞见2，作家出版社"}') ,
   ('entries', '2026-05-10', '{"english":"Gather all ingredients and whip up something delicious today.","chinese":"收集所有材料，今天做出美味。","quote":"如果你能在浪费时间中获得乐趣，就不算浪费时间。","from":"罗素"}') ,
   ('entries', '2026-05-11', '{"english":"The calendar turns, and time quietly flows forward.","chinese":"日历翻动，时间静静流淌向前。","quote":"我们探索规律，与规律有何相干？","from":"三体"}') ,

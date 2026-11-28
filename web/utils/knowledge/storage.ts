@@ -6,18 +6,13 @@ export {
   normalizeDocName,
   isUserDocPath,
   getDocContentBytes,
-  resolveDocPath,
+  normalizeKnowledgeDocPath,
   scanKnowledgeFileDocs,
-  readDocByPathFromFile,
-  readKnowledgeDocFile,
-  writeKnowledgeDocFile,
-  deleteKnowledgeDocFile,
 } from './files';
 export {
   readKnowledgeDirs,
   normalizeKnowledgeDirs,
   writeKnowledgeDirs,
-  resolveKnowledgeDirPaths,
 } from './dirs';
 export {
   initKnowledgeDocs,

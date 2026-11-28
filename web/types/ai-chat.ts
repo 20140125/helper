@@ -376,6 +376,12 @@ export interface ToolCallTrace {
   duration_ms: number;
   /** 参数 JSON 字符数（用于观察参数规模是否异常） */
   args_chars: number;
+  /** 参数原文（超长截断；旧记录没有该字段） */
+  args?: string;
+  /** 工具返回摘要或结果正文（超长截断；旧记录没有该字段） */
+  result?: string;
+  /** 失败原因（成功时为空串；旧记录没有该字段） */
+  error?: string;
   /** 是否走了一次「只保留必填参数」的降级重试 */
   retried?: boolean;
 }

@@ -1,5 +1,4 @@
 import {
-  CACHE_DIR,
   isValidFilename,
   validateCacheWriteParams,
   writeCacheFile,
@@ -73,7 +72,7 @@ export const manageCacheTool: ToolImpl = {
 
     // 只允许改已存在的缓存键：避免 LLM 凭空造缓存键污染 已有业务表
     // name 是相对路径（子目录形如 api_responses/xxx.json）
-    const files = await listCacheFiles(CACHE_DIR);
+    const files = await listCacheFiles();
     const exists = files.some((f) => f.name === filename);
     if (!exists) {
       return {
@@ -82,7 +81,7 @@ export const manageCacheTool: ToolImpl = {
       };
     }
 
-    const writeError = await writeCacheFile(CACHE_DIR, filename, content);
+    const writeError = await writeCacheFile(filename, content);
     if (writeError) {
       return { ok: false, data: `写入失败：${writeError}` };
     }

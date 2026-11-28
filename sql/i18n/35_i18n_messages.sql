@@ -239,14 +239,26 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('en', 'config.modelDefaultTag', 'config', '[\"config\",\"modelDefaultTag\"]', 'Default · ', 'text', 209),
   ('en', 'config.dragSortHint', 'config', '[\"config\",\"dragSortHint\"]', 'Drag cards to reorder', 'text', 210),
   ('en', 'aiModels.pageTitle', 'aiModels', '[\"aiModels\",\"pageTitle\"]', 'AI Models', 'text', 211),
+  ('en', 'config.sectionBackground', 'config', '[\"config\",\"sectionBackground\"]', 'System Background', 'text', 211),
+  ('en', 'config.backgroundEmpty', 'config', '[\"config\",\"backgroundEmpty\"]', 'No background set, using the default theme', 'text', 212),
   ('en', 'aiModels.subtitle', 'aiModels', '[\"aiModels\",\"subtitle\"]', 'Manage model endpoints, API keys, memory and pricing. Super admin only.', 'text', 212),
   ('en', 'knowledgeBase.pageTitle', 'knowledgeBase', '[\"knowledgeBase\",\"pageTitle\"]', 'Knowledge Base', 'text', 213),
+  ('en', 'config.backgroundPreview', 'config', '[\"config\",\"backgroundPreview\"]', 'Current background', 'text', 213),
+  ('en', 'config.backgroundUpload', 'config', '[\"config\",\"backgroundUpload\"]', 'Upload image', 'text', 214),
   ('en', 'knowledgeBase.subtitle', 'knowledgeBase', '[\"knowledgeBase\",\"subtitle\"]', 'Maintain the documents Jervis searches, with rebuild and retrieval testing', 'text', 214),
   ('en', 'knowledgeBase.docListTitle', 'knowledgeBase', '[\"knowledgeBase\",\"docListTitle\"]', 'Knowledge Documents', 'text', 215),
+  ('en', 'config.backgroundRemove', 'config', '[\"config\",\"backgroundRemove\"]', 'Remove background', 'text', 215),
+  ('en', 'config.backgroundUploadHint', 'config', '[\"config\",\"backgroundUploadHint\"]', 'Supports JPG / PNG / WEBP / GIF, up to 5MB; applies to all logged-in users', 'text', 216),
   ('en', 'knowledgeBase.docListSubtitle', 'knowledgeBase', '[\"knowledgeBase\",\"docListSubtitle\"]', 'System docs (docs/, etc.) are read-only — import one to edit it as a user document', 'text', 216),
   ('en', 'knowledgeBase.createDocBtn', 'knowledgeBase', '[\"knowledgeBase\",\"createDocBtn\"]', 'New Document', 'text', 217),
+  ('en', 'config.backgroundImageTypeInvalid', 'config', '[\"config\",\"backgroundImageTypeInvalid\"]', 'Only JPG / PNG / WEBP / GIF images are supported', 'text', 217),
+  ('en', 'config.backgroundImageTooLarge', 'config', '[\"config\",\"backgroundImageTooLarge\"]', 'Image exceeds the 5MB limit', 'text', 218),
   ('en', 'knowledgeBase.colType', 'knowledgeBase', '[\"knowledgeBase\",\"colType\"]', 'Type', 'text', 218),
   ('en', 'knowledgeBase.typeSystem', 'knowledgeBase', '[\"knowledgeBase\",\"typeSystem\"]', 'System', 'text', 219),
+  ('en', 'config.backgroundUploadFailed', 'config', '[\"config\",\"backgroundUploadFailed\"]', 'Background upload failed', 'text', 219),
+  ('en', 'config.backgroundApplied', 'config', '[\"config\",\"backgroundApplied\"]', 'System background updated', 'text', 220),
+  ('en', 'topbar.backgroundSurfaceOpacity', 'topbar', '[\"topbar\",\"backgroundSurfaceOpacity\"]', 'Panel opacity', 'text', 5118),
+  ('en', 'topbar.backgroundSurfaceOpacityHint', 'topbar', '[\"topbar\",\"backgroundSurfaceOpacityHint\"]', 'Higher values make panels less transparent; applies only to your account', 'text', 5119),
   ('en', 'knowledgeBase.typeUser', 'knowledgeBase', '[\"knowledgeBase\",\"typeUser\"]', 'User', 'text', 220),
   ('en', 'knowledgeBase.importBtn', 'knowledgeBase', '[\"knowledgeBase\",\"importBtn\"]', 'Import', 'text', 221),
   ('en', 'knowledgeBase.importSuccess', 'knowledgeBase', '[\"knowledgeBase\",\"importSuccess\"]', 'Imported as a user document', 'text', 222),
@@ -416,7 +428,11 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('en', 'rules.reorderFailed', 'rules', '[\"rules\",\"reorderFailed\"]', 'Failed to save order', 'text', 386),
   ('en', 'rules.createdAt', 'rules', '[\"rules\",\"createdAt\"]', 'Created', 'text', 387),
   ('en', 'rules.updatedAt', 'rules', '[\"rules\",\"updatedAt\"]', 'Updated', 'text', 388),
-  ('en', 'rules.executedToday', 'rules', '[\"rules\",\"executedToday\"]', 'Executed today', 'text', 389),
+  ('en', 'rules.executedToday', 'rules', '[\"rules\",\"executedToday\"]', 'Executed today', 'text', 389)
+  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
+    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
   ('en', 'rules.notExecutedToday', 'rules', '[\"rules\",\"notExecutedToday\"]', 'Not executed today', 'text', 390),
   ('en', 'rules.lastTriggeredAt', 'rules', '[\"rules\",\"lastTriggeredAt\"]', 'Last executed', 'text', 391),
   ('en', 'rules.neverExecuted', 'rules', '[\"rules\",\"neverExecuted\"]', 'Never executed', 'text', 392),
@@ -426,11 +442,7 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('en', 'rules.weekdays.3', 'rules', '[\"rules\",\"weekdays\",\"3\"]', 'Wed', 'text', 396),
   ('en', 'rules.weekdays.4', 'rules', '[\"rules\",\"weekdays\",\"4\"]', 'Thu', 'text', 397),
   ('en', 'rules.weekdays.5', 'rules', '[\"rules\",\"weekdays\",\"5\"]', 'Fri', 'text', 398),
-  ('en', 'rules.weekdays.6', 'rules', '[\"rules\",\"weekdays\",\"6\"]', 'Sat', 'text', 399)
-  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
-    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('en', 'rules.weekdays.6', 'rules', '[\"rules\",\"weekdays\",\"6\"]', 'Sat', 'text', 399),
   ('en', 'rules.lunarMonths.0', 'rules', '[\"rules\",\"lunarMonths\",\"0\"]', 'Month 1', 'text', 400),
   ('en', 'rules.lunarMonths.1', 'rules', '[\"rules\",\"lunarMonths\",\"1\"]', 'Month 2', 'text', 401),
   ('en', 'rules.lunarMonths.2', 'rules', '[\"rules\",\"lunarMonths\",\"2\"]', 'Month 3', 'text', 402),
@@ -620,7 +632,11 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('en', 'playground.emptyHint', 'playground', '[\"playground\",\"emptyHint\"]', 'Enter a field config on the left to begin', 'text', 586),
   ('en', 'playground.liveData', 'playground', '[\"playground\",\"liveData\"]', 'Live Form Data', 'text', 587),
   ('en', 'playground.submitHeader', 'playground', '[\"playground\",\"submitHeader\"]', 'Form Submission Data', 'text', 588),
-  ('en', 'playground.uploadFailed', 'playground', '[\"playground\",\"uploadFailed\"]', 'Upload failed', 'text', 589),
+  ('en', 'playground.uploadFailed', 'playground', '[\"playground\",\"uploadFailed\"]', 'Upload failed', 'text', 589)
+  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
+    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
   ('en', 'playground.invalidJsonFormat', 'playground', '[\"playground\",\"invalidJsonFormat\"]', 'Invalid JSON format', 'text', 590),
   ('en', 'playground.rootMustBeArray', 'playground', '[\"playground\",\"rootMustBeArray\"]', 'Root JSON must be an array []', 'text', 591),
   ('en', 'playground.checkFormInput', 'playground', '[\"playground\",\"checkFormInput\"]', 'Please check your form inputs for errors', 'text', 592),
@@ -630,11 +646,7 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('en', 'playground.builtinBusinessNotDeletable', 'playground', '[\"playground\",\"builtinBusinessNotDeletable\"]', 'Built-in business templates cannot be deleted', 'text', 596),
   ('en', 'playground.fixJsonBeforeSave', 'playground', '[\"playground\",\"fixJsonBeforeSave\"]', 'Invalid JSON, please fix it before saving', 'text', 597),
   ('en', 'playground.currentTemplateNotFound', 'playground', '[\"playground\",\"currentTemplateNotFound\"]', 'Current template not found', 'text', 598),
-  ('en', 'playground.copiedToClipboard', 'playground', '[\"playground\",\"copiedToClipboard\"]', 'Copied to clipboard', 'text', 599)
-  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
-    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('en', 'playground.copiedToClipboard', 'playground', '[\"playground\",\"copiedToClipboard\"]', 'Copied to clipboard', 'text', 599),
   ('en', 'playground.copyFailedManual', 'playground', '[\"playground\",\"copyFailedManual\"]', 'Copy failed, please copy manually', 'text', 600),
   ('en', 'playground.loadTemplateListFailed', 'playground', '[\"playground\",\"loadTemplateListFailed\"]', 'Failed to load template list', 'text', 601),
   ('en', 'playground.schema.tplLabelWeather', 'playground', '[\"playground\",\"schema\",\"tplLabelWeather\"]', 'Weather Service', 'text', 602),
@@ -824,7 +836,11 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('en', 'playground.schema.schedWindowMinutesLabel', 'playground', '[\"playground\",\"schema\",\"schedWindowMinutesLabel\"]', 'Trigger window (minutes)', 'text', 786),
   ('en', 'playground.schema.schedWindowMinutesHelp', 'playground', '[\"playground\",\"schema\",\"schedWindowMinutesHelp\"]', 'Fires within \"target time ~ target + N minutes\", avoiding missed triggers from tick drift', 'text', 787),
   ('en', 'playground.schema.schedWindowMinutesPattern', 'playground', '[\"playground\",\"schema\",\"schedWindowMinutesPattern\"]', 'Enter 1 to 3 digits', 'text', 788),
-  ('en', 'playground.schema.schedPrefetchTimeLabel', 'playground', '[\"playground\",\"schema\",\"schedPrefetchTimeLabel\"]', 'Daily data prefetch time', 'text', 789),
+  ('en', 'playground.schema.schedPrefetchTimeLabel', 'playground', '[\"playground\",\"schema\",\"schedPrefetchTimeLabel\"]', 'Daily data prefetch time', 'text', 789)
+  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
+    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
   ('en', 'playground.schema.schedPrefetchTimeHelp', 'playground', '[\"playground\",\"schema\",\"schedPrefetchTimeHelp\"]', 'Fetches weather / almanac / today-in-history / horoscope / daily word and hot lists, cache only', 'text', 790),
   ('en', 'playground.schema.schedPrefetchBackupTimeLabel', 'playground', '[\"playground\",\"schema\",\"schedPrefetchBackupTimeLabel\"]', 'Backup prefetch time', 'text', 791),
   ('en', 'playground.schema.schedPrefetchBackupTimeHelp', 'playground', '[\"playground\",\"schema\",\"schedPrefetchBackupTimeHelp\"]', 'Runs only when today\'s cache file is missing, as a fallback for the nightly run', 'text', 792),
@@ -834,11 +850,7 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('en', 'playground.schema.schedAnnualUpdateDateHelp', 'playground', '[\"playground\",\"schema\",\"schedAnnualUpdateDateHelp\"]', 'Month-day (MM-DD), default 12-31', 'text', 796),
   ('en', 'playground.schema.schedAnnualUpdateTimeLabel', 'playground', '[\"playground\",\"schema\",\"schedAnnualUpdateTimeLabel\"]', 'Annual update time', 'text', 797),
   ('en', 'playground.schema.schedLogCleanDaysLabel', 'playground', '[\"playground\",\"schema\",\"schedLogCleanDaysLabel\"]', 'Log cleanup days', 'text', 798),
-  ('en', 'playground.schema.schedLogCleanDaysHelp', 'playground', '[\"playground\",\"schema\",\"schedLogCleanDaysHelp\"]', 'Which days of the month to clean, multi-select', 'text', 799)
-  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
-    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('en', 'playground.schema.schedLogCleanDaysHelp', 'playground', '[\"playground\",\"schema\",\"schedLogCleanDaysHelp\"]', 'Which days of the month to clean, multi-select', 'text', 799),
   ('en', 'playground.schema.schedLogCleanTimeLabel', 'playground', '[\"playground\",\"schema\",\"schedLogCleanTimeLabel\"]', 'Log cleanup time', 'text', 800),
   ('en', 'playground.schema.schedValueRequired', 'playground', '[\"playground\",\"schema\",\"schedValueRequired\"]', 'This field is required', 'text', 801),
   ('en', 'playground.schema.schedTimeRequired', 'playground', '[\"playground\",\"schema\",\"schedTimeRequired\"]', 'Please pick a time', 'text', 802),
@@ -1028,7 +1040,11 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('en', 'apiManagement.fieldPath', 'apiManagement', '[\"apiManagement\",\"fieldPath\"]', 'API Path', 'text', 986),
   ('en', 'apiManagement.fieldPathPlaceholder', 'apiManagement', '[\"apiManagement\",\"fieldPathPlaceholder\"]', 'e.g. /api/users', 'text', 987),
   ('en', 'apiManagement.fieldCategory', 'apiManagement', '[\"apiManagement\",\"fieldCategory\"]', 'Category', 'text', 988),
-  ('en', 'apiManagement.fieldCategoryName', 'apiManagement', '[\"apiManagement\",\"fieldCategoryName\"]', 'Category Name', 'text', 989),
+  ('en', 'apiManagement.fieldCategoryName', 'apiManagement', '[\"apiManagement\",\"fieldCategoryName\"]', 'Category Name', 'text', 989)
+  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
+    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
   ('en', 'apiManagement.fieldCategoryNamePlaceholder', 'apiManagement', '[\"apiManagement\",\"fieldCategoryNamePlaceholder\"]', 'Enter category name', 'text', 990),
   ('en', 'apiManagement.fieldDescription', 'apiManagement', '[\"apiManagement\",\"fieldDescription\"]', 'Description', 'text', 991),
   ('en', 'apiManagement.fieldDescriptionPlaceholder', 'apiManagement', '[\"apiManagement\",\"fieldDescriptionPlaceholder\"]', 'Enter description (optional)', 'text', 992),
@@ -1038,11 +1054,7 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('en', 'apiManagement.executeUrlLabel', 'apiManagement', '[\"apiManagement\",\"executeUrlLabel\"]', 'Request URL', 'text', 996),
   ('en', 'apiManagement.executeUrlPlaceholder', 'apiManagement', '[\"apiManagement\",\"executeUrlPlaceholder\"]', 'Enter full URL, e.g. https://api.example.com/users', 'text', 997),
   ('en', 'apiManagement.executeParamsLabel', 'apiManagement', '[\"apiManagement\",\"executeParamsLabel\"]', 'Query Params', 'text', 998),
-  ('en', 'apiManagement.executeParamKeyPlaceholder', 'apiManagement', '[\"apiManagement\",\"executeParamKeyPlaceholder\"]', 'Param name', 'text', 999)
-  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
-    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('en', 'apiManagement.executeParamKeyPlaceholder', 'apiManagement', '[\"apiManagement\",\"executeParamKeyPlaceholder\"]', 'Param name', 'text', 999),
   ('en', 'apiManagement.executeParamValuePlaceholder', 'apiManagement', '[\"apiManagement\",\"executeParamValuePlaceholder\"]', 'Param value', 'text', 1000),
   ('en', 'apiManagement.addParamBtn', 'apiManagement', '[\"apiManagement\",\"addParamBtn\"]', 'Add Param', 'text', 1001),
   ('en', 'apiManagement.executeBodyLabel', 'apiManagement', '[\"apiManagement\",\"executeBodyLabel\"]', 'Request Body (JSON)', 'text', 1002),
@@ -1232,7 +1244,11 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('en', 'aiCost.inspectHint', 'aiCost', '[\"aiCost\",\"inspectHint\"]', 'Run one read-only inspection (services / logs / rules / workday). The brief stays on this page — nothing is sent or changed. Scheduled runs are driven by AI_INSPECTOR_* in web/.env', 'text', 1186),
   ('en', 'aiCost.inspectRun', 'aiCost', '[\"aiCost\",\"inspectRun\"]', 'Run inspection', 'text', 1187),
   ('en', 'aiCost.inspectRunning', 'aiCost', '[\"aiCost\",\"inspectRunning\"]', 'Inspecting…', 'text', 1188),
-  ('en', 'aiCost.inspectFocusPlaceholder', 'aiCost', '[\"aiCost\",\"inspectFocusPlaceholder\"]', 'Focus area (optional)', 'text', 1189),
+  ('en', 'aiCost.inspectFocusPlaceholder', 'aiCost', '[\"aiCost\",\"inspectFocusPlaceholder\"]', 'Focus area (optional)', 'text', 1189)
+  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
+    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
   ('en', 'aiCost.inspectDuration', 'aiCost', '[\"aiCost\",\"inspectDuration\"]', '(v) => `Duration ${v}`', 'function', 1190),
   ('en', 'aiCost.inspectToolCalls', 'aiCost', '[\"aiCost\",\"inspectToolCalls\"]', '(n) => `${n} tool calls`', 'function', 1191),
   ('en', 'aiCost.inspectFailed', 'aiCost', '[\"aiCost\",\"inspectFailed\"]', 'Inspection failed', 'text', 1192),
@@ -1242,11 +1258,7 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('en', 'aiCost.inspectPushOn', 'aiCost', '[\"aiCost\",\"inspectPushOn\"]', 'Auto-push to WeCom group', 'text', 1196),
   ('en', 'aiCost.inspectPushOff', 'aiCost', '[\"aiCost\",\"inspectPushOff\"]', 'Record only, no push', 'text', 1197),
   ('en', 'aiCost.inspectLastRun', 'aiCost', '[\"aiCost\",\"inspectLastRun\"]', '(v) => `Last run ${v}`', 'function', 1198),
-  ('en', 'aiCost.inspectNeverRun', 'aiCost', '[\"aiCost\",\"inspectNeverRun\"]', 'Last run: never', 'text', 1199)
-  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
-    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('en', 'aiCost.inspectNeverRun', 'aiCost', '[\"aiCost\",\"inspectNeverRun\"]', 'Last run: never', 'text', 1199),
   ('en', 'aiCost.inspectNextRun', 'aiCost', '[\"aiCost\",\"inspectNextRun\"]', '(v) => `Next run ${v}`', 'function', 1200),
   ('en', 'aiCost.inspectNoNextRun', 'aiCost', '[\"aiCost\",\"inspectNoNextRun\"]', 'Next run: not scheduled', 'text', 1201),
   ('en', 'aiCost.inspectLastError', 'aiCost', '[\"aiCost\",\"inspectLastError\"]', '(v) => `Last failure: ${v}`', 'function', 1202),
@@ -1436,7 +1448,11 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('en', 'aiChat.welcomeCapabilities.4.prompt', 'aiChat', '[\"aiChat\",\"welcomeCapabilities\",\"4\",\"prompt\"]', 'Push today\'s run summary to WeCom', 'text', 1386),
   ('en', 'aiChat.welcomeCapabilities.5.icon', 'aiChat', '[\"aiChat\",\"welcomeCapabilities\",\"5\",\"icon\"]', 'relation', 'text', 1387),
   ('en', 'aiChat.welcomeCapabilities.5.title', 'aiChat', '[\"aiChat\",\"welcomeCapabilities\",\"5\",\"title\"]', 'Skill map', 'text', 1388),
-  ('en', 'aiChat.welcomeCapabilities.5.desc', 'aiChat', '[\"aiChat\",\"welcomeCapabilities\",\"5\",\"desc\"]', 'See what I can do', 'text', 1389),
+  ('en', 'aiChat.welcomeCapabilities.5.desc', 'aiChat', '[\"aiChat\",\"welcomeCapabilities\",\"5\",\"desc\"]', 'See what I can do', 'text', 1389)
+  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
+    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
   ('en', 'aiChat.welcomeCapabilities.5.prompt', 'aiChat', '[\"aiChat\",\"welcomeCapabilities\",\"5\",\"prompt\"]', 'Show me the skill map', 'text', 1390),
   ('en', 'aiChat.triggerTitle', 'aiChat', '[\"aiChat\",\"triggerTitle\"]', 'Open JARVIS', 'text', 1391),
   ('en', 'aiChat.history', 'aiChat', '[\"aiChat\",\"history\"]', 'History', 'text', 1392),
@@ -1446,11 +1462,7 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('en', 'aiChat.examples.3', 'aiChat', '[\"aiChat\",\"examples\",\"3\"]', 'What roles exist in the system?', 'text', 1396),
   ('en', 'aiChat.quickExamplesHint', 'aiChat', '[\"aiChat\",\"quickExamplesHint\"]', 'Try', 'text', 1397),
   ('en', 'aiChat.conversationsTitle', 'aiChat', '[\"aiChat\",\"conversationsTitle\"]', 'Conversations', 'text', 1398),
-  ('en', 'aiChat.newConversation', 'aiChat', '[\"aiChat\",\"newConversation\"]', 'New Chat', 'text', 1399)
-  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
-    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('en', 'aiChat.newConversation', 'aiChat', '[\"aiChat\",\"newConversation\"]', 'New Chat', 'text', 1399),
   ('en', 'aiChat.share', 'aiChat', '[\"aiChat\",\"share\"]', 'Share', 'text', 1400),
   ('en', 'aiChat.noConversations', 'aiChat', '[\"aiChat\",\"noConversations\"]', 'No conversations yet', 'text', 1401),
   ('en', 'aiChat.deleteConfirm', 'aiChat', '[\"aiChat\",\"deleteConfirm\"]', 'Delete this conversation?', 'text', 1402),
@@ -1598,6 +1610,71 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('en', 'logs.fieldUser', 'logs', '[\"logs\",\"fieldUser\"]', 'User', 'text', 1544),
   ('en', 'logs.detailEmpty', 'logs', '[\"logs\",\"detailEmpty\"]', 'Log entry not found', 'text', 1545),
   ('en', 'logs.detailFailed', 'logs', '[\"logs\",\"detailFailed\"]', 'Failed to load log details', 'text', 1546),
+  ('en', 'menu.cacheAdmin', 'menu', '[\"menu\",\"cacheAdmin\"]', 'Cache Data', 'text', 5000),
+  ('en', 'cacheAdmin.pageTitle', 'cacheAdmin', '[\"cacheAdmin\",\"pageTitle\"]', 'Cache Data', 'text', 5001),
+  ('en', 'cacheAdmin.subtitle', 'cacheAdmin', '[\"cacheAdmin\",\"subtitle\"]', 'Browse and edit all 13 hp_cache_* cache tables', 'text', 5002),
+  ('en', 'cacheAdmin.listTitle', 'cacheAdmin', '[\"cacheAdmin\",\"listTitle\"]', 'Cache Entries', 'text', 5003),
+  ('en', 'cacheAdmin.filterTable', 'cacheAdmin', '[\"cacheAdmin\",\"filterTable\"]', 'Table', 'text', 5004),
+  ('en', 'cacheAdmin.filterPeriod', 'cacheAdmin', '[\"cacheAdmin\",\"filterPeriod\"]', 'Period', 'text', 5005),
+  ('en', 'cacheAdmin.filterKeyword', 'cacheAdmin', '[\"cacheAdmin\",\"filterKeyword\"]', 'Keyword', 'text', 5006),
+  ('en', 'cacheAdmin.keywordPlaceholder', 'cacheAdmin', '[\"cacheAdmin\",\"keywordPlaceholder\"]', 'Key / section / body', 'text', 5007),
+  ('en', 'cacheAdmin.allTables', 'cacheAdmin', '[\"cacheAdmin\",\"allTables\"]', 'All tables', 'text', 5008),
+  ('en', 'cacheAdmin.allPeriods', 'cacheAdmin', '[\"cacheAdmin\",\"allPeriods\"]', 'All periods', 'text', 5009),
+  ('en', 'cacheAdmin.periodDay', 'cacheAdmin', '[\"cacheAdmin\",\"periodDay\"]', 'Daily', 'text', 5010),
+  ('en', 'cacheAdmin.periodMonth', 'cacheAdmin', '[\"cacheAdmin\",\"periodMonth\"]', 'Monthly', 'text', 5011),
+  ('en', 'cacheAdmin.periodYear', 'cacheAdmin', '[\"cacheAdmin\",\"periodYear\"]', 'Yearly', 'text', 5012),
+  ('en', 'cacheAdmin.periodStatic', 'cacheAdmin', '[\"cacheAdmin\",\"periodStatic\"]', 'Static', 'text', 5013),
+  ('en', 'cacheAdmin.colTable', 'cacheAdmin', '[\"cacheAdmin\",\"colTable\"]', 'Table', 'text', 5014),
+  ('en', 'cacheAdmin.colSection', 'cacheAdmin', '[\"cacheAdmin\",\"colSection\"]', 'Section', 'text', 5015),
+  ('en', 'cacheAdmin.colKey', 'cacheAdmin', '[\"cacheAdmin\",\"colKey\"]', 'Key', 'text', 5016),
+  ('en', 'cacheAdmin.colPreview', 'cacheAdmin', '[\"cacheAdmin\",\"colPreview\"]', 'Preview', 'text', 5017),
+  ('en', 'cacheAdmin.colPeriod', 'cacheAdmin', '[\"cacheAdmin\",\"colPeriod\"]', 'Period', 'text', 5018),
+  ('en', 'cacheAdmin.colSize', 'cacheAdmin', '[\"cacheAdmin\",\"colSize\"]', 'Size', 'text', 5019),
+  ('en', 'cacheAdmin.colUpdated', 'cacheAdmin', '[\"cacheAdmin\",\"colUpdated\"]', 'Updated', 'text', 5020),
+  ('en', 'cacheAdmin.colActions', 'cacheAdmin', '[\"cacheAdmin\",\"colActions\"]', 'Actions', 'text', 5021),
+  ('en', 'cacheAdmin.emptyHint', 'cacheAdmin', '[\"cacheAdmin\",\"emptyHint\"]', 'No matching cache entries', 'text', 5022),
+  ('en', 'cacheAdmin.totalLabel', 'cacheAdmin', '[\"cacheAdmin\",\"totalLabel\"]', 'Total', 'text', 5023),
+  ('en', 'cacheAdmin.deleteConfirm', 'cacheAdmin', '[\"cacheAdmin\",\"deleteConfirm\"]', 'Delete this cache entry?', 'text', 5024),
+  ('en', 'cacheAdmin.editHeader', 'cacheAdmin', '[\"cacheAdmin\",\"editHeader\"]', 'Edit Cache Entry', 'text', 5025),
+  ('en', 'cacheAdmin.createHeader', 'cacheAdmin', '[\"cacheAdmin\",\"createHeader\"]', 'Create Cache Entry', 'text', 5026),
+  ('en', 'cacheAdmin.fieldTable', 'cacheAdmin', '[\"cacheAdmin\",\"fieldTable\"]', 'Table', 'text', 5027),
+  ('en', 'cacheAdmin.fieldSection', 'cacheAdmin', '[\"cacheAdmin\",\"fieldSection\"]', 'Section (required for flat tables)', 'text', 5028),
+  ('en', 'cacheAdmin.fieldKey', 'cacheAdmin', '[\"cacheAdmin\",\"fieldKey\"]', 'Cache Key', 'text', 5029),
+  ('en', 'cacheAdmin.fieldBody', 'cacheAdmin', '[\"cacheAdmin\",\"fieldBody\"]', 'Body (JSON or raw text)', 'text', 5030),
+  ('en', 'cacheAdmin.fieldBodyPlaceholder', 'cacheAdmin', '[\"cacheAdmin\",\"fieldBodyPlaceholder\"]', 'Enter cache body', 'text', 5031),
+  ('en', 'cacheAdmin.flatHint', 'cacheAdmin', '[\"cacheAdmin\",\"flatHint\"]', 'Flat tables are rewritten by dedicated modules; single-row edits may be overwritten', 'text', 5032),
+  ('en', 'cacheAdmin.invalidJson', 'cacheAdmin', '[\"cacheAdmin\",\"invalidJson\"]', 'Body must be valid JSON for res tables', 'text', 5033),
+  ('en', 'cacheAdmin.metaTitle', 'cacheAdmin', '[\"cacheAdmin\",\"metaTitle\"]', 'Entry Info', 'text', 5034),
+  ('en', 'cacheAdmin.previewTitle', 'cacheAdmin', '[\"cacheAdmin\",\"previewTitle\"]', 'Body', 'text', 5035),
+  ('en', 'cacheAdmin.tabJson', 'cacheAdmin', '[\"cacheAdmin\",\"tabJson\"]', 'JSON Source', 'text', 5036),
+  ('en', 'cacheAdmin.tabMarkdown', 'cacheAdmin', '[\"cacheAdmin\",\"tabMarkdown\"]', 'Markdown Preview', 'text', 5037),
+  ('en', 'cacheAdmin.formatBtn', 'cacheAdmin', '[\"cacheAdmin\",\"formatBtn\"]', 'Format', 'text', 5038),
+  ('en', 'cacheAdmin.formatSuccess', 'cacheAdmin', '[\"cacheAdmin\",\"formatSuccess\"]', 'JSON formatted', 'text', 5039),
+  ('en', 'cacheAdmin.formatFailed', 'cacheAdmin', '[\"cacheAdmin\",\"formatFailed\"]', 'Invalid JSON, cannot format', 'text', 5040),
+  ('en', 'cacheAdmin.previewNotJson', 'cacheAdmin', '[\"cacheAdmin\",\"previewNotJson\"]', 'Body is not valid JSON; shown as plain text', 'text', 5041),
+  ('en', 'cacheAdmin.truncatedHint', 'cacheAdmin', '[\"cacheAdmin\",\"truncatedHint\"]', 'Content truncated', 'text', 5042)
+  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
+    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('en', 'menu.amapGeocode', 'menu', '[\"menu\",\"amapGeocode\"]', 'Amap Geocode', 'text', 5100),
+  ('en', 'amapGeocode.pageTitle', 'amapGeocode', '[\"amapGeocode\",\"pageTitle\"]', 'Amap Geocode', 'text', 5101),
+  ('en', 'amapGeocode.subtitle', 'amapGeocode', '[\"amapGeocode\",\"subtitle\"]', 'Manage cached address-to-coordinate mappings used by commute cards and geocoding tools', 'text', 5102),
+  ('en', 'amapGeocode.listTitle', 'amapGeocode', '[\"amapGeocode\",\"listTitle\"]', 'Address Coordinates', 'text', 5103),
+  ('en', 'amapGeocode.keywordPlaceholder', 'amapGeocode', '[\"amapGeocode\",\"keywordPlaceholder\"]', 'Search address', 'text', 5104),
+  ('en', 'amapGeocode.colAddress', 'amapGeocode', '[\"amapGeocode\",\"colAddress\"]', 'Address', 'text', 5105),
+  ('en', 'amapGeocode.colCoordinates', 'amapGeocode', '[\"amapGeocode\",\"colCoordinates\"]', 'Coordinates', 'text', 5106),
+  ('en', 'amapGeocode.colUpdated', 'amapGeocode', '[\"amapGeocode\",\"colUpdated\"]', 'Updated', 'text', 5107),
+  ('en', 'amapGeocode.colActions', 'amapGeocode', '[\"amapGeocode\",\"colActions\"]', 'Actions', 'text', 5108),
+  ('en', 'amapGeocode.createHeader', 'amapGeocode', '[\"amapGeocode\",\"createHeader\"]', 'Add Address Coordinates', 'text', 5109),
+  ('en', 'amapGeocode.editHeader', 'amapGeocode', '[\"amapGeocode\",\"editHeader\"]', 'Edit Address Coordinates', 'text', 5110),
+  ('en', 'amapGeocode.fieldAddress', 'amapGeocode', '[\"amapGeocode\",\"fieldAddress\"]', 'Address', 'text', 5111),
+  ('en', 'amapGeocode.fieldCoordinates', 'amapGeocode', '[\"amapGeocode\",\"fieldCoordinates\"]', 'Coordinates', 'text', 5112),
+  ('en', 'amapGeocode.coordinatesHint', 'amapGeocode', '[\"amapGeocode\",\"coordinatesHint\"]', 'Format: longitude,latitude (e.g. 114.025796,22.608443)', 'text', 5113),
+  ('en', 'amapGeocode.invalidCoordinates', 'amapGeocode', '[\"amapGeocode\",\"invalidCoordinates\"]', 'Coordinates must be \"longitude,latitude\"', 'text', 5114),
+  ('en', 'amapGeocode.deleteConfirm', 'amapGeocode', '[\"amapGeocode\",\"deleteConfirm\"]', 'Delete these address coordinates?', 'text', 5115),
+  ('en', 'amapGeocode.totalLabel', 'amapGeocode', '[\"amapGeocode\",\"totalLabel\"]', 'Total', 'text', 5116),
+  ('en', 'logs.colAddress', 'logs', '[\"logs\",\"colAddress\"]', 'Address', 'text', 5117),
   ('zh', 'common.save', 'common', '[\"common\",\"save\"]', '保存', 'text', 0),
   ('zh', 'common.cancel', 'common', '[\"common\",\"cancel\"]', '取消', 'text', 1),
   ('zh', 'common.edit', 'common', '[\"common\",\"edit\"]', '编辑', 'text', 2),
@@ -1650,11 +1727,7 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'menu.apiManagement', 'menu', '[\"menu\",\"apiManagement\"]', 'API 管理', 'text', 49),
   ('zh', 'menu.apiCategories', 'menu', '[\"menu\",\"apiCategories\"]', '接口分类', 'text', 50),
   ('zh', 'menu.greetings', 'menu', '[\"menu\",\"greetings\"]', '节日祝福语', 'text', 51),
-  ('zh', 'menu.reminderQuotes', 'menu', '[\"menu\",\"reminderQuotes\"]', '提醒寄语', 'text', 52)
-  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
-    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('zh', 'menu.reminderQuotes', 'menu', '[\"menu\",\"reminderQuotes\"]', '提醒寄语', 'text', 52),
   ('zh', 'menu.approvals', 'menu', '[\"menu\",\"approvals\"]', 'AI 审批', 'text', 53),
   ('zh', 'menu.aiCost', 'menu', '[\"menu\",\"aiCost\"]', 'AI 成本看板', 'text', 54),
   ('zh', 'menu.aiModels', 'menu', '[\"menu\",\"aiModels\"]', 'AI 模型配置', 'text', 55),
@@ -1783,7 +1856,11 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'config.deleteWebhookConfirm', 'config', '[\"config\",\"deleteWebhookConfirm\"]', '确认删除该机器人？', 'text', 178),
   ('zh', 'config.noWebhooks', 'config', '[\"config\",\"noWebhooks\"]', '(btn) => `暂无机器人，点击「${btn}」添加`', 'function', 179),
   ('zh', 'config.sectionWebhook', 'config', '[\"config\",\"sectionWebhook\"]', '企业微信 Webhook', 'text', 180),
-  ('zh', 'config.sectionWeather', 'config', '[\"config\",\"sectionWeather\"]', '天气服务', 'text', 181),
+  ('zh', 'config.sectionWeather', 'config', '[\"config\",\"sectionWeather\"]', '天气服务', 'text', 181)
+  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
+    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
   ('zh', 'config.sectionAlmanac', 'config', '[\"config\",\"sectionAlmanac\"]', '老黄历服务', 'text', 182),
   ('zh', 'config.sectionHoroscope', 'config', '[\"config\",\"sectionHoroscope\"]', '星座运势服务', 'text', 183),
   ('zh', 'config.sectionAmap', 'config', '[\"config\",\"sectionAmap\"]', '高德地图服务（通勤 / 路线规划 / POI）', 'text', 184),
@@ -1814,14 +1891,26 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'config.modelDefaultTag', 'config', '[\"config\",\"modelDefaultTag\"]', '默认 · ', 'text', 209),
   ('zh', 'config.dragSortHint', 'config', '[\"config\",\"dragSortHint\"]', '拖动卡片可调整顺序', 'text', 210),
   ('zh', 'aiModels.pageTitle', 'aiModels', '[\"aiModels\",\"pageTitle\"]', 'AI 模型配置', 'text', 211),
+  ('zh', 'config.sectionBackground', 'config', '[\"config\",\"sectionBackground\"]', '系统背景', 'text', 211),
+  ('zh', 'config.backgroundEmpty', 'config', '[\"config\",\"backgroundEmpty\"]', '未设置背景，使用默认主题', 'text', 212),
   ('zh', 'aiModels.subtitle', 'aiModels', '[\"aiModels\",\"subtitle\"]', '管理模型接口与 Key、长期记忆和单价表，仅超级管理员可访问', 'text', 212),
   ('zh', 'knowledgeBase.pageTitle', 'knowledgeBase', '[\"knowledgeBase\",\"pageTitle\"]', '知识库管理', 'text', 213),
+  ('zh', 'config.backgroundPreview', 'config', '[\"config\",\"backgroundPreview\"]', '当前背景', 'text', 213),
+  ('zh', 'config.backgroundUpload', 'config', '[\"config\",\"backgroundUpload\"]', '上传图片', 'text', 214),
   ('zh', 'knowledgeBase.subtitle', 'knowledgeBase', '[\"knowledgeBase\",\"subtitle\"]', '维护贾维斯检索的项目知识文档，支持增删改、索引重建与效果验证', 'text', 214),
   ('zh', 'knowledgeBase.docListTitle', 'knowledgeBase', '[\"knowledgeBase\",\"docListTitle\"]', '知识文档', 'text', 215),
+  ('zh', 'config.backgroundRemove', 'config', '[\"config\",\"backgroundRemove\"]', '恢复默认', 'text', 215),
+  ('zh', 'config.backgroundUploadHint', 'config', '[\"config\",\"backgroundUploadHint\"]', '支持 JPG / PNG / WEBP / GIF，最大 5MB；对所有登录用户生效', 'text', 216),
   ('zh', 'knowledgeBase.docListSubtitle', 'knowledgeBase', '[\"knowledgeBase\",\"docListSubtitle\"]', '系统文档（docs/ 等）只读，可导入为 knowledge/ 下的用户文档后再编辑', 'text', 216),
   ('zh', 'knowledgeBase.createDocBtn', 'knowledgeBase', '[\"knowledgeBase\",\"createDocBtn\"]', '新建文档', 'text', 217),
+  ('zh', 'config.backgroundImageTypeInvalid', 'config', '[\"config\",\"backgroundImageTypeInvalid\"]', '仅支持 JPG / PNG / WEBP / GIF 图片', 'text', 217),
+  ('zh', 'config.backgroundImageTooLarge', 'config', '[\"config\",\"backgroundImageTooLarge\"]', '图片大小超过限制（最大 5MB）', 'text', 218),
   ('zh', 'knowledgeBase.colType', 'knowledgeBase', '[\"knowledgeBase\",\"colType\"]', '类型', 'text', 218),
   ('zh', 'knowledgeBase.typeSystem', 'knowledgeBase', '[\"knowledgeBase\",\"typeSystem\"]', '系统文档', 'text', 219),
+  ('zh', 'config.backgroundUploadFailed', 'config', '[\"config\",\"backgroundUploadFailed\"]', '背景图上传失败', 'text', 219),
+  ('zh', 'config.backgroundApplied', 'config', '[\"config\",\"backgroundApplied\"]', '系统背景已更新', 'text', 220),
+  ('zh', 'topbar.backgroundSurfaceOpacity', 'topbar', '[\"topbar\",\"backgroundSurfaceOpacity\"]', '背景遮挡不透明度', 'text', 5118),
+  ('zh', 'topbar.backgroundSurfaceOpacityHint', 'topbar', '[\"topbar\",\"backgroundSurfaceOpacityHint\"]', '数值越大越不透明、背景图越淡；仅对当前账号生效', 'text', 5119),
   ('zh', 'knowledgeBase.typeUser', 'knowledgeBase', '[\"knowledgeBase\",\"typeUser\"]', '用户文档', 'text', 220),
   ('zh', 'knowledgeBase.importBtn', 'knowledgeBase', '[\"knowledgeBase\",\"importBtn\"]', '导入', 'text', 221),
   ('zh', 'knowledgeBase.importSuccess', 'knowledgeBase', '[\"knowledgeBase\",\"importSuccess\"]', '已导入为用户文档', 'text', 222),
@@ -1854,11 +1943,7 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'knowledgeBase.fieldDirs', 'knowledgeBase', '[\"knowledgeBase\",\"fieldDirs\"]', '索引目录', 'text', 249),
   ('zh', 'knowledgeBase.fieldDirsPlaceholder', 'knowledgeBase', '[\"knowledgeBase\",\"fieldDirsPlaceholder\"]', 'docs,knowledge', 'text', 250),
   ('zh', 'knowledgeBase.fieldDirsHelp', 'knowledgeBase', '[\"knowledgeBase\",\"fieldDirsHelp\"]', '逗号分隔的项目根相对路径，例如 docs,knowledge；修改后自动重建索引。', 'text', 251),
-  ('zh', 'knowledgeBase.currentDirs', 'knowledgeBase', '[\"knowledgeBase\",\"currentDirs\"]', '当前索引目录', 'text', 252)
-  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
-    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('zh', 'knowledgeBase.currentDirs', 'knowledgeBase', '[\"knowledgeBase\",\"currentDirs\"]', '当前索引目录', 'text', 252),
   ('zh', 'knowledgeBase.indexIdle', 'knowledgeBase', '[\"knowledgeBase\",\"indexIdle\"]', '尚未执行索引重建', 'text', 253),
   ('zh', 'knowledgeBase.indexStatus', 'knowledgeBase', '[\"knowledgeBase\",\"indexStatus\"]', '(chunks, sources) => `当前索引：${chunks} 个片段，来自 ${sources} 个文件`', 'function', 254),
   ('zh', 'knowledgeBase.reindexSuccess', 'knowledgeBase', '[\"knowledgeBase\",\"reindexSuccess\"]', '(chunks, sources) => `索引已重建：${chunks} 个片段，来自 ${sources} 个文件`', 'function', 255),
@@ -1977,7 +2062,11 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'rules.descWorkday', 'rules', '[\"rules\",\"descWorkday\"]', '工作日（周一至周五）触发', 'text', 368),
   ('zh', 'rules.hintDate', 'rules', '[\"rules\",\"hintDate\"]', '格式：MM-DD，如 03-08', 'text', 369),
   ('zh', 'rules.hintWeekday', 'rules', '[\"rules\",\"hintWeekday\"]', '格式：1-7，如 5（周五）', 'text', 370),
-  ('zh', 'rules.hintLunarDate', 'rules', '[\"rules\",\"hintLunarDate\"]', '格式：MM-DD，如 01-15（正月十五）', 'text', 371),
+  ('zh', 'rules.hintLunarDate', 'rules', '[\"rules\",\"hintLunarDate\"]', '格式：MM-DD，如 01-15（正月十五）', 'text', 371)
+  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
+    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
   ('zh', 'rules.hintCountdown', 'rules', '[\"rules\",\"hintCountdown\"]', '格式：YYYY-MM-DD:N，如 2024-12-25:7（提前7天）', 'text', 372),
   ('zh', 'rules.hintMonthly', 'rules', '[\"rules\",\"hintMonthly\"]', '选择每月第几天', 'text', 373),
   ('zh', 'rules.hintDaily', 'rules', '[\"rules\",\"hintDaily\"]', '每天执行，无需填写条件', 'text', 374),
@@ -2058,11 +2147,7 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'logs.pageTitle', 'logs', '[\"logs\",\"pageTitle\"]', '运行日志', 'text', 449),
   ('zh', 'logs.subtitle', 'logs', '[\"logs\",\"subtitle\"]', '按条查看运行日志记录，点击行可查看详情', 'text', 450),
   ('zh', 'logs.selectPlaceholder', 'logs', '[\"logs\",\"selectPlaceholder\"]', '全部来源', 'text', 451),
-  ('zh', 'logs.fileListTitle', 'logs', '[\"logs\",\"fileListTitle\"]', '日志记录', 'text', 452)
-  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
-    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('zh', 'logs.fileListTitle', 'logs', '[\"logs\",\"fileListTitle\"]', '日志记录', 'text', 452),
   ('zh', 'logs.logCount', 'logs', '[\"logs\",\"logCount\"]', '(n) => `共 ${n} 条`', 'function', 453),
   ('zh', 'logs.noFile', 'logs', '[\"logs\",\"noFile\"]', '无文件', 'text', 454),
   ('zh', 'logs.clearConfirm', 'logs', '[\"logs\",\"clearConfirm\"]', '确认清空当前来源的全部日志记录？', 'text', 455),
@@ -2181,7 +2266,11 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'components.cancelBtn', 'components', '[\"components\",\"cancelBtn\"]', '取消', 'text', 568),
   ('zh', 'components.confirmCreate', 'components', '[\"components\",\"confirmCreate\"]', '确认新增', 'text', 569),
   ('zh', 'components.confirmEdit', 'components', '[\"components\",\"confirmEdit\"]', '确认修改', 'text', 570),
-  ('zh', 'components.running', 'components', '[\"components\",\"running\"]', '运行中', 'text', 571),
+  ('zh', 'components.running', 'components', '[\"components\",\"running\"]', '运行中', 'text', 571)
+  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
+    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
   ('zh', 'components.stopped', 'components', '[\"components\",\"stopped\"]', '已停止', 'text', 572),
   ('zh', 'components.processNotRunning', 'components', '[\"components\",\"processNotRunning\"]', '未运行', 'text', 573),
   ('zh', 'components.processNotStarted', 'components', '[\"components\",\"processNotStarted\"]', '进程未启动', 'text', 574),
@@ -2262,11 +2351,7 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'playground.schema.vitePortLabel', 'playground', '[\"playground\",\"schema\",\"vitePortLabel\"]', '前端开发端口', 'text', 649),
   ('zh', 'playground.schema.vitePortPlaceholder', 'playground', '[\"playground\",\"schema\",\"vitePortPlaceholder\"]', 'Vite 开发服务端口，默认 5173', 'text', 650),
   ('zh', 'playground.schema.vitePortRequired', 'playground', '[\"playground\",\"schema\",\"vitePortRequired\"]', '前端开发端口不能为空', 'text', 651),
-  ('zh', 'playground.schema.birthdayListLabel', 'playground', '[\"playground\",\"schema\",\"birthdayListLabel\"]', '生日列表', 'text', 652)
-  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
-    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('zh', 'playground.schema.birthdayListLabel', 'playground', '[\"playground\",\"schema\",\"birthdayListLabel\"]', '生日列表', 'text', 652),
   ('zh', 'playground.schema.birthdayListPlaceholder', 'playground', '[\"playground\",\"schema\",\"birthdayListPlaceholder\"]', '每行一条，例如：张三|lunar:03-15|zhangsan', 'text', 653),
   ('zh', 'playground.schema.birthdayListRequired', 'playground', '[\"playground\",\"schema\",\"birthdayListRequired\"]', '生日列表不能为空', 'text', 654),
   ('zh', 'playground.schema.birthdayAdvanceDaysLabel', 'playground', '[\"playground\",\"schema\",\"birthdayAdvanceDaysLabel\"]', '提前通知天数', 'text', 655),
@@ -2385,7 +2470,11 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'playground.schema.inspectorTimePlaceholder', 'playground', '[\"playground\",\"schema\",\"inspectorTimePlaceholder\"]', '选择时间', 'text', 768),
   ('zh', 'playground.schema.inspectorScheduleLabel', 'playground', '[\"playground\",\"schema\",\"inspectorScheduleLabel\"]', 'cron 表达式', 'text', 769),
   ('zh', 'playground.schema.inspectorScheduleHelp', 'playground', '[\"playground\",\"schema\",\"inspectorScheduleHelp\"]', '五段：分 时 日 月 周，例「每周一 9:30」→ 30 9 * * 1；填了它则每日时间失效', 'text', 770),
-  ('zh', 'playground.schema.inspectorPushLabel', 'playground', '[\"playground\",\"schema\",\"inspectorPushLabel\"]', '推送到企微群', 'text', 771),
+  ('zh', 'playground.schema.inspectorPushLabel', 'playground', '[\"playground\",\"schema\",\"inspectorPushLabel\"]', '推送到企微群', 'text', 771)
+  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
+    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
   ('zh', 'playground.schema.inspectorPushHelp', 'playground', '[\"playground\",\"schema\",\"inspectorPushHelp\"]', '把巡检简报推送到已配置的机器人；关闭则只记录不推送', 'text', 772),
   ('zh', 'playground.schema.inspectorEmailLabel', 'playground', '[\"playground\",\"schema\",\"inspectorEmailLabel\"]', '执行身份邮箱', 'text', 773),
   ('zh', 'playground.schema.inspectorEmailPlaceholder', 'playground', '[\"playground\",\"schema\",\"inspectorEmailPlaceholder\"]', '留空则用邮箱账号', 'text', 774),
@@ -2466,11 +2555,7 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'playground.schema.ruleCountdownDaysAhead', 'playground', '[\"playground\",\"schema\",\"ruleCountdownDaysAhead\"]', '提前天数', 'text', 849),
   ('zh', 'playground.schema.ruleMonthlyPlaceholder', 'playground', '[\"playground\",\"schema\",\"ruleMonthlyPlaceholder\"]', '选择每月第几天', 'text', 850),
   ('zh', 'playground.schema.ruleMonthlyRequired', 'playground', '[\"playground\",\"schema\",\"ruleMonthlyRequired\"]', '请选择每月第几天', 'text', 851),
-  ('zh', 'playground.schema.ruleTimeLabel', 'playground', '[\"playground\",\"schema\",\"ruleTimeLabel\"]', '执行时间', 'text', 852)
-  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
-    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('zh', 'playground.schema.ruleTimeLabel', 'playground', '[\"playground\",\"schema\",\"ruleTimeLabel\"]', '执行时间', 'text', 852),
   ('zh', 'playground.schema.ruleTimePlaceholder', 'playground', '[\"playground\",\"schema\",\"ruleTimePlaceholder\"]', '选择执行时间', 'text', 853),
   ('zh', 'playground.schema.ruleTimeRequired', 'playground', '[\"playground\",\"schema\",\"ruleTimeRequired\"]', '请选择执行时间', 'text', 854),
   ('zh', 'playground.schema.ruleMessageLabel', 'playground', '[\"playground\",\"schema\",\"ruleMessageLabel\"]', '提醒内容', 'text', 855),
@@ -2589,7 +2674,11 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'apiManagement.filterAllCategories', 'apiManagement', '[\"apiManagement\",\"filterAllCategories\"]', '全部分类', 'text', 968),
   ('zh', 'apiManagement.noApis', 'apiManagement', '[\"apiManagement\",\"noApis\"]', '暂无 API 数据', 'text', 969),
   ('zh', 'apiManagement.noCategories', 'apiManagement', '[\"apiManagement\",\"noCategories\"]', '暂无接口分类', 'text', 970),
-  ('zh', 'apiManagement.totalCount', 'apiManagement', '[\"apiManagement\",\"totalCount\"]', '(n) => `共 ${n} 条`', 'function', 971),
+  ('zh', 'apiManagement.totalCount', 'apiManagement', '[\"apiManagement\",\"totalCount\"]', '(n) => `共 ${n} 条`', 'function', 971)
+  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
+    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
   ('zh', 'apiManagement.deleteApiConfirm', 'apiManagement', '[\"apiManagement\",\"deleteApiConfirm\"]', '确认删除该 API？', 'text', 972),
   ('zh', 'apiManagement.deleteCategoryConfirm', 'apiManagement', '[\"apiManagement\",\"deleteCategoryConfirm\"]', '确认删除该分类？删除后该分类下的所有 API 也将被删除', 'text', 973),
   ('zh', 'apiManagement.colName', 'apiManagement', '[\"apiManagement\",\"colName\"]', '名称', 'text', 974),
@@ -2670,11 +2759,7 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'permissionRequests.rejectSuccess', 'permissionRequests', '[\"permissionRequests\",\"rejectSuccess\"]', '已拒绝，申请人将收到邮件通知', 'text', 1049),
   ('zh', 'permissionRequests.opFailed', 'permissionRequests', '[\"permissionRequests\",\"opFailed\"]', '操作失败，请稍后重试', 'text', 1050),
   ('zh', 'permissionRequests.pendingBadge', 'permissionRequests', '[\"permissionRequests\",\"pendingBadge\"]', '(n) => `${n} 条待审`', 'function', 1051),
-  ('zh', 'permissionRequests.resolvedBy', 'permissionRequests', '[\"permissionRequests\",\"resolvedBy\"]', '(who) => `by ${who}`', 'function', 1052)
-  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
-    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('zh', 'permissionRequests.resolvedBy', 'permissionRequests', '[\"permissionRequests\",\"resolvedBy\"]', '(who) => `by ${who}`', 'function', 1052),
   ('zh', 'permissionRequests.refreshBtn', 'permissionRequests', '[\"permissionRequests\",\"refreshBtn\"]', '刷新', 'text', 1053),
   ('zh', 'permissionRequests.totalCount', 'permissionRequests', '[\"permissionRequests\",\"totalCount\"]', '(n) => `共 ${n} 条`', 'function', 1054),
   ('zh', 'permissionRequests.tableTitle', 'permissionRequests', '[\"permissionRequests\",\"tableTitle\"]', '申请记录', 'text', 1055),
@@ -2793,7 +2878,11 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'aiCost.statAvgDuration', 'aiCost', '[\"aiCost\",\"statAvgDuration\"]', '平均耗时', 'text', 1168),
   ('zh', 'aiCost.statP95Duration', 'aiCost', '[\"aiCost\",\"statP95Duration\"]', 'P95 耗时', 'text', 1169),
   ('zh', 'aiCost.statFailureRate', 'aiCost', '[\"aiCost\",\"statFailureRate\"]', '工具失败率', 'text', 1170),
-  ('zh', 'aiCost.sectionByModel', 'aiCost', '[\"aiCost\",\"sectionByModel\"]', '按模型', 'text', 1171),
+  ('zh', 'aiCost.sectionByModel', 'aiCost', '[\"aiCost\",\"sectionByModel\"]', '按模型', 'text', 1171)
+  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
+    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
   ('zh', 'aiCost.sectionByTool', 'aiCost', '[\"aiCost\",\"sectionByTool\"]', '按工具', 'text', 1172),
   ('zh', 'aiCost.sectionByDay', 'aiCost', '[\"aiCost\",\"sectionByDay\"]', '按天', 'text', 1173),
   ('zh', 'aiCost.colModel', 'aiCost', '[\"aiCost\",\"colModel\"]', '模型', 'text', 1174),
@@ -2874,11 +2963,7 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'skillMap.skills.github_trending.label', 'skillMap', '[\"skillMap\",\"skills\",\"github_trending\",\"label\"]', 'GitHub趋势', 'text', 1249),
   ('zh', 'skillMap.skills.github_trending.desc', 'skillMap', '[\"skillMap\",\"skills\",\"github_trending\",\"desc\"]', 'GitHub 近7天最热门开源项目', 'text', 1250),
   ('zh', 'skillMap.skills.steam_hot.label', 'skillMap', '[\"skillMap\",\"skills\",\"steam_hot\",\"label\"]', 'Steam热销', 'text', 1251),
-  ('zh', 'skillMap.skills.steam_hot.desc', 'skillMap', '[\"skillMap\",\"skills\",\"steam_hot\",\"desc\"]', 'Steam 商店热销游戏榜单', 'text', 1252)
-  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
-    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('zh', 'skillMap.skills.steam_hot.desc', 'skillMap', '[\"skillMap\",\"skills\",\"steam_hot\",\"desc\"]', 'Steam 商店热销游戏榜单', 'text', 1252),
   ('zh', 'skillMap.skills.earthquake.label', 'skillMap', '[\"skillMap\",\"skills\",\"earthquake\",\"label\"]', '地震速报', 'text', 1253),
   ('zh', 'skillMap.skills.earthquake.desc', 'skillMap', '[\"skillMap\",\"skills\",\"earthquake\",\"desc\"]', 'USGS 近 24 小时全球地震，按震级排序', 'text', 1254),
   ('zh', 'skillMap.skills.daily_word.label', 'skillMap', '[\"skillMap\",\"skills\",\"daily_word\",\"label\"]', '每日一词', 'text', 1255),
@@ -2997,7 +3082,11 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'aiChat.history', 'aiChat', '[\"aiChat\",\"history\"]', '历史会话', 'text', 1368),
   ('zh', 'aiChat.examples.0', 'aiChat', '[\"aiChat\",\"examples\",\"0\"]', '服务器现在状态怎么样', 'text', 1369),
   ('zh', 'aiChat.examples.1', 'aiChat', '[\"aiChat\",\"examples\",\"1\"]', '9527 服务在跑吗？', 'text', 1370),
-  ('zh', 'aiChat.examples.2', 'aiChat', '[\"aiChat\",\"examples\",\"2\"]', '都能手动触发哪些脚本？', 'text', 1371),
+  ('zh', 'aiChat.examples.2', 'aiChat', '[\"aiChat\",\"examples\",\"2\"]', '都能手动触发哪些脚本？', 'text', 1371)
+  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
+    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
   ('zh', 'aiChat.examples.3', 'aiChat', '[\"aiChat\",\"examples\",\"3\"]', '系统里有哪些角色？', 'text', 1372),
   ('zh', 'aiChat.examples.4', 'aiChat', '[\"aiChat\",\"examples\",\"4\"]', '立春的祝福语是什么？', 'text', 1373),
   ('zh', 'aiChat.examples.5', 'aiChat', '[\"aiChat\",\"examples\",\"5\"]', '看看最近的运行日志', 'text', 1374),
@@ -3078,11 +3167,7 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'aiChat.createConversationFailed', 'aiChat', '[\"aiChat\",\"createConversationFailed\"]', '创建会话失败', 'text', 1449),
   ('zh', 'aiChat.skinTitle', 'aiChat', '[\"aiChat\",\"skinTitle\"]', '皮肤设置', 'text', 1450),
   ('zh', 'aiChat.skinPresetTitle', 'aiChat', '[\"aiChat\",\"skinPresetTitle\"]', '内置皮肤', 'text', 1451),
-  ('zh', 'aiChat.skinPresetDefault', 'aiChat', '[\"aiChat\",\"skinPresetDefault\"]', '经典', 'text', 1452)
-  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
-    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
-
-INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('zh', 'aiChat.skinPresetDefault', 'aiChat', '[\"aiChat\",\"skinPresetDefault\"]', '经典', 'text', 1452),
   ('zh', 'aiChat.skinPresetAurora', 'aiChat', '[\"aiChat\",\"skinPresetAurora\"]', '极光', 'text', 1453),
   ('zh', 'aiChat.skinPresetOcean', 'aiChat', '[\"aiChat\",\"skinPresetOcean\"]', '深海', 'text', 1454),
   ('zh', 'aiChat.skinPresetSunset', 'aiChat', '[\"aiChat\",\"skinPresetSunset\"]', '暮光', 'text', 1455),
@@ -3154,6 +3239,71 @@ INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `v
   ('zh', 'logs.fieldTrace', 'logs', '[\"logs\",\"fieldTrace\"]', '链路 ID', 'text', 1521),
   ('zh', 'logs.fieldUser', 'logs', '[\"logs\",\"fieldUser\"]', '关联用户', 'text', 1522),
   ('zh', 'logs.detailEmpty', 'logs', '[\"logs\",\"detailEmpty\"]', '未找到该日志记录', 'text', 1523),
-  ('zh', 'logs.detailFailed', 'logs', '[\"logs\",\"detailFailed\"]', '日志详情加载失败', 'text', 1524)
+  ('zh', 'logs.detailFailed', 'logs', '[\"logs\",\"detailFailed\"]', '日志详情加载失败', 'text', 1524),
+  ('zh', 'menu.cacheAdmin', 'menu', '[\"menu\",\"cacheAdmin\"]', '缓存数据管理', 'text', 5000),
+  ('zh', 'cacheAdmin.pageTitle', 'cacheAdmin', '[\"cacheAdmin\",\"pageTitle\"]', '缓存数据管理', 'text', 5001),
+  ('zh', 'cacheAdmin.subtitle', 'cacheAdmin', '[\"cacheAdmin\",\"subtitle\"]', '按表浏览与编辑 13 张 hp_cache_* 缓存表', 'text', 5002),
+  ('zh', 'cacheAdmin.listTitle', 'cacheAdmin', '[\"cacheAdmin\",\"listTitle\"]', '缓存条目', 'text', 5003),
+  ('zh', 'cacheAdmin.filterTable', 'cacheAdmin', '[\"cacheAdmin\",\"filterTable\"]', '数据表', 'text', 5004),
+  ('zh', 'cacheAdmin.filterPeriod', 'cacheAdmin', '[\"cacheAdmin\",\"filterPeriod\"]', '时间粒度', 'text', 5005),
+  ('zh', 'cacheAdmin.filterKeyword', 'cacheAdmin', '[\"cacheAdmin\",\"filterKeyword\"]', '关键字', 'text', 5006),
+  ('zh', 'cacheAdmin.keywordPlaceholder', 'cacheAdmin', '[\"cacheAdmin\",\"keywordPlaceholder\"]', '键名 / section / 正文', 'text', 5007),
+  ('zh', 'cacheAdmin.allTables', 'cacheAdmin', '[\"cacheAdmin\",\"allTables\"]', '全部表', 'text', 5008),
+  ('zh', 'cacheAdmin.allPeriods', 'cacheAdmin', '[\"cacheAdmin\",\"allPeriods\"]', '全部粒度', 'text', 5009),
+  ('zh', 'cacheAdmin.periodDay', 'cacheAdmin', '[\"cacheAdmin\",\"periodDay\"]', '按天', 'text', 5010),
+  ('zh', 'cacheAdmin.periodMonth', 'cacheAdmin', '[\"cacheAdmin\",\"periodMonth\"]', '按月', 'text', 5011),
+  ('zh', 'cacheAdmin.periodYear', 'cacheAdmin', '[\"cacheAdmin\",\"periodYear\"]', '按年', 'text', 5012),
+  ('zh', 'cacheAdmin.periodStatic', 'cacheAdmin', '[\"cacheAdmin\",\"periodStatic\"]', '静态', 'text', 5013),
+  ('zh', 'cacheAdmin.colTable', 'cacheAdmin', '[\"cacheAdmin\",\"colTable\"]', '表', 'text', 5014),
+  ('zh', 'cacheAdmin.colSection', 'cacheAdmin', '[\"cacheAdmin\",\"colSection\"]', 'Section', 'text', 5015),
+  ('zh', 'cacheAdmin.colKey', 'cacheAdmin', '[\"cacheAdmin\",\"colKey\"]', '缓存键', 'text', 5016),
+  ('zh', 'cacheAdmin.colPreview', 'cacheAdmin', '[\"cacheAdmin\",\"colPreview\"]', '正文预览', 'text', 5017),
+  ('zh', 'cacheAdmin.colPeriod', 'cacheAdmin', '[\"cacheAdmin\",\"colPeriod\"]', '粒度', 'text', 5018),
+  ('zh', 'cacheAdmin.colSize', 'cacheAdmin', '[\"cacheAdmin\",\"colSize\"]', '大小', 'text', 5019),
+  ('zh', 'cacheAdmin.colUpdated', 'cacheAdmin', '[\"cacheAdmin\",\"colUpdated\"]', '更新时间', 'text', 5020),
+  ('zh', 'cacheAdmin.colActions', 'cacheAdmin', '[\"cacheAdmin\",\"colActions\"]', '操作', 'text', 5021),
+  ('zh', 'cacheAdmin.emptyHint', 'cacheAdmin', '[\"cacheAdmin\",\"emptyHint\"]', '没有匹配的缓存条目', 'text', 5022),
+  ('zh', 'cacheAdmin.totalLabel', 'cacheAdmin', '[\"cacheAdmin\",\"totalLabel\"]', '共', 'text', 5023),
+  ('zh', 'cacheAdmin.deleteConfirm', 'cacheAdmin', '[\"cacheAdmin\",\"deleteConfirm\"]', '确认删除这条缓存数据？', 'text', 5024),
+  ('zh', 'cacheAdmin.editHeader', 'cacheAdmin', '[\"cacheAdmin\",\"editHeader\"]', '编辑缓存条目', 'text', 5025),
+  ('zh', 'cacheAdmin.createHeader', 'cacheAdmin', '[\"cacheAdmin\",\"createHeader\"]', '新增缓存条目', 'text', 5026),
+  ('zh', 'cacheAdmin.fieldTable', 'cacheAdmin', '[\"cacheAdmin\",\"fieldTable\"]', '数据表', 'text', 5027),
+  ('zh', 'cacheAdmin.fieldSection', 'cacheAdmin', '[\"cacheAdmin\",\"fieldSection\"]', 'Section（展平表必填）', 'text', 5028),
+  ('zh', 'cacheAdmin.fieldKey', 'cacheAdmin', '[\"cacheAdmin\",\"fieldKey\"]', '缓存键', 'text', 5029),
+  ('zh', 'cacheAdmin.fieldBody', 'cacheAdmin', '[\"cacheAdmin\",\"fieldBody\"]', '正文（JSON 或原始文本）', 'text', 5030),
+  ('zh', 'cacheAdmin.fieldBodyPlaceholder', 'cacheAdmin', '[\"cacheAdmin\",\"fieldBodyPlaceholder\"]', '请输入缓存正文', 'text', 5031),
+  ('zh', 'cacheAdmin.flatHint', 'cacheAdmin', '[\"cacheAdmin\",\"flatHint\"]', '展平表由专用模块整表覆盖，单条修改可能被下次同步覆盖', 'text', 5032),
+  ('zh', 'cacheAdmin.invalidJson', 'cacheAdmin', '[\"cacheAdmin\",\"invalidJson\"]', '分类表正文必须是合法 JSON', 'text', 5033),
+  ('zh', 'cacheAdmin.metaTitle', 'cacheAdmin', '[\"cacheAdmin\",\"metaTitle\"]', '条目信息', 'text', 5034),
+  ('zh', 'cacheAdmin.previewTitle', 'cacheAdmin', '[\"cacheAdmin\",\"previewTitle\"]', '正文', 'text', 5035),
+  ('zh', 'cacheAdmin.tabJson', 'cacheAdmin', '[\"cacheAdmin\",\"tabJson\"]', 'JSON 源码', 'text', 5036),
+  ('zh', 'cacheAdmin.tabMarkdown', 'cacheAdmin', '[\"cacheAdmin\",\"tabMarkdown\"]', 'Markdown 预览', 'text', 5037),
+  ('zh', 'cacheAdmin.formatBtn', 'cacheAdmin', '[\"cacheAdmin\",\"formatBtn\"]', '格式化', 'text', 5038),
+  ('zh', 'cacheAdmin.formatSuccess', 'cacheAdmin', '[\"cacheAdmin\",\"formatSuccess\"]', 'JSON 已格式化', 'text', 5039),
+  ('zh', 'cacheAdmin.formatFailed', 'cacheAdmin', '[\"cacheAdmin\",\"formatFailed\"]', 'JSON 格式错误，无法格式化', 'text', 5040),
+  ('zh', 'cacheAdmin.previewNotJson', 'cacheAdmin', '[\"cacheAdmin\",\"previewNotJson\"]', '正文不是合法 JSON，已按纯文本展示', 'text', 5041),
+  ('zh', 'cacheAdmin.truncatedHint', 'cacheAdmin', '[\"cacheAdmin\",\"truncatedHint\"]', '内容过长，仅展示部分', 'text', 5042),
+  ('zh', 'menu.amapGeocode', 'menu', '[\"menu\",\"amapGeocode\"]', '高德地理编码', 'text', 5100),
+  ('zh', 'amapGeocode.pageTitle', 'amapGeocode', '[\"amapGeocode\",\"pageTitle\"]', '高德地理编码', 'text', 5101),
+  ('zh', 'amapGeocode.subtitle', 'amapGeocode', '[\"amapGeocode\",\"subtitle\"]', '管理地址与经纬度的缓存映射，供通勤卡片与地理编码工具复用', 'text', 5102),
+  ('zh', 'amapGeocode.listTitle', 'amapGeocode', '[\"amapGeocode\",\"listTitle\"]', '地址坐标列表', 'text', 5103)
+  ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
+    `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);
+
+INSERT INTO `hp_i18n_messages` (`lang`, `key_path`, `namespace`, `path_json`, `value`, `value_type`, `sort_order`) VALUES
+  ('zh', 'amapGeocode.keywordPlaceholder', 'amapGeocode', '[\"amapGeocode\",\"keywordPlaceholder\"]', '输入地址关键字', 'text', 5104),
+  ('zh', 'amapGeocode.colAddress', 'amapGeocode', '[\"amapGeocode\",\"colAddress\"]', '地址', 'text', 5105),
+  ('zh', 'amapGeocode.colCoordinates', 'amapGeocode', '[\"amapGeocode\",\"colCoordinates\"]', '经纬度', 'text', 5106),
+  ('zh', 'amapGeocode.colUpdated', 'amapGeocode', '[\"amapGeocode\",\"colUpdated\"]', '更新时间', 'text', 5107),
+  ('zh', 'amapGeocode.colActions', 'amapGeocode', '[\"amapGeocode\",\"colActions\"]', '操作', 'text', 5108),
+  ('zh', 'amapGeocode.createHeader', 'amapGeocode', '[\"amapGeocode\",\"createHeader\"]', '新增地址坐标', 'text', 5109),
+  ('zh', 'amapGeocode.editHeader', 'amapGeocode', '[\"amapGeocode\",\"editHeader\"]', '编辑地址坐标', 'text', 5110),
+  ('zh', 'amapGeocode.fieldAddress', 'amapGeocode', '[\"amapGeocode\",\"fieldAddress\"]', '地址', 'text', 5111),
+  ('zh', 'amapGeocode.fieldCoordinates', 'amapGeocode', '[\"amapGeocode\",\"fieldCoordinates\"]', '经纬度', 'text', 5112),
+  ('zh', 'amapGeocode.coordinatesHint', 'amapGeocode', '[\"amapGeocode\",\"coordinatesHint\"]', '格式：经度,纬度（如 114.025796,22.608443）', 'text', 5113),
+  ('zh', 'amapGeocode.invalidCoordinates', 'amapGeocode', '[\"amapGeocode\",\"invalidCoordinates\"]', '坐标格式应为「经度,纬度」', 'text', 5114),
+  ('zh', 'amapGeocode.deleteConfirm', 'amapGeocode', '[\"amapGeocode\",\"deleteConfirm\"]', '确定删除该地址坐标吗？', 'text', 5115),
+  ('zh', 'amapGeocode.totalLabel', 'amapGeocode', '[\"amapGeocode\",\"totalLabel\"]', '共', 'text', 5116),
+  ('zh', 'logs.colAddress', 'logs', '[\"logs\",\"colAddress\"]', '地址', 'text', 5117)
   ON DUPLICATE KEY UPDATE `namespace` = VALUES(`namespace`),
     `path_json` = VALUES(`path_json`), `sort_order` = VALUES(`sort_order`);

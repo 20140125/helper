@@ -27,8 +27,8 @@
               </t-button>
             </template>
 
-            <!-- 普通 section card 操作按钮 -->
-            <template v-else>
+            <!-- 普通 section card 操作按钮（系统背景卡片自带上传 / 清除，不渲染编辑态） -->
+            <template v-else-if="section.key !== 'background'">
               <template v-if="editingKey === section.key">
                 <t-button variant="outline" size="large" @click="cancelEdit(section.key)">
                   <template #icon><t-icon name="close" /></template>
@@ -65,6 +65,13 @@
             @submit-webhook="submitWebhookInline"
           />
 
+          <!-- 系统背景上传卡片 -->
+          <background-section
+            v-else-if="section.key === 'background'"
+            :t="t"
+            :can-edit="canEdit(Permission.CONFIG_VIEW)"
+          />
+
           <!-- 普通 section auto-form 内容 -->
           <template v-else-if="section.form">
             <auto-form
@@ -88,6 +95,7 @@ import PageLayout from '@/components/common/page-layout.vue';
 import ConfigSectionCard from '@/components/config/config-section-card.vue';
 import AutoForm from '@/components/auto-form/index.vue';
 import WebhookSection from '@/components/config/webhook-section.vue';
+import BackgroundSection from '@/components/config/background-section.vue';
 
 const {
   t,

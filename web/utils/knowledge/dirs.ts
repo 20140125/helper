@@ -1,5 +1,3 @@
-import path from 'path';
-import { PROJECT_DIR } from '@/utils/paths';
 import {
   DEFAULT_KNOWLEDGE_DIRS,
   type KnowledgeConfig,
@@ -52,11 +50,3 @@ export const writeKnowledgeDirs = async (dirs: string[]): Promise<KnowledgeConfi
   await writeCacheJson(KNOWLEDGE_CONFIG_KEY, config);
   return config;
 };
-
-/**
- * 获取配置的索引目录绝对路径列表
- * @returns {Promise<string[]>} 绝对路径列表
- * @description 供路径白名单校验使用；配置缺失时回退到默认目录
- */
-export const resolveKnowledgeDirPaths = async (): Promise<string[]> =>
-  (await readKnowledgeDirs()).dirs.map((d) => path.join(PROJECT_DIR, d));

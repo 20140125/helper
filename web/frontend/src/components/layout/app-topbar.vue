@@ -105,6 +105,25 @@
                 >
               </label>
             </div>
+
+            <!-- 系统背景图遮挡层不透明度：按用户保存，仅设置过背景图时显示 -->
+            <div v-if="background.url" class="theme-menu-surface">
+              <div class="surface-title">
+                <span>{{ t.topbar.backgroundSurfaceOpacity }}</span>
+                <span class="surface-value">{{ appearance.surfaceOpacity }}%</span>
+              </div>
+              <input
+                type="range"
+                class="surface-slider"
+                :min="USER_APPEARANCE_SURFACE_OPACITY_MIN"
+                :max="USER_APPEARANCE_SURFACE_OPACITY_MAX"
+                step="1"
+                :value="appearance.surfaceOpacity"
+                @input="handleSurfaceOpacityInput"
+                @change="handleSurfaceOpacityChange"
+              >
+              <div class="surface-hint">{{ t.topbar.backgroundSurfaceOpacityHint }}</div>
+            </div>
           </div>
         </transition>
       </teleport>
@@ -173,11 +192,21 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useStatusStore } from '@/stores/status';
+import { useAppBackgroundStore } from '@/stores/app-background';
+import { useUserAppearanceStore } from '@/stores/user-appearance';
 import { getThemeStyles } from '@/constants/theme';
+import {
+  USER_APPEARANCE_SURFACE_OPACITY_MAX,
+  USER_APPEARANCE_SURFACE_OPACITY_MIN,
+} from '@/constants/user-appearance';
 import type { Locale } from '@/types/locale';
 import type { ThemeStyle } from '@/types/theme';
 
 const statusStore = useStatusStore();
+/** 全局系统背景状态，用于判断遮挡层设置项是否需要显示 */
+const background = useAppBackgroundStore();
+/** 按用户的遮挡层不透明度状态 */
+const appearance = useUserAppearanceStore();
 
 const props = defineProps<{
   /** i18n 完整文案对象（由父组件通过 LocaleStore.t 传入，响应式） */
@@ -262,6 +291,8 @@ const handleClickOutside = (event: MouseEvent) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
+  // 顶栏只在登录后渲染，此处读取当前用户保存在数据库中的遮挡层不透明度
+  void appearance.load();
 });
 
 onBeforeUnmount(() => {
@@ -303,6 +334,25 @@ const handleLightTimeChange = (event: Event): void => {
 const handleDarkTimeChange = (event: Event): void => {
   const value = (event.target as HTMLInputElement).value;
   emit('auto-time-change', { lightTime: props.lightTime, darkTime: value });
+};
+
+/**
+ * 拖动滑杆时即时预览遮挡层不透明度
+ * @param {Event} event - input 事件
+ * @returns {void} 无返回值
+ * @description 只更新本地 CSS 变量，不写库，避免拖动过程中频繁请求
+ */
+const handleSurfaceOpacityInput = (event: Event): void => {
+  appearance.setSurfaceOpacity(Number((event.target as HTMLInputElement).value));
+};
+
+/**
+ * 松开滑杆后按用户持久化遮挡层不透明度
+ * @returns {void} 无返回值
+ * @description change 事件在释放滑杆时触发，一次拖动只发一次 PUT
+ */
+const handleSurfaceOpacityChange = (): void => {
+  void appearance.save();
 };
 
 defineExpose({ colorPickerRef });
@@ -459,6 +509,40 @@ defineExpose({ colorPickerRef });
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-size: 12px;
+}
+
+/* 背景图遮挡层不透明度（按用户保存） */
+.theme-menu-surface {
+  padding: 8px 10px 10px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border-color);
+}
+
+.surface-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.surface-value {
+  color: var(--accent-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.surface-slider {
+  width: 100%;
+  margin: 10px 0 6px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.surface-hint {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 /* 自定义主题项：整行可点击打开颜色选择器 */

@@ -76,7 +76,12 @@ main() {
     log_info "======================================"
 
     local action="${1:-show}"
+    # keyword_map.sh 里周期类关键字用 `_` 占位表示「默认星座」；
+    # 不透传，否则会把 `_` 当星座名请求 API 并写出 api_responses/horoscope__.json
     local zodiac_arg="${2:-$ZODIAC_SIGN}"
+    if [ "$zodiac_arg" = "_" ]; then
+        zodiac_arg="$ZODIAC_SIGN"
+    fi
     local type_arg="${3:-today}"
     log_info "🎯 动作: ${action}, 星座: ${zodiac_arg}, 周期: ${type_arg}（默认星座: ${DEFAULT_ZODIAC}）"
 

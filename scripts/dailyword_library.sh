@@ -40,7 +40,7 @@
 #      （2026-10-28 起 open.iciba.com/dsapi/ 失效，取数兜底曾把只有 quote
 #       的 JSON 沉淀进来，导致历史库连续多天空英文）
 #   7. 顶层只保留 updated_at / entries：description 之类说明文字属于元信息，
-#      同步到 hp_cache_* 表会多出一行无用记录，不写入缓存文件
+#      同步到 hp_cache_* 表会多出一行无用记录，不写入缓存条目
 #
 # 使用方式：
 #   source "${PROJECT_DIR}/dailyword_library.sh"
@@ -64,11 +64,9 @@ if ! declare -F cache_db_read >/dev/null 2>&1; then
     source "${PROJECT_DIR}/cache_db.sh"
 fi
 
-# 缓存键：库内 JSON 物化为临时文件，保留原有 Python 读写逻辑；写回统一 persist
+# 缓存键：库内 JSON 走 stdin / fd 3 交给 Python，输出全文直接写回数据库，不物化文件
 DAILYWORD_LIBRARY_KEY='dailyword_library.json'
 REMINDER_QUOTES_KEY='reminder_quotes.json'
-DAILYWORD_LIBRARY="$(cache_db_materialize "$DAILYWORD_LIBRARY_KEY" 2>/dev/null || printf '')"
-REMINDER_QUOTES_JSON="$(cache_db_materialize "$REMINDER_QUOTES_KEY" 2>/dev/null || printf '')"
 
 # -----------------------------------------
 # 沉淀写入器（Python 源码，供 persist_dailyword 用 python3 -c 调用）
@@ -80,8 +78,10 @@ _DAILYWORD_PERSIST_PY="$(cat <<'PYEOF'
 import json, os, sys
 from datetime import datetime, timezone, timedelta
 
-lib_path = sys.argv[1]
-body     = sys.stdin.read()
+# 库内全文走 fd 3，本次取数走 stdin，合并后的全文走 stdout（不落任何文件）
+body = sys.stdin.read()
+with os.fdopen(3, 'r', encoding='utf-8') as f:
+    lib_raw = f.read()
 
 tz    = timezone(timedelta(hours=8))
 today = datetime.now(tz).strftime('%Y-%m-%d')
@@ -98,26 +98,23 @@ if not item.get('english') or not item.get('chinese'):
     sys.exit(1)
 
 doc = None
-if os.path.isfile(lib_path) and os.path.getsize(lib_path) > 0:
+if lib_raw.strip():
     try:
-        with open(lib_path, 'r', encoding='utf-8') as f:
-            doc = json.load(f)
-        if not isinstance(doc, dict) or not isinstance(doc.get('entries'), dict):
-            doc = None
-        else:
-            # 早期版本把说明文字存成顶层 description，同步到 hp_cache_* 表时
-            # 会多出一条无用的描述行；读到旧库顺手清掉
-            doc.pop('description', None)
+        doc = json.loads(lib_raw)
     except Exception:
+        # 库内已有内容但读不出来：放弃本次沉淀，绝不覆盖，避免清空历史
+        sys.exit(1)
+    if not isinstance(doc, dict):
+        sys.exit(1)
+    # 业务表为空时读出 {}，等价于首次部署，允许新建
+    if doc.get('entries') is None:
         doc = None
-    # 库读不出来（写一半被中断 / 手工改坏）时，先另存一份再重建：
-    # 历史只增不删，直接重建等于静默清空全部沉淀，必须先留证据
-    if doc is None:
-        try:
-            stamp = datetime.now(tz).strftime('%Y%m%d%H%M%S')
-            os.replace(lib_path, '{}.corrupt-{}'.format(lib_path, stamp))
-        except Exception:
-            pass
+    elif not isinstance(doc['entries'], dict):
+        sys.exit(1)
+    else:
+        # 早期版本把说明文字存成顶层 description，同步到 hp_cache_* 表时
+        # 会多出一条无用的描述行；读到旧数据顺手清掉
+        doc.pop('description', None)
 
 if doc is None:
     doc = {
@@ -155,12 +152,8 @@ else:
     doc['entries'][today] = entry
 doc['updated_at'] = today
 
-# 原子写：先落 .tmp 再 rename，避免预取与出卡片并发写时把库写坏
-tmp_path = '{}.tmp'.format(lib_path)
-with open(tmp_path, 'w', encoding='utf-8') as f:
-    json.dump(doc, f, ensure_ascii=False, indent=2, sort_keys=False)
-    f.write('\n')
-os.replace(tmp_path, lib_path)
+# 输出合并后的全文，由 shell 交给 cache_db_write 入库
+print(json.dumps(doc, ensure_ascii=False, indent=2, sort_keys=False))
 PYEOF
 )"
 
@@ -168,14 +161,15 @@ PYEOF
 # 追加写入器（Python 源码，供 append_dailyword_quote 用 python3 -c 调用）
 # -----------------------------------------
 # 把每日一词的中文名言追加进 reminder_quotes.json → quotes.quotes
-# 响应体走 stdin（与历史库一致，避免大 payload 触发 E2BIG）
-# 退出码：0 已追加或已存在；2 内容不合规范（调用方静默跳过）；1 写入/解析异常
+# 响应体走 stdin、库内全文走 fd 3，合并后的全文走 stdout（不落任何文件）
+# 退出码：0 输出新全文或无需变更（空输出）；2 内容不合规范（调用方静默跳过）；1 解析异常
 # -----------------------------------------
 _DAILYWORD_QUOTES_PY="$(cat <<'PYEOF'
 import json, os, sys
 
-quotes_path = sys.argv[1]
-body        = sys.stdin.read()
+body = sys.stdin.read()
+with os.fdopen(3, 'r', encoding='utf-8') as f:
+    quotes_raw = f.read()
 
 # 消极词体检：励志库要用于早安播报/工作提醒，明显丧的句子不进库
 NEGATIVE = ('绝望', '毁灭', '腐烂', '自杀', '坟墓', '哭泣', '无意义', '空虚')
@@ -201,11 +195,10 @@ if any(word in quote for word in NEGATIVE):
 
 # 语录库由 Web 管理端共同维护：读不出来就放弃本次追加，绝不重建（重建等于清空人工维护内容）
 try:
-    with open(quotes_path, 'r', encoding='utf-8') as f:
-        doc = json.load(f)
+    doc = json.loads(quotes_raw)
+    bucket = doc.get('quotes')
 except Exception:
     sys.exit(1)
-bucket = doc.get('quotes')
 if not isinstance(bucket, dict) or not isinstance(bucket.get('quotes'), list):
     sys.exit(1)
 
@@ -216,12 +209,8 @@ for existing in bucket['quotes']:
 
 bucket['quotes'].append(quote)
 
-# 原子写：先落 .tmp 再 rename，避免与 Web 管理端 / 预取并发写时把库写坏
-tmp_path = '{}.tmp'.format(quotes_path)
-with open(tmp_path, 'w', encoding='utf-8') as f:
-    json.dump(doc, f, ensure_ascii=False, indent=2)
-    f.write('\n')
-os.replace(tmp_path, quotes_path)
+# 输出合并后的全文，由 shell 交给 cache_db_write 入库
+print(json.dumps(doc, ensure_ascii=False, indent=2))
 PYEOF
 )"
 
@@ -241,17 +230,18 @@ append_dailyword_quote() {
         return 0
     fi
 
-    local rc=0
-    printf '%s' "${items_json}" | python3 -c "${_DAILYWORD_QUOTES_PY}" "${REMINDER_QUOTES_JSON}" 2>/dev/null || rc=$?
-    # Python 写临时文件后必须回写数据库
-    if [ "$rc" -eq 0 ]; then
-        cache_db_persist "${REMINDER_QUOTES_KEY}" "${REMINDER_QUOTES_JSON}" 2>/dev/null || rc=$?
+    local rc=0 updated=''
+    updated="$(printf '%s' "${items_json}" | python3 -c "${_DAILYWORD_QUOTES_PY}" \
+        3< <(cache_db_read "${REMINDER_QUOTES_KEY}") 2>/dev/null)" || rc=$?
+    # Python 输出空表示句子已存在，无需写库
+    if [ "$rc" -eq 0 ] && [ -n "$updated" ]; then
+        cache_db_write "${REMINDER_QUOTES_KEY}" "${updated}" 2>/dev/null || rc=$?
     fi
 
     # rc=2：句子太长/太短或命中消极词，属正常跳过，不打警告
     case "${rc}" in
         0|2) return 0 ;;
-        *)   echo "⚠️  每日一词未能追加进励志语录库（${REMINDER_QUOTES_JSON} 读写异常），不影响展示" >&2
+        *)   echo "⚠️  每日一词未能追加进励志语录库（${REMINDER_QUOTES_KEY} 读写异常），不影响展示" >&2
              return 0 ;;
     esac
 }
@@ -274,11 +264,12 @@ persist_dailyword() {
     # 最终落地：先补进每日励志语录库，再沉淀进历史库（两者的 key 不同，互不依赖）
     append_dailyword_quote "${items_json}"
 
-    local rc=0
-    printf '%s' "${items_json}" | python3 -c "${_DAILYWORD_PERSIST_PY}" "${DAILYWORD_LIBRARY}" 2>/dev/null || rc=$?
-    # Python 原子写临时文件后必须回写数据库
-    if [ "$rc" -eq 0 ]; then
-        cache_db_persist "${DAILYWORD_LIBRARY_KEY}" "${DAILYWORD_LIBRARY}" 2>/dev/null || rc=$?
+    local rc=0 updated=''
+    updated="$(printf '%s' "${items_json}" | python3 -c "${_DAILYWORD_PERSIST_PY}" \
+        3< <(cache_db_read "${DAILYWORD_LIBRARY_KEY}") 2>/dev/null)" || rc=$?
+    # Python 输出空表示当天条目已存在且无需补全，不写库
+    if [ "$rc" -eq 0 ] && [ -n "$updated" ]; then
+        cache_db_write "${DAILYWORD_LIBRARY_KEY}" "${updated}" 2>/dev/null || rc=$?
     fi
 
     if [ "$rc" -eq 0 ]; then
@@ -296,19 +287,17 @@ persist_dailyword() {
 # 背景：open.iciba.com/dsapi/ 自 2026-10-28 起不可用，卡片与预取都不能
 # 因为拿不到英文就整体失败。历史库已沉淀 180+ 条真实句子，按当天日期取模
 # 选一条即可：同一天预取 / 出卡片结果一致，也不会天天重复同一句。
-# 库不可用（首次部署 / 文件损坏）时退到内置兜底句。
+# 库不可用或内容异常时退到内置兜底句。
 # -----------------------------------------
 _DAILYWORD_FALLBACK_PY="$(cat <<'PYEOF'
 import json, sys
 from datetime import datetime, timezone, timedelta
 
-lib_path = sys.argv[1]
 today = datetime.now(timezone(timedelta(hours=8))).strftime('%Y-%m-%d')
 
 pool = []
 try:
-    with open(lib_path, 'r', encoding='utf-8') as f:
-        doc = json.load(f)
+    doc = json.load(sys.stdin)
     for day in sorted(doc.get('entries', {})):
         if day >= today:
             continue
@@ -330,5 +319,7 @@ PYEOF
 )"
 
 dailyword_fallback_english() {
-    python3 -c "${_DAILYWORD_FALLBACK_PY}" "${DAILYWORD_LIBRARY}" 2>/dev/null
+    local body=''
+    body="$(cache_db_read "${DAILYWORD_LIBRARY_KEY}" 2>/dev/null || printf '')"
+    printf '%s' "$body" | python3 -c "${_DAILYWORD_FALLBACK_PY}" 2>/dev/null
 }

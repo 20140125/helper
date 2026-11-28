@@ -7,21 +7,26 @@
 # 功能说明：
 #   1. 复用 log_db.sh 的 MySQL 连接配置
 #   2. 提供 cache_db_read / cache_db_write / cache_db_exists / cache_db_list / cache_db_delete
-#   3. 提供 cache_db_materialize / cache_db_persist，兼容仍以「文件路径」读写 JSON 的脚本
+#   3. 全部按缓存键读写数据库，不物化本地文件
 #
 # 设计约束：
 #   - 运行时不再读写 .cache 下的任何文件，按缓存键路由到独立数据表
 #   - api_responses/*.json 按资源类型落到 hp_cache_res_*；
 #     其余键（含 api_responses/.last_prune）读写 sql/ 里已有的业务表或 hp_cache_res_other（web/utils/database/cache-tables.ts）
+#   - 分类表按 period_type / period_key 显式记录时间粒度：
+#     day → YYYY-MM-DD、month → YYYY-MM、year → YYYY，静态数据为 static + 空串
+#     星座运势文件名无日期，按项目时区（UTC+8）取当前年份（current-year）
+#   - 旧库缺少粒度列时，首次写入自动幂等补列 / 补索引
 #   - 写 SQL 通过 stdin 传给 mysql，避免大 JSON 超出命令行参数长度限制
-#   - 所有函数可被 source；除 cache_db_read / cache_db_list / cache_db_materialize 外不产生 stdout
+#   - 所有函数可被 source；除 cache_db_read / cache_db_list 外不产生 stdout
 #
 # 使用方式：
 #   source "${PROJECT_DIR}/cache_db.sh"
 #   cache_db_read 'greetings.json' | jq -r '.birthday[0]'
 #   jq '.[] | .id' <<< "$(cache_db_read 'custom_rules.json')"
 #   cache_db_write 'greetings.json' "$body"
-#   cache_db_persist 'dailyword_library.json' "$tmp_file"
+#   cache_db_exists 'custom_rules.json'
+#   cache_db_delete 'daily_data_2026-11-27.json'
 #
 # 作者：智能提醒系统
 # 更新：2026-11-28
@@ -76,21 +81,29 @@ _CACHE_DB_SQL_PY="$(cat <<'PY'
 import os, re, sys, time
 
 API_PREFIX = 'api_responses/'
-# (前缀, 分类表, 时间粒度)；auto 表示从缓存键里的日期自动推断
+# (前缀, 分类表, 时间粒度)；auto 表示从缓存键里的日期自动推断，
+# current-year 表示文件名里没有日期、按项目时区（UTC+8）取当前年份
 ROUTES = [
     ('almanac_', 'hp_cache_res_calendar', 'month'),
     ('nagerholiday-', 'hp_cache_res_holiday', 'year'),
     ('weather_', 'hp_cache_res_weather', 'month'),
-    ('horoscope_', 'hp_cache_res_horoscope', 'static'),
+    ('horoscope_', 'hp_cache_res_horoscope', 'current-year'),
     ('historytoday-', 'hp_cache_res_history', 'day'),
     ('gtimgquotes_', 'hp_cache_res_finance', 'month'),
+    # 热搜榜单五个平台共用一张表，asset_key 保留平台前缀
     ('tencenthot_', 'hp_cache_res_hot_list', 'month'),
+    ('weibohot_', 'hp_cache_res_hot_list', 'month'),
+    ('bilibilihot_', 'hp_cache_res_hot_list', 'month'),
+    ('douyinhot_', 'hp_cache_res_hot_list', 'month'),
+    ('iqiyihot_', 'hp_cache_res_hot_list', 'month'),
     ('dailyword_', 'hp_cache_res_quote', 'month'),
     ('video_', 'hp_cache_res_video', 'static'),
     ('image_', 'hp_cache_res_image', 'static'),
     ('news_', 'hp_cache_res_news', 'static'),
     ('', 'hp_cache_res_other', 'auto'),
 ]
+# 需保留文件名前缀作为 asset_key 的表（按平台区分数据，避免同月份撞键）
+KEEP_PREFIX_TABLES = {'hp_cache_res_hot_list'}
 PERIOD_PATTERNS = {
     'day': r'\d{4}-\d{2}-\d{2}',
     'month': r'\d{4}-\d{2}',
@@ -105,29 +118,44 @@ def quote(value):
     value = value.replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
     return "'" + value + "'"
 
+def period_of(stored, granularity):
+    if granularity == 'static':
+        return ('static', '')
+    if granularity == 'current-year':
+        return ('year', str(time.gmtime(time.time() + 8 * 3600).tm_year))
+    order = ['day', 'month', 'year'] if granularity == 'auto' else [granularity]
+    for kind in order:
+        m = re.search(PERIOD_PATTERNS[kind], stored)
+        if m:
+            return (kind, m.group(0))
+    return ('static', '')
+
 def target(key):
     if key.startswith(API_PREFIX) and key.endswith('.json'):
         name = key[len(API_PREFIX):]
         base = name[:-5]
         route = next((r for r in ROUTES if r[0] and base.startswith(r[0])), None)
         if route:
-            prefix, table = route
-            stored = base[len(prefix):]
+            prefix, table, granularity = route
+            stored = base if table in KEEP_PREFIX_TABLES else base[len(prefix):]
         else:
-            table = 'hp_cache_res_other'
-            stored = key
-        return (table, 'asset_key', 'body', 'cache_updated_at', stored)
+            table, stored, granularity = 'hp_cache_res_other', key, 'auto'
+        period_type, period_key = period_of(stored, granularity)
+        return (table, 'asset_key', 'body', 'cache_updated_at', stored, period_type, period_key)
     raise ValueError('非 api_responses/*.json 缓存键请使用业务表 CLI')
 
 def union_sql():
     parts = []
-    for prefix, table in ROUTES:
-        if not prefix:
+    seen = set()
+    for prefix, table, _ in ROUTES:
+        if not prefix or table in seen:
             continue
+        seen.add(table)
+        used_prefix = '' if table in KEEP_PREFIX_TABLES else prefix
         parts.append(
             "SELECT CONCAT(%s, %s, asset_key, '.json') AS file_key, LENGTH(body) AS size, "
             "cache_updated_at AS updated_at FROM `%s`"
-            % (quote(API_PREFIX), quote(prefix), table)
+            % (quote(API_PREFIX), quote(used_prefix), table)
         )
     parts.append(
         "SELECT asset_key AS file_key, LENGTH(body) AS size, cache_updated_at AS updated_at "
@@ -135,14 +163,39 @@ def union_sql():
     )
     return ' UNION ALL '.join(parts)
 
+# 旧库幂等补列/补索引：不存在的表或已存在的列/索引都退化为 SELECT 1
+def ensure_period_sql():
+    lines = []
+    for table in dict.fromkeys(t for _, t, _ in ROUTES):
+        checks = [
+            ('information_schema.COLUMNS', 'COLUMN_NAME', 'period_type',
+             'ALTER TABLE `%s` %s' % (table, PERIOD_TYPE_DDL)),
+            ('information_schema.COLUMNS', 'COLUMN_NAME', 'period_key',
+             'ALTER TABLE `%s` %s' % (table, PERIOD_KEY_DDL)),
+            ('information_schema.STATISTICS', 'INDEX_NAME', 'idx_cache_period',
+             'ALTER TABLE `%s` ADD KEY `idx_cache_period` (`period_type`, `period_key`)' % table),
+        ]
+        for source, col, name, ddl in checks:
+            lines.append(
+                "SET @ddl = (SELECT IF(EXISTS(SELECT 1 FROM information_schema.TABLES "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s) "
+                "AND NOT EXISTS(SELECT 1 FROM %s WHERE TABLE_SCHEMA = DATABASE() "
+                "AND TABLE_NAME = %s AND %s = %s), %s, 'SELECT 1'));"
+                % (quote(table), source, quote(table), col, quote(name), quote(ddl))
+            )
+            lines.append('PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;')
+    return '\n'.join(lines)
+
 op = os.environ.get('CACHE_DB_OP', 'read')
 key = os.environ.get('CACHE_DB_KEY', '')
 
 if op == 'list':
     print("SELECT file_key FROM (%s) AS cache_entries WHERE file_key LIKE %s ORDER BY file_key;"
           % (union_sql(), quote(key + '%')))
+elif op == 'ensure_period':
+    print(ensure_period_sql())
 else:
-    table, key_col, body_col, time_col, stored = target(key)
+    table, key_col, body_col, time_col, stored, period_type, period_key = target(key)
     where = "`%s`.`%s` = %s" % (table, key_col, quote(stored))
     if op == 'read':
         print("SELECT `%s` FROM `%s` WHERE %s LIMIT 1;" % (body_col, table, where))
@@ -153,9 +206,11 @@ else:
     elif op == 'write':
         body = sys.stdin.read()
         ts = int(time.time() * 1000)
-        print("INSERT INTO `%s` (`%s`, `%s`, `%s`) VALUES (%s, %s, %d) "
-              "ON DUPLICATE KEY UPDATE `%s` = VALUES(`%s`), `%s` = VALUES(`%s`);"
+        print("INSERT INTO `%s` (`%s`, `%s`, `%s`, `period_type`, `period_key`) VALUES (%s, %s, %d, %s, %s) "
+              "ON DUPLICATE KEY UPDATE `%s` = VALUES(`%s`), `%s` = VALUES(`%s`), "
+              "`period_type` = VALUES(`period_type`), `period_key` = VALUES(`period_key`);"
               % (table, key_col, body_col, time_col, quote(stored), quote(body), ts,
+                 quote(period_type), quote(period_key),
                  body_col, body_col, time_col, time_col))
 PY
 )"
@@ -166,6 +221,24 @@ PY
 # -----------------------------------------
 _cache_db_sql() {
     CACHE_DB_OP="$1" CACHE_DB_KEY="${2:-}" python3 -c "$_CACHE_DB_SQL_PY"
+}
+
+# -----------------------------------------
+# 确保分类表带时间粒度列（旧库幂等迁移，进程内只跑一次）
+# 说明: 仅当存在缺列 / 缺索引的 hp_cache_res_* 表时才补 DDL
+# -----------------------------------------
+_CACHE_DB_PERIOD_ENSURED=0
+_cache_db_ensure_period_columns() {
+    [ "$_CACHE_DB_PERIOD_ENSURED" = "1" ] && return 0
+    local missing
+    missing="$(cache_db_query_raw "SELECT COUNT(*) FROM information_schema.TABLES t WHERE t.TABLE_SCHEMA = DATABASE() AND t.TABLE_NAME LIKE 'hp_cache_res_%' AND (NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS c WHERE c.TABLE_SCHEMA = t.TABLE_SCHEMA AND c.TABLE_NAME = t.TABLE_NAME AND c.COLUMN_NAME = 'period_type') OR NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS c WHERE c.TABLE_SCHEMA = t.TABLE_SCHEMA AND c.TABLE_NAME = t.TABLE_NAME AND c.COLUMN_NAME = 'period_key') OR NOT EXISTS (SELECT 1 FROM information_schema.STATISTICS s WHERE s.TABLE_SCHEMA = t.TABLE_SCHEMA AND s.TABLE_NAME = t.TABLE_NAME AND s.INDEX_NAME = 'idx_cache_period'));")" || return 1
+    case "${missing:-}" in
+        ''|*[!0-9]*) missing=0 ;;
+    esac
+    if [ "$missing" -gt 0 ]; then
+        CACHE_DB_OP=ensure_period python3 -c "$_CACHE_DB_SQL_PY" | cache_db_exec_stdin || return 1
+    fi
+    _CACHE_DB_PERIOD_ENSURED=1
 }
 
 # -----------------------------------------
@@ -223,37 +296,12 @@ cache_db_write() {
         body="$(cat)"
     fi
     if _cache_db_is_api "$key"; then
+        _cache_db_ensure_period_columns || return 1
         sql="$(printf '%s' "$body" | CACHE_DB_OP=write CACHE_DB_KEY="$key" python3 -c "$_CACHE_DB_SQL_PY")" || return 1
         printf '%s' "$sql" | cache_db_exec_stdin
     else
         printf '%s' "$body" | _cache_db_cli write "$key"
     fi
-}
-
-# -----------------------------------------
-# 把本地文件内容写入缓存条目（供仍使用临时文件的脚本收尾）
-# 参数: $1 - 缓存键；$2 - 文件路径
-# -----------------------------------------
-cache_db_persist() {
-    local key="${1:-}" file="${2:-}"
-    [ -n "$key" ] && [ -f "$file" ] || return 1
-    cache_db_write "$key" < "$file"
-}
-
-# -----------------------------------------
-# 把缓存条目物化为临时文件，返回临时文件路径
-# 参数: $1 - 缓存键
-# 说明: 供依赖「文件路径」的 jq / python 脚本渐进改造使用；条目不存在时物化为 '{}'
-# -----------------------------------------
-cache_db_materialize() {
-    local key="${1:-}" tmp
-    [ -n "$key" ] || return 1
-    tmp="$(mktemp "${TMPDIR:-/tmp}/helper-cache.XXXXXX")" || return 1
-    local body
-    body="$(cache_db_read "$key")" || body=''
-    if [ -z "$body" ]; then body='{}'; fi
-    printf '%s' "$body" > "$tmp"
-    printf '%s' "$tmp"
 }
 
 # -----------------------------------------

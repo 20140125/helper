@@ -522,12 +522,12 @@ bash scripts/view_logs.sh states                # 统计
 ```
 
 日志按 `LOG_RETENTION_DAYS`（默认 15 天）由 Web 定时任务与 `annual_scheduler.sh`
-删除过期记录；也可在 Web「运行日志」页查看 / 清空。「接口访问日志（历史）」
+删除过期记录；也可在 Web「运行日志」页按记录筛选 / 分页 / 展开详情，列表的「地址」列直接显示 `GET /api/xxx?...` 请求地址。清空请用 `view_logs.sh clean` 或贾维斯 `manage_logs` 工具。「接口访问日志（历史）」
 展示的是同一来源里更早的一批记录，不再是归档文件。
 
 > AI 运行追踪写 `hp_ai_run_traces`；`api_responses/*` 等是数据库里的业务缓存条目，不属于日志。
 
-**缓存** 以数据库为唯一真源，按缓存键读写（Web 经 `web/utils/database/cache-store.ts`、shell 经 `scripts/cache_db.sh`），运行时不再读写 `.cache/` 下的文件；全新安装数据来自 `sql/cache_data/*.sql` 种子，Web「缓存文件」页可查看/编辑这些数据库条目。下表沿用原 JSON 文件名作为缓存键名：
+**缓存** 以数据库为唯一真源，按缓存键读写（Web 经 `web/utils/database/cache-store.ts`、shell 经 `scripts/cache_db.sh`），运行时不再读写 `.cache/` 下的文件；全新安装数据来自 `sql/cache_data/*.sql` 种子，Web「缓存文件」页可查看/编辑这些数据库条目。另有「缓存数据管理」页（`/cache-admin`）按表 / 粒度 / 关键字检索 13 张 `hp_cache_*` 表并编辑单条缓存行，表清单按表名去重。下表沿用原 JSON 文件名作为缓存键名：
 
 | 缓存键 | 说明 |
 |------|------|

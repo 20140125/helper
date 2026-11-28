@@ -225,7 +225,9 @@ cd web && npm run lint:fix
 - [ ] 代码通过 `bash -n` 语法检查
 - [ ] 新增脚本已加载 `project_config.sh` 和 `log_utils.sh`
 - [ ] 无硬编码路径，使用 `${PROJECT_DIR}` 变量
-- [ ] 相关文档已同步更新（`docs/`、`scripts/README.md`、`web/README.md`、根目录 `README.md`）
+- [ ] 相关文档已同步更新（`docs/`、`knowledge/`、`scripts/README.md`、`web/README.md`、根目录 `README.md`）
+- [ ] 改过 `docs/` / `knowledge/` 后已重跑 `npm run knowledge:sql`（同步现有库加 `--apply`）；新增 i18n 文案后已重跑 `npm run i18n:sql`
+- [ ] 改过前端源码（含 CSS）后已 `cd web/frontend && npm run build`（9527 生产模式托管构建产物）
 - [ ] `CHANGELOG` 已记录本次变更
 - [ ] 提交信息符合 Conventional Commits 规范
 

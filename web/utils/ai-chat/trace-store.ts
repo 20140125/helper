@@ -96,8 +96,9 @@ export const flushRunTraces = async (): Promise<void> => {
  * 把数据库行还原成 AgentRunTrace
  * @param {RowDataPacket} row - 查询结果行
  * @returns {AgentRunTrace} 运行追踪记录
+ * @description 供成本统计与回话管理页共用：steps 是 JSON 文本，解析失败时按空数组处理
  */
-const toTrace = (row: RowDataPacket): AgentRunTrace => {
+export const parseTraceRow = (row: RowDataPacket): AgentRunTrace => {
   let steps: AgentRunTrace['steps'] = [];
   try {
     steps = JSON.parse(String(row.steps ?? '[]')) as AgentRunTrace['steps'];
@@ -148,7 +149,7 @@ export const listRunTraces = async (query: TraceQuery = {}): Promise<AgentRunTra
     `SELECT * FROM hp_ai_run_traces WHERE ${conditions.join(' AND ')} ORDER BY started_at DESC LIMIT ?`,
     params,
   );
-  return rows.map(toTrace);
+  return rows.map(parseTraceRow);
 };
 
 /**

@@ -130,3 +130,38 @@ import type { RuleFlatFormData } from '@/utils/rules'; // interface 不应在 ut
 完整字段约束、原子写法、自检脚本见 `07-cache-json-sync.md`。
 
 **一句话**：新增 Permission 枚举值 → 追加 `permission_metas` + `rbac`；新增 `router.<method>('<path>')` → 追加 `api_items`（必要时新建 `api_categories`）。
+
+> 6.7 为历史记录：权限与接口元数据现已迁库，以 `hp_permissions` / `hp_roles` / `hp_api_categories` / `hp_api_items` 为唯一真源，不再维护 `.cache/*.json`（详见 `07-cache-json-sync.md` 顶部迁移状态）。
+
+---
+
+## 6.8 覆盖写死的全局背景：`!important` 简写要逐项覆盖
+
+`style.css` 里 `.app-layout` / `.main-layout` / `.page-content` 用
+`background: var(--bg-primary) !important` 简写设底色，**简写带出的
+`background-size` / `background-attachment` 等长属性同样是 `!important`**。
+只给 `background-image` 加 `!important` 而漏掉 `background-size`，会被简写压回
+`auto`，背景图按原始像素绘制，用户只看得到中间一小块。
+
+```css
+/* ✅ 所有 background 长属性都加 !important，且只在 body 上绘制一次 */
+html[data-app-bg='1'] body {
+  background-color: var(--bg-primary) !important;
+  background-image: linear-gradient(rgba(9, 12, 20, .22), rgba(9, 12, 20, .22)),
+    var(--app-bg-image, none) !important;
+  background-size: cover, cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+html[data-app-bg='1'] .app-layout,
+html[data-app-bg='1'] .main-layout,
+html[data-app-bg='1'] .page-content {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+```
+
+要点：背景只在 `body` 画一次（多层容器各画一份会互相裁切、叠加变暗）；图片层用
+`cover` 铺满视口不留黑边，`contain` 会留主题色边；改完 CSS 走 9527 生产模式必须
+重新 `npm run build`，5173 开发模式才自动热更新。

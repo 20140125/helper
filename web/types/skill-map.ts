@@ -51,8 +51,8 @@ export interface SkillParamMeta {
 }
 
 /**
- * 常用地点（来自地理编码缓存 .cache/amap_geocode.json）
- * @description 脚本每次成功解析地址都会往缓存里写一条，前端地图选点把它作为「最近用过」的快捷候选
+ * 常用地点（来自数据库缓存键 amap_geocode.json）
+ * @description 脚本每次成功解析地址都会往库里写一条，前端地图选点把它作为「最近用过」的快捷候选
  */
 export interface AmapRecentPlace {
   /** 地点名（缓存的 key，即原始输入地址） */

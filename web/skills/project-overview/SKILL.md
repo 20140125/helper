@@ -53,7 +53,7 @@ MySQL      数据层（缓存键 / hp_* 表）—— 两边共享的唯一真源
 
 | 文件 | 作用 |
 |------|------|
-| `scripts/project_config.sh` | 推导 `PROJECT_DIR` / `ENV_FILE`（`CACHE_DIR` 仅迁移/兼容用途），写新脚本第一行就 source 它 |
+| `scripts/project_config.sh` | 推导 `PROJECT_DIR` / `ENV_FILE`，写新脚本第一行就 source 它 |
 | `scripts/cache_db.sh` | 按缓存键读写数据库缓存条目，脚本侧统一入口 |
 | `scripts/weather_config.sh` | 加载 `.env`、时区、Webhook 与 `send_wecom_message` |
 | `scripts/log_utils.sh` | 统一日志（`log_info` 等，写入 `hp_run_logs` + stderr） |
@@ -79,6 +79,8 @@ reminder_daemon.sh（按 schedule_config 到点）
 - **数据库是唯一真源**，业务数据按缓存键存放在 MySQL，`.cache/` 缓存文件已删除；Web 与 shell 分别经 `cache-store.ts` / `cache_db.sh` 读写
 - 卡片渲染链路：脚本取数 → SVG → `rsvg-convert` → PNG（缺 `rsvg-convert` 会出不了图）
 - 脚本里发消息统一走 `send_wecom_message`，不要各写各的 curl
+- 改前端源码（含 CSS）后，9527 生产模式需 `cd web/frontend && npm run build` 重建 `web/public/`；5173 开发模式自动热更新
+- 改 `docs/` / `knowledge/` 后重跑 `npm run knowledge:sql`（同步现有库加 `--apply`）；新增 i18n 文案后重跑 `npm run i18n:sql`
 
 ## 想深入看哪篇
 

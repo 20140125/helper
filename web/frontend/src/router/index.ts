@@ -16,10 +16,13 @@ import ReminderQuotes from '@/views/reminder-quotes.vue';
 import Approvals from '@/views/approvals.vue';
 import PermissionRequests from '@/views/permission-requests.vue';
 import AiCost from '@/views/ai-cost.vue';
+import AiChatAdmin from '@/views/ai-chat-admin.vue';
 import AiModels from '@/views/ai-models.vue';
 import Knowledge from '@/views/knowledge.vue';
 import Database from '@/views/database.vue';
 import I18nMessages from '@/views/i18n-messages.vue';
+import CacheAdmin from '@/views/cache-admin.vue';
+import AmapGeocode from '@/views/amap-geocode.vue';
 import Forbidden from '@/views/forbidden.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useBootstrapStore } from '@/stores/bootstrap';
@@ -135,6 +138,18 @@ const router = createRouter({
       meta: { label: 'menu.aiCost', icon: 'chart-bubble', inMenu: true, menuGroup: 'operations', permissions: [Permission.AI_CHAT_VIEW] } satisfies RouteMeta,
     },
     {
+      path: '/ai-chat-admin',
+      name: 'ai-chat-admin',
+      component: AiChatAdmin,
+      meta: {
+        label: 'menu.aiChatAdmin',
+        icon: 'chart-analytics',
+        inMenu: true,
+        menuGroup: 'operations',
+        permissions: [Permission.AI_CHAT_VIEW],
+      } satisfies RouteMeta,
+    },
+    {
       path: '/ai-models',
       name: 'ai-models',
       component: AiModels,
@@ -182,6 +197,30 @@ const router = createRouter({
         icon: 'file-code',
         inMenu: true,
         menuGroup: 'operations',
+      } satisfies RouteMeta,
+    },
+    {
+      path: '/cache-admin',
+      name: 'cache-admin',
+      component: CacheAdmin,
+      meta: {
+        label: 'menu.cacheAdmin',
+        icon: 'folder',
+        inMenu: true,
+        menuGroup: 'operations',
+        permissions: [Permission.CACHE_VIEW],
+      } satisfies RouteMeta,
+    },
+    {
+      path: '/amap-geocode',
+      name: 'amap-geocode',
+      component: AmapGeocode,
+      meta: {
+        label: 'menu.amapGeocode',
+        icon: 'location',
+        inMenu: true,
+        menuGroup: 'operations',
+        permissions: [Permission.CACHE_VIEW],
       } satisfies RouteMeta,
     },
     // ---- 开发工具 ----

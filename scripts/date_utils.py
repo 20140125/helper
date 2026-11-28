@@ -410,24 +410,6 @@ class DateManager:
                     }
         
         raise ValueError(f"无法解析日期字符串: {date_str}")
-    
-    def load_holidays_from_json(self, json_file: str) -> None:
-        """从JSON文件加载节假日配置
-        
-        Args:
-            json_file: JSON文件路径
-        """
-        with open(json_file, 'r', encoding='utf-8') as f:
-            self.holidays = json.load(f)
-    
-    def save_holidays_to_json(self, json_file: str) -> None:
-        """保存节假日配置到JSON文件
-        
-        Args:
-            json_file: JSON文件路径
-        """
-        with open(json_file, 'w', encoding='utf-8') as f:
-            json.dump(self.holidays, f, ensure_ascii=False, indent=2)
 
 
 # =================================================

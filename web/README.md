@@ -1,6 +1,6 @@
 # Web 管理界面
 
-基于 **Node.js + Express**（后端）和 **Vue 3 + TDesign**（前端）的可视化管理界面，提供守护进程控制、日志查看、配置管理、自定义规则、AI 审批、缓存管理、消息模板、接口管理、祝福语管理、提醒寄语、RBAC 权限管理、表单调试等能力。
+基于 **Node.js + Express**（后端）和 **Vue 3 + TDesign**（前端）的可视化管理界面，提供守护进程控制、日志查看（含请求地址列）、配置管理（含全站系统背景图）、自定义规则、AI 审批、缓存文件与缓存数据管理、消息模板、接口管理、祝福语管理、提醒寄语、RBAC 权限管理、表单调试等能力。
 
 ---
 
@@ -55,6 +55,8 @@ cd web/frontend && npm install && npm run dev
 cd web/frontend && npm run build   # 产物输出到 web/public/
 ```
 
+> 生产模式（9527）托管 `web/public/` 的构建产物，改前端源码（含 `styles/*.css`）后必须重新构建并刷新；`index.html` 缺失时 9527 会返回 404。开发模式（5173）由 Vite 热更新，无需构建。构建会重建 `assets/` 与 `index.html`。
+
 ---
 
 ## 环境变量
@@ -105,7 +107,7 @@ web/
         ├── types/             # 前端类型定义（locale.ts 由数据库导出）
         ├── constants/         # 常量（access-log/auth/rules/trigger/…）
         ├── data/              # 静态数据（city-data.ts 等）
-        ├── styles/            # 公共样式（common / panel-layout / scrollbar / style.css）
+        ├── styles/            # 公共样式（common / panel-layout / scrollbar / style.css / app-background.css）
         └── utils/             # 工具函数（format/ · handler-registry/ · rbac/ · greetings/ · …）
 ```
 
@@ -135,8 +137,10 @@ web/
 ### 系统运维
 | 路径 | 页面 | 功能 |
 |------|------|------|
-| `/logs` | 运行日志 | 查看/清空所有脚本日志 |
-| `/cache` | 缓存文件 | 查看/编辑数据库中的缓存条目（缓存键） |
+| `/logs` | 运行日志 | 按记录查看 `hp_run_logs`：筛选、分页、展开详情，列表直接显示请求地址 |
+| `/cache` | 缓存文件 | 按缓存键查看/编辑数据库缓存条目 |
+| `/cache-admin` | 缓存数据管理 | 按表 / 粒度 / 关键字检索 13 张 `hp_cache_*` 表并编辑单条缓存行（表清单按表名去重） |
+| `/amap-geocode` | 高德地理编码缓存 | 地址与经纬度的缓存映射 |
 | `/database` | 数据库管理 | 连接状态、库表结构与数据预览、SQL 控制台、建表脚本查看与初始化（仅超级管理员） |
 
 ### 开发工具
@@ -177,12 +181,16 @@ web/
 | `/api/auth/*` | 登录、登出、发送验证码、刷新 token | — |
 | `/api/system` | 系统状态（仪表盘） | `DASHBOARD_VIEW` |
 | `/api/config` | 读写 `.env`（`web/.env` 优先） | `CONFIG_VIEW` / `CONFIG_EDIT` |
+| `/api/app-background` | 系统背景图读取 / 上传 / 设置 / 清除（GET 公开，写需 CONFIG_EDIT） | — / `CONFIG_EDIT` |
+| `/api/user-appearance` | 按用户读写背景图遮挡层不透明度（登录后即可，无需额外权限） | — |
 | `/api/webhooks` | 企业微信机器人管理 | `CONFIG_VIEW` / `WEBHOOK_EDIT` |
-| `/api/logs` | 日志来源列表 / 读取 / 清空（`hp_run_logs`） | `LOGS_VIEW` / `LOGS_EDIT` |
+| `/api/logs` | 日志来源列表、记录分页检索 / 单条详情 / 清空（`hp_run_logs`）；列表行含 `message` / `context`，前端据此解析请求地址 | `LOGS_VIEW` / `LOGS_EDIT` |
 | `/api/daemon` | 守护进程 start / stop / restart | — / `DAEMON_EDIT` |
 | `/api/trigger` | 手动触发脚本 + 自定义规则 | 路由内细粒度判权 |
 | `/api/update-tools` | 年度更新工具列表 / 执行 | `TRIGGER_ANNUAL_UPDATE_VIEW` / `..._EDIT` |
 | `/api/cache` | 缓存条目（缓存键）读取 / 保存 | `CACHE_VIEW` / `CACHE_EDIT` |
+| `/api/cache-admin` | 13 张 `hp_cache_*` 表清单（按表名去重）、分页检索、单条读写与删除 | `CACHE_VIEW` / `CACHE_EDIT` |
+| `/api/amap-geocode` | 高德地理编码缓存独立页的地址坐标列表、新增 / 编辑 / 删除 | `CACHE_VIEW` / `CACHE_EDIT` |
 | `/api/rules` | 自定义规则 CRUD / 测试 | `RULES_VIEW` / `RULES_EDIT` |
 | `/api/templates` | 消息模板 CRUD / 预览 | `TEMPLATES_VIEW` / `TEMPLATES_EDIT` |
 | `/api/api-management/categories` | 接口分类 CRUD | `API_CATEGORY_VIEW` / `API_CATEGORY_EDIT` |
@@ -230,7 +238,7 @@ Type (types/*.ts)               TypeScript 类型定义（interface 归此处）
 - **常量归口**：全部放 `constants/`
 - **类型归口**：interface 全部放 `types/`
 - **utils 拆分阈值**：单文件 > 200 行拆子目录
-- **i18n**：文案统一维护在 MySQL `hp_i18n_messages`（管理页 `/i18n-messages`），静态类型由 `npm run i18n:sql` 导出到 `types/locale.ts`；前端启动读库并用 localStorage 缓存兜底
+- **i18n**：文案统一维护在 MySQL `hp_i18n_messages`（管理页 `/i18n-messages`）；新增 key 先写 zh / en 两条，再 `cd web && npm run i18n:sql` 从库导出 `sql/i18n/35_i18n_messages.sql` 与 `types/locale.ts`（生成文件，勿手改）；前端启动读库并用 localStorage 缓存兜底
 - **双向绑定**：Vue 3.4+ `defineModel` 优先，消除 `computed` 桥接
 
 ---

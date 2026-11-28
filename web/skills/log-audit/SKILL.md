@@ -36,6 +36,7 @@ tools:
 2. 不确定日志有哪些 → 先 `query_logs` 不传参看清单，再读具体日志
 3. 判定"有没有发" → 看 `daemon_sent_state`（守护进程发送状态）
 4. 日志很长、只要结论 → 用 `delegate_task` 让子 Agent 提炼，别把整段日志拉回主会话
+5. 想快速定位接口请求 → Web「运行日志」页列表已直接显示请求地址（`GET /api/xxx`，由 `context.method/url` 解析），可先在页面定位再回工具读正文
 
 ## 清空日志（manage_logs，高危）
 

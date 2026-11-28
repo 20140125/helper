@@ -95,5 +95,4 @@ local message=$(render_template "$template" "city=深圳" "weather=多云")
 
 | 环境变量 | 默认值 | 说明 |
 |----------|--------|------|
-| `TEMPLATE_FILE` | `${CACHE_DIR}/message_templates.json` | 模板文件路径 |
 | `MESSAGE_STYLE` | `default` | 风格（`default`/`brief`/`formal`） |

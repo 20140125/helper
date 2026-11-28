@@ -1,4 +1,4 @@
-import { syncContentLibraryIfStale, readReminderQuotesFromDb } from '@/utils/database/content-library';
+import { readReminderQuotesFromDb } from '@/utils/database/content-library';
 import type { ToolImpl, ToolResult } from '@/types/ai-chat';
 
 /**
@@ -33,7 +33,6 @@ export const queryReminderQuotesTool: ToolImpl = {
       const kw = typeof args.bucket_keyword === 'string' ? args.bucket_keyword.toLowerCase() : '';
       const limit = Math.min(Math.max(Number(args.limit) || 20, 1), 100);
 
-      await syncContentLibraryIfStale();
       const items = await readReminderQuotesFromDb();
       const filtered = kw
         ? items.filter((it) => it.bucket.toLowerCase().includes(kw))

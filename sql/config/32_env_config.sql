@@ -18,3 +18,7 @@ CREATE TABLE `hp_env_config` (
 -- 默认验证码种子：值为空表示关闭，运行时由系统配置页写入
 INSERT INTO `hp_env_config` (`env_key`, `env_value`, `group_name`, `description`, `is_secret`, `sort_order`)
 VALUES ('DEFAULT_AUTH_CODE', '', '邮件/登录', '超级管理员默认验证码，留空即关闭', 0, 90);
+
+-- 系统背景图：值为 /uploads/<文件名>，留空表示使用默认主题；由「系统配置 → 系统背景」上传写入
+INSERT INTO `hp_env_config` (`env_key`, `env_value`, `group_name`, `description`, `is_secret`, `sort_order`)
+VALUES ('APP_BACKGROUND_URL', '', '界面', '系统背景图地址（/uploads/xxx），留空表示使用默认主题', 0, 91);

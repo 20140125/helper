@@ -137,7 +137,7 @@ export class LogsModel extends BaseModel {
   /**
    * 表格列定义
    * @type {ComputedRef<Array<Record<string, unknown>>>}
-   * @description 列标题跟随语言切换，表格展示记录 ID、时间（含毫秒）与来源等字段，完整正文在展开行的详情面板查看
+   * @description 列标题跟随语言切换，表格展示记录 ID、时间（含毫秒）、来源与请求地址等字段，完整正文在展开行的详情面板查看
    */
   columns: ComputedRef<Array<Record<string, unknown>>> = computed(() => {
     const t = this.localeStore.t;
@@ -151,6 +151,7 @@ export class LogsModel extends BaseModel {
       },
       { colKey: 'level', title: t.logs.colLevel, width: 100 },
       { colKey: 'source', title: t.logs.colSource, width: 160 },
+      { colKey: 'address', title: t.logs.colAddress, minWidth: 260 },
       { colKey: 'source_type', title: t.logs.fieldType, width: 120 },
       { colKey: 'hostname', title: t.logs.fieldHost, width: 140 },
       { colKey: 'pid', title: t.logs.fieldPid, width: 100 },
@@ -271,6 +272,32 @@ export class LogsModel extends BaseModel {
    * @returns {string} 本地化后的显示名，未配置翻译时返回原值
    */
   sourceLabel = (source: string): string => this.sourceLabels.value[source] ?? source;
+
+  /**
+   * 解析列表行的请求地址
+   * @param {LogRow} row - 当前行日志
+   * @returns {string} 「方法 地址」文本，无地址时返回空串
+   * @description 访问日志优先取 context 里已解析的 method / url，老数据与普通日志从正文兜底提取
+   */
+  addressOf = (row: LogRow): string => {
+    const raw = row.context?.trim();
+    if (raw) {
+      try {
+        const context = JSON.parse(raw) as Record<string, unknown>;
+        const url = typeof context.url === 'string' ? context.url.trim() : '';
+        if (url) {
+          const method = typeof context.method === 'string' ? context.method.trim() : '';
+          return method ? `${method} ${url}` : url;
+        }
+      } catch {
+        // context 不是 JSON 时继续从正文提取
+      }
+    }
+    const header = /▸\s*\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+([A-Z]+)\s+(\S+)/.exec(row.message);
+    if (header) return `${header[1]} ${header[2]}`;
+    const inline = /\b(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(\/\S+|https?:\/\/\S+)/.exec(row.message);
+    return inline ? `${inline[1]} ${inline[2]}` : '';
+  };
 
   // ==============================
   // 生命周期

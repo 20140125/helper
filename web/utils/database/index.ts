@@ -9,6 +9,7 @@ export {
   normalizeCacheKey,
   ensureCacheTables,
   isApiResponseKey,
+  resolveCachePeriod,
   resolveCacheTarget,
   listResRoutes,
   buildCacheUnionSql,
@@ -33,36 +34,17 @@ export {
   listCacheEntries,
 } from './cache-store';
 export {
-  collectContentLibraryDiff,
-  hasContentLibraryDiff,
-  syncContentLibraryFromFiles,
-  syncContentLibraryIfStale,
   readGreetingsFromDb,
   readReminderQuotesFromDb,
   readTemplatesFromDb,
 } from './content-library';
-export type { ContentLibraryDiff } from './content-library';
 export {
-  collectCalendarCacheDiff,
-  hasCalendarCacheDiff,
-  syncCalendarCacheFromFiles,
-  syncCalendarCacheIfStale,
-  readCalendarCacheEntry,
   readCalendarCacheJson,
   listCalendarCacheKeys,
   listApiResponseFilesFromDb,
   listDailyDataFilesFromDb,
   readApiResponseEntriesFromDb,
 } from './calendar-cache';
-export {
-  collectShellWritersDiff,
-  hasShellWritersDiff,
-  syncShellWritersFromFiles,
-  syncShellWritersIfStale,
-  readShellCacheJson,
-} from './shell-writers';
-export type { ShellWritersDiff } from './shell-writers';
-export type { CalendarCacheDiff, CalendarCacheEntry } from './calendar-cache';
 export { listTables, describeTable, previewTableRows } from './schema';
 export { runReadOnlyQuery, runWriteQuery } from './sql-runner';
 export { listSqlScripts, readSqlScript, expandInitScript, initializeDatabase } from './scripts';
@@ -72,6 +54,30 @@ export {
   listI18nMessages,
   updateI18nMessage,
 } from './i18n';
+export {
+  listCacheAdminTables,
+  listCacheAdminEntries,
+  readCacheAdminEntry,
+  writeCacheAdminEntry,
+  deleteCacheAdminEntry,
+  validateCacheAdminWrite,
+} from './cache-admin';
+export type {
+  CacheAdminTable,
+  CacheAdminEntry,
+  CacheAdminList,
+  CacheAdminQuery,
+  CacheAdminDetail,
+  CacheAdminWriteBody,
+  CacheAdminPeriod,
+} from '@/types/cache-admin';
+export {
+  listAmapGeocodeEntries,
+  writeAmapGeocodeEntry,
+  deleteAmapGeocodeEntry,
+  validateAmapGeocodeWrite,
+} from './amap-geocode';
+export type { AmapGeocodeEntry, AmapGeocodeWriteBody } from '@/types/amap-geocode';
 export {
   ensureKnowledgeDocSchema,
   listKnowledgeDocRows,

@@ -309,6 +309,54 @@ interface ToolExecOutcome {
   events: AgentEvent[];
 }
 
+/** Trace 中参数/结果文本的最大长度，避免整页工具输出撑爆 hp_ai_run_traces.steps */
+const TRACE_TEXT_LIMIT = 2000;
+
+/**
+ * 截断追踪文本
+ * @param {unknown} value - 原始文本或任意工具返回数据
+ * @returns {string} 截断后的可展示文本
+ * @description 对象统一 JSON 序列化；超长部分省略，保证逐轮明细可长期留存
+ */
+const clipTraceText = (value: unknown): string => {
+  const text = typeof value === 'string' ? value : JSON.stringify(value ?? '') ?? '';
+  return text.length > TRACE_TEXT_LIMIT ? `${text.slice(0, TRACE_TEXT_LIMIT)}…` : text;
+};
+
+/**
+ * 构造单次工具调用的追踪记录
+ * @param {ChatToolCall} tc - LLM 发起的工具调用
+ * @param {object} outcome - 执行结果摘要
+ * @returns {ToolCallTrace} 含参数、结果与错误原因的追踪记录
+ * @description 把原先只在 SSE 里短暂出现过的参数原文与结果摘要一并落到 steps，
+ *   供管理页回溯「这一次到底调了什么工具、传了什么、返回了什么」。
+ */
+const buildToolCallTrace = (
+  tc: ChatToolCall,
+  outcome: {
+    /** 是否成功 */
+    ok: boolean;
+    /** 耗时（毫秒） */
+    duration_ms: number;
+    /** 结果摘要或返回数据 */
+    result?: unknown;
+    /** 失败原因 */
+    error?: string;
+    /** 是否降级重试过 */
+    retried?: boolean;
+  },
+): ToolCallTrace => ({
+  id: tc.id,
+  name: tc.function.name,
+  ok: outcome.ok,
+  duration_ms: outcome.duration_ms,
+  args_chars: tc.function.arguments.length,
+  args: clipTraceText(tc.function.arguments),
+  result: outcome.result === undefined ? '' : clipTraceText(outcome.result),
+  error: clipTraceText(outcome.error ?? ''),
+  ...(outcome.retried ? { retried: true } : {}),
+});
+
 /**
  * 只保留 schema 声明的必填参数，生成降级用的参数副本
  * @param {ToolImpl} tool - 工具实现
@@ -350,7 +398,7 @@ const executeToolCallOnce = async (
     return {
       tc,
       content: wrapToolResult(tc.function.name, JSON.stringify({ ok: false, error: permErr })),
-      trace: { id: tc.id, name: tc.function.name, ok: false, duration_ms: 0, args_chars: tc.function.arguments.length },
+      trace: buildToolCallTrace(tc, { ok: false, duration_ms: 0, error: permErr }),
       events: [{ type: 'tool_call_result', tool_call_id: tc.id, name: tc.function.name, ok: false, data: permErr, duration_ms: 0 }],
     };
   }
@@ -390,13 +438,7 @@ const executeToolCallOnce = async (
           tc.function.name,
           JSON.stringify({ ok: true, approval_id: duplicate.id, status: duplicate.status, duplicate: true, hint: dupHint }),
         ),
-        trace: {
-          id: tc.id,
-          name: tc.function.name,
-          ok: true,
-          duration_ms: 0,
-          args_chars: tc.function.arguments.length,
-        },
+        trace: buildToolCallTrace(tc, { ok: true, duration_ms: 0, result: dupHint }),
         events: [
           {
             type: 'tool_call_result',
@@ -427,13 +469,7 @@ const executeToolCallOnce = async (
         tc.function.name,
         JSON.stringify({ ok: true, approval_id: approval.id, status: approval.status, hint }),
       ),
-      trace: {
-        id: tc.id,
-        name: tc.function.name,
-        ok: true,
-        duration_ms: 0,
-        args_chars: tc.function.arguments.length,
-      },
+      trace: buildToolCallTrace(tc, { ok: true, duration_ms: 0, result: hint }),
       events: [
         {
           type: 'tool_call_result',
@@ -482,14 +518,13 @@ const executeToolCallOnce = async (
     return {
       tc,
       content: wrapToolResult(tc.function.name, JSON.stringify({ ok: result.ok, data: result.data, summary: result.summary })),
-      trace: {
-        id: tc.id,
-        name: tc.function.name,
+      trace: buildToolCallTrace(tc, {
         ok: result.ok,
         duration_ms: duration,
-        args_chars: tc.function.arguments.length,
+        result: result.summary ?? result.data,
+        error: result.ok ? '' : clipTraceText(result.summary ?? result.data),
         retried,
-      },
+      }),
       events,
     };
   } catch (err) {
@@ -506,7 +541,7 @@ const executeToolCallOnce = async (
     return {
       tc,
       content: wrapToolResult(tc.function.name, JSON.stringify({ ok: false, error: errMsg })),
-      trace: { id: tc.id, name: tc.function.name, ok: false, duration_ms: duration, args_chars: tc.function.arguments.length },
+      trace: buildToolCallTrace(tc, { ok: false, duration_ms: duration, error: errMsg, result: errMsg }),
       events,
     };
   }

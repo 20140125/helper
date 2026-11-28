@@ -1,7 +1,4 @@
-import {
-  syncCalendarCacheIfStale,
-  readApiResponseEntriesFromDb,
-} from '@/utils/database/calendar-cache';
+import { readApiResponseEntriesFromDb } from '@/utils/database/calendar-cache';
 import type { ToolImpl, ToolResult } from '@/types/ai-chat';
 
 /** 单个文件返回的内容上限（字符），防止上下文爆炸 */
@@ -195,7 +192,6 @@ export const queryApiResponsesTool: ToolImpl = {
   requiredPermissions: ['cache:view'],
   invoke: async (args): Promise<ToolResult> => {
     try {
-      await syncCalendarCacheIfStale();
       return await queryFromDb(args);
     } catch (err) {
       return { ok: false, data: `查询 API 响应缓存失败：${(err as Error).message}` };

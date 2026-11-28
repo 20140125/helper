@@ -12,9 +12,8 @@
 #   1. 日期/时间运算统一走 python3（三平台行为一致），避免 GNU `date -d`
 #      与 BSD `date -j -f` 的语法/解析差异；例如 GNU 下 `date -d "X 1 days"`
 #      在 BSD 下会被误解析成月/日却不报错，这类静默错误最危险。
-#   2. 文件属性（mtime / size）统一封装，自动选择 GNU 或 BSD stat。
-#   3. 哈希统一封装，自动选择 md5sum / md5。
-#   4. 所有封装失败时返回非 0，不输出误导性的默认值（如把任意日期当周一）。
+#   2. 哈希统一封装，自动选择 md5sum / md5。
+#   3. 所有封装失败时返回非 0，不输出误导性的默认值（如把任意日期当周一）。
 #
 # 提供的函数：
 #   日期：
@@ -24,10 +23,7 @@
 #     pc_date_from_epoch <epoch> <格式> [TZ]    输出格式化日期，格式用 strftime 风格
 #     pc_date_shift     <天数> <格式> [TZ]      基于今天偏移，输出格式化日期
 #     pc_date_format    <YYYY-MM-DD> <格式> [TZ] 输出格式化日期（如 %m月%d日）
-#   文件：
-#     pc_file_mtime     <文件>                  输出 Unix 秒数
-#     pc_file_size      <文件>                  输出字节数
-#   哈希：
+#   哈希与编码（企微图片消息）：
 #     pc_md5            <文件>                  输出 32 位 md5
 #     pc_base64         <文件>                  输出单行 base64（无换行）
 #
@@ -154,24 +150,6 @@ from datetime import datetime
 d = datetime.strptime(sys.argv[1], "%Y-%m-%d")
 print(d.strftime(sys.argv[2]))
 PY
-}
-
-# 文件修改时间（Unix 秒）
-pc_file_mtime() {
-    local f="$1"
-    local result
-    result=$(stat -c %Y "$f" 2>/dev/null) && { echo "$result"; return 0; }
-    result=$(stat -f %m "$f" 2>/dev/null) && { echo "$result"; return 0; }
-    return 1
-}
-
-# 文件大小（字节）
-pc_file_size() {
-    local f="$1"
-    local result
-    result=$(stat -c %s "$f" 2>/dev/null) && { echo "$result"; return 0; }
-    result=$(stat -f %z "$f" 2>/dev/null) && { echo "$result"; return 0; }
-    return 1
 }
 
 # 文件 md5（32 位小写）

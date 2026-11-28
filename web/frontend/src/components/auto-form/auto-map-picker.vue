@@ -19,15 +19,15 @@
         @click="openDialog"
       >
         <template #icon><t-icon name="location" /></template>
-        {{ t.skillMap.mapPickOnMap }}
+        {{ compact ? '' : t.skillMap.mapPickOnMap }}
       </t-button>
     </div>
 
     <!-- 未就绪提示：未配置 Key 或 SDK 加载失败（仅编辑态提示，浏览态保持安静） -->
-    <p v-if="!ready && !disabled" class="amap-picker__hint">{{ hintText }}</p>
+    <p v-if="!ready && !disabled && !compact" class="amap-picker__hint">{{ hintText }}</p>
 
     <!-- 常用地点快捷选择（来自地理编码缓存，命中即跳过一次在线解析） -->
-    <div v-if="!disabled && ready && recentPlaces.length > 0" class="amap-picker__recent">
+    <div v-if="!disabled && ready && recentPlaces.length > 0 && !compact" class="amap-picker__recent">
       <span class="amap-picker__recent-label">{{ t.skillMap.mapRecent }}</span>
       <t-button
         v-for="p in recentPlaces"
@@ -112,6 +112,8 @@ defineProps<{
   placeholder?: string;
   /** 是否禁用 */
   disabled?: boolean;
+  /** 紧凑模式：隐藏常用地点与提示，选点按钮只留图标，适合表格行内编辑 */
+  compact?: boolean;
 }>();
 
 /** 语言 store（保持响应式：切语言时文案跟着变） */

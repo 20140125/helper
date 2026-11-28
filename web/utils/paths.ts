@@ -11,10 +11,7 @@ export const SCRIPTS_DIR = path.join(PROJECT_DIR, 'scripts');
 
 /**
  * Web 运行时目录路径（web/.runtime）
- * @description 存放 Web 服务与启动器的 PID 文件、后台日志，
+ * @description 存放 Web 服务与启动器的 PID 文件等运行时状态，
  *   放在 web/ 内是为了让 Web 在缺少 scripts/ 目录时也能独立启停
  */
 export const RUNTIME_DIR = path.join(WEB_DIR, '.runtime');
-
-/** 缓存目录路径（仅迁移/兼容用途，运行时不再读写） */
-export const CACHE_DIR = path.join(PROJECT_DIR, '.cache');

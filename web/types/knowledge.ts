@@ -1,14 +1,5 @@
-import path from 'path';
-import { CACHE_DIR, PROJECT_DIR } from '@/utils/paths';
-
 /** 用户维护的知识文档目录名（相对项目根） */
 export const KNOWLEDGE_USER_DIR = 'knowledge';
-
-/** 用户维护的知识文档目录绝对路径 */
-export const KNOWLEDGE_USER_DIR_ABS = path.join(PROJECT_DIR, KNOWLEDGE_USER_DIR);
-
-/** 知识库索引目录配置文件路径 */
-export const KNOWLEDGE_CONFIG_FILE = path.join(CACHE_DIR, 'knowledge_config.json');
 
 /** 默认索引目录（项目文档 + 用户维护文档） */
 export const DEFAULT_KNOWLEDGE_DIRS = ['docs', KNOWLEDGE_USER_DIR];

@@ -3,7 +3,8 @@
  * @description api_responses/*.json 按资源类型落到 hp_cache_res_* 分类表；
  *   其余缓存键（含 api_responses/.last_prune）读写 sql/ 里已有的业务表（见 cache-tables.ts）。
  *   分类表用 period_type / period_key 显式记录时间粒度：
- *   day → YYYY-MM-DD、month → YYYY-MM、year → YYYY，静态数据为 static + 空串。
+ *   day → YYYY-MM-DD、month → YYYY-MM、year → YYYY，静态数据为 static + 空串；
+ *   current-year 表示文件名里没有日期、按项目时区（UTC+8）取当前年份（星座运势）。
  */
 import type { RowDataPacket } from 'mysql2';
 import { getPool } from './connection';
@@ -14,8 +15,10 @@ const API_PREFIX = 'api_responses/';
 const OTHER_RES_TABLE = 'hp_cache_res_other';
 /** 实际入库的时间粒度 */
 type PeriodType = 'day' | 'month' | 'year' | 'static';
-/** 路由声明的粒度（auto 表示从缓存键里的日期自动推断） */
-type RouteGranularity = PeriodType | 'auto';
+/** 路由声明的粒度（auto 从缓存键推断、current-year 取当前年份） */
+type RouteGranularity = PeriodType | 'auto' | 'current-year';
+/** 按项目时区（UTC+8）取当前年份 */
+const currentYear = (): string => String(new Date(Date.now() + 8 * 60 * 60 * 1000).getUTCFullYear());
 /** 粒度对应的日期格式 */
 const PERIOD_PATTERNS: Record<Exclude<PeriodType, 'static'>, RegExp> = {
   day: /\d{4}-\d{2}-\d{2}/,
@@ -26,16 +29,21 @@ const PERIOD_PATTERNS: Record<Exclude<PeriodType, 'static'>, RegExp> = {
 const PERIOD_TYPE_DDL = "`period_type` VARCHAR(8) NOT NULL DEFAULT 'static' COMMENT '时间粒度：day/month/year/static'";
 const PERIOD_KEY_DDL = "`period_key` VARCHAR(10) NOT NULL DEFAULT '' COMMENT '粒度日期：YYYY-MM-DD / YYYY-MM / YYYY，静态为空'";
 
-/** 文件名前缀与分类表的对应关系（asset_key 去掉该前缀后入库） */
-const RES_ROUTES: Array<{ prefix: string; table: string; comment: string; granularity: RouteGranularity }> = [
+/** 文件名前缀与分类表的对应关系（默认 asset_key 去掉前缀；keepPrefix 保留平台前缀） */
+const RES_ROUTES: Array<{ prefix: string; table: string; comment: string; granularity: RouteGranularity; keepPrefix?: boolean }> = [
   { prefix: 'almanac_', table: 'hp_cache_res_calendar', comment: '日历/老黄历响应', granularity: 'month' },
   { prefix: 'nagerholiday-', table: 'hp_cache_res_holiday', comment: '节假日响应', granularity: 'year' },
   { prefix: 'weather_', table: 'hp_cache_res_weather', comment: '天气响应', granularity: 'month' },
-  // 星座按星座一条，body 内自带 date / week / month / year 周期标签，文件级无日期
-  { prefix: 'horoscope_', table: 'hp_cache_res_horoscope', comment: '星座运势响应', granularity: 'static' },
+  // 星座按星座一条，body 内自带 date / week / month / year 周期标签；文件级无日期，按当前年份归档
+  { prefix: 'horoscope_', table: 'hp_cache_res_horoscope', comment: '星座运势响应', granularity: 'current-year' },
   { prefix: 'historytoday-', table: 'hp_cache_res_history', comment: '历史上的今天响应', granularity: 'day' },
   { prefix: 'gtimgquotes_', table: 'hp_cache_res_finance', comment: '行情/财经响应', granularity: 'month' },
-  { prefix: 'tencenthot_', table: 'hp_cache_res_hot_list', comment: '热搜榜单响应', granularity: 'month' },
+  // 热搜榜单五个平台共用一张表，asset_key 保留平台前缀避免同月份撞键
+  { prefix: 'tencenthot_', table: 'hp_cache_res_hot_list', comment: '热搜榜单响应', granularity: 'month', keepPrefix: true },
+  { prefix: 'weibohot_', table: 'hp_cache_res_hot_list', comment: '热搜榜单响应', granularity: 'month', keepPrefix: true },
+  { prefix: 'bilibilihot_', table: 'hp_cache_res_hot_list', comment: '热搜榜单响应', granularity: 'month', keepPrefix: true },
+  { prefix: 'douyinhot_', table: 'hp_cache_res_hot_list', comment: '热搜榜单响应', granularity: 'month', keepPrefix: true },
+  { prefix: 'iqiyihot_', table: 'hp_cache_res_hot_list', comment: '热搜榜单响应', granularity: 'month', keepPrefix: true },
   { prefix: 'dailyword_', table: 'hp_cache_res_quote', comment: '每日一言/语录响应', granularity: 'month' },
   { prefix: 'video_', table: 'hp_cache_res_video', comment: '视频资源响应', granularity: 'static' },
   { prefix: 'image_', table: 'hp_cache_res_image', comment: '图片资源响应', granularity: 'static' },
@@ -86,6 +94,7 @@ export const isApiResponseKey = (key: string): boolean => {
 export const resolveCachePeriod = (key: string, granularity: RouteGranularity = 'auto'):
   { periodType: PeriodType; periodKey: string } => {
   if (granularity === 'static') return { periodType: 'static', periodKey: '' };
+  if (granularity === 'current-year') return { periodType: 'year', periodKey: currentYear() };
   const order: Array<Exclude<PeriodType, 'static'>> = granularity === 'auto'
     ? ['day', 'month', 'year']
     : [granularity];
@@ -120,7 +129,7 @@ export const resolveCacheTarget = (key: string): CacheTarget => {
       ...resolveCachePeriod(storedKey, 'auto'),
     };
   }
-  const storedKey = base.slice(route.prefix.length);
+  const storedKey = route.keepPrefix ? base : base.slice(route.prefix.length);
   return {
     table: route.table,
     keyColumn: 'asset_key',
@@ -133,21 +142,26 @@ export const resolveCacheTarget = (key: string): CacheTarget => {
 
 /**
  * 列出全部分类表及其文件名前缀
- * @returns {Array<{ prefix: string; table: string; comment: string; granularity: RouteGranularity }>} 分类表清单
+ * @returns {Array<{ prefix: string; table: string; comment: string; granularity: RouteGranularity; keepPrefix?: boolean }>} 分类表清单
  */
-export const listResRoutes = (): Array<{ prefix: string; table: string; comment: string; granularity: RouteGranularity }> =>
+export const listResRoutes = (): Array<{ prefix: string; table: string; comment: string; granularity: RouteGranularity; keepPrefix?: boolean }> =>
   RES_ROUTES.map((item) => ({ ...item }));
 
 /**
  * 生成 API 响应归档的汇总查询（file_key / size / updated_at 三列）
  * @returns {string} UNION ALL SQL
- * @description 分类表的 asset_key 需拼回 api_responses/<前缀><键>.json，与运行时缓存键保持一致
+ * @description 分类表的 asset_key 需拼回 api_responses/<前缀><键>.json；keepPrefix 路由的 asset_key 已含前缀，不再重复拼接
  */
 export const buildCacheUnionSql = (): string => {
   const parts: string[] = [];
+  const seen = new Set<string>();
   for (const route of RES_ROUTES) {
+    // 多平台共用一张表时只生成一段；keepPrefix 的 asset_key 已含平台前缀
+    if (seen.has(route.table)) continue;
+    seen.add(route.table);
+    const keyPrefix = route.keepPrefix ? '' : route.prefix;
     parts.push(
-      `SELECT CONCAT('${API_PREFIX}', '${route.prefix}', asset_key, '.json') AS file_key,
+      `SELECT CONCAT('${API_PREFIX}', '${keyPrefix}', asset_key, '.json') AS file_key,
          LENGTH(body) AS size, cache_updated_at AS updated_at FROM \`${route.table}\``,
     );
   }
