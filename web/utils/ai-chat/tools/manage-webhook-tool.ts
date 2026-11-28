@@ -53,7 +53,7 @@ export const manageWebhookTool: ToolImpl = {
   requiredPermissions: ['webhook:edit'],
   invoke: async (args): Promise<ToolResult> => {
     const action = typeof args.action === 'string' ? args.action.trim() : '';
-    const webhooks = readWebhooks();
+    const webhooks = await readWebhooks();
 
     if (action === 'create') {
       const name = typeof args.name === 'string' ? args.name.trim() : '';
@@ -73,7 +73,7 @@ export const manageWebhookTool: ToolImpl = {
         updated_at: formatDate(),
       };
       webhooks.push(created);
-      writeWebhooks(webhooks);
+      await writeWebhooks(webhooks);
       return {
         ok: true,
         data: { ...created, url: maskUrl(created.url) },
@@ -100,7 +100,7 @@ export const manageWebhookTool: ToolImpl = {
         updated_at: formatDate(),
       };
       webhooks[idx] = updated;
-      writeWebhooks(webhooks);
+      await writeWebhooks(webhooks);
       return {
         ok: true,
         data: { ...updated, url: maskUrl(updated.url) },
@@ -115,7 +115,7 @@ export const manageWebhookTool: ToolImpl = {
       if (!target) {
         return { ok: false, data: `Webhook 不存在：${id || '(空)'}；先调 query_webhooks 查 id` };
       }
-      writeWebhooks(filtered);
+      await writeWebhooks(filtered);
       return { ok: true, data: { id }, summary: `已删除机器人「${target.name}」（${id}）` };
     }
 

@@ -144,3 +144,10 @@ FROM (
   SELECT 'api_database_execute' AS item_key, 'cat_database' AS cat_key, '执行 SQL' AS name, 'POST' AS method, '/api/database/execute' AS path, '执行单条 DDL/DML，仅超级管理员可用' AS description, 1 AS enabled, '2026-11-28 00:37:16' AS created_at, '2026-11-28 00:37:16' AS updated_at UNION ALL
   SELECT 'api_database_init' AS item_key, 'cat_database' AS cat_key, '初始化数据库' AS name, 'POST' AS method, '/api/database/init' AS path, '按 helper_database.sql 重建全库，需输入库名二次确认' AS description, 1 AS enabled, '2026-11-28 00:37:16' AS created_at, '2026-11-28 00:37:16' AS updated_at
 ) v JOIN `hp_api_categories` c ON c.category_key = v.cat_key;
+
+-- 运行期新增的首屏聚合接口（迁移批次 2 补齐；INSERT IGNORE 保证重复初始化幂等）
+INSERT IGNORE INTO `hp_api_items` (`item_key`, `category_id`, `name`, `method`, `path`, `description`, `enabled`, `created_at`, `updated_at`)
+SELECT 'api_bootstrap_get', c.id, '获取首页首屏聚合数据', 'GET', '/api/bootstrap',
+       '合并系统状态、Web 服务状态、规则列表与日志来源列表的首屏数据，按权限逐块裁剪',
+       1, '2026-11-28 11:09:57', '2026-11-28 11:09:57'
+FROM `hp_api_categories` c WHERE c.category_key = 'cat_system';

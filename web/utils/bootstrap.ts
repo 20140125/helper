@@ -89,7 +89,7 @@ export const buildBootstrapData = async (
   const data: BootstrapData = {};
 
   if (wants('system') && can(Permission.DASHBOARD_VIEW)) data.system = getSystemStatus();
-  if (wants('rules') && can(Permission.RULES_VIEW)) data.rules = readRules();
+  if (wants('rules') && can(Permission.RULES_VIEW)) data.rules = await readRules();
 
   const [webService, logs] = await Promise.all([
     wants('webService') && can(Permission.WEB_SERVICE_VIEW) ? readWebServiceStatusAsync() : Promise.resolve(undefined),

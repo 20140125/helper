@@ -24,7 +24,7 @@ export const listApisTool: ToolImpl = {
   requiredPermissions: ['api-management:view'],
   invoke: async (args): Promise<ToolResult> => {
     const kw = typeof args.keyword === 'string' ? args.keyword.toLowerCase().trim() : '';
-    const items = readApiItems();
+    const items = await readApiItems();
     const list = items
       .filter((i) => i.enabled)
       .filter((i) => {

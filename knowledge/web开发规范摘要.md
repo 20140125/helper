@@ -30,7 +30,7 @@
 
 后端顺序：`types → utils/<模块>.ts → routes/utils.ts barrel 重导出 → routes/<模块>.ts → server.ts 注册`。
 
-数据配置必须同步：`.cache/permission_metas.json → .cache/rbac.json → .cache/api_categories.json → .cache/api_items.json`。这一步最容易漏，新增页面或后端 API 时必须检查。
+数据配置必须同步：新增权限或后端 API 时以数据库表为准（`hp_permissions` / `hp_roles` / `hp_api_categories` / `hp_api_items`），通过 Web 管理页或 `sql/` 种子维护；`.cache/*.json` 仅作降级快照，不再手工同步（分批迁移记录见 `CHANGELOG`）。
 
 ## 前端关键约定
 

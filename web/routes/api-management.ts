@@ -27,9 +27,9 @@ const router = Router();
  * @route GET /
  * @query category_id - 可选，按分类过滤
  */
-router.get('/', (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   const { category_id } = req.query as { category_id?: string };
-  let items = readApiItems();
+  let items = await readApiItems();
   if (category_id) {
     items = items.filter((item) => item.category_id === category_id);
   }
@@ -41,16 +41,16 @@ router.get('/', (req: Request, res: Response) => {
  * @route POST /
  * @body {CreateApiItemBody}
  */
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   const { category_id, name, method, path: apiPath, description = '', enabled = true, item_key } = req.body as CreateApiItemBody;
   if (!category_id || !name?.trim() || !method || !apiPath?.trim() || !item_key) {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '缺少必填字段：category_id、name、method、path、item_key');
   }
-  const categories = readApiCategories();
+  const categories = await readApiCategories();
   if (!categories.find((c) => c.category_key === category_id)) {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '指定的分类不存在');
   }
-  const items = readApiItems();
+  const items = await readApiItems();
   const now = formatDate();
   const newItem: ApiItem = {
     item_key,
@@ -64,7 +64,7 @@ router.post('/', (req: Request, res: Response) => {
     updated_at: now,
   };
   items.push(newItem);
-  writeApiItems(items);
+  await writeApiItems(items);
   return returnResponse(res, ErrorCode.SUCCESS, { item: newItem } as Record<string, unknown>, '创建成功');
 });
 
@@ -73,16 +73,16 @@ router.post('/', (req: Request, res: Response) => {
  * @route PUT /:id
  * @body {UpdateApiItemBody}
  */
-router.put('/:id', (req: Request, res: Response) => {
+router.put('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { category_id, name, method, path: apiPath, description, enabled } = req.body as UpdateApiItemBody;
-  const items = readApiItems();
+  const items = await readApiItems();
   const index = items.findIndex((item) => item.item_key === id);
   if (index === -1) {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, 'API 条目不存在');
   }
   if (category_id !== undefined) {
-    const categories = readApiCategories();
+    const categories = await readApiCategories();
     if (!categories.find((c) => c.category_key === category_id)) {
       return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '指定的分类不存在');
     }
@@ -94,7 +94,7 @@ router.put('/:id', (req: Request, res: Response) => {
   if (description !== undefined) items[index].description = description;
   if (enabled !== undefined) items[index].enabled = enabled;
   items[index].updated_at = formatDate();
-  writeApiItems(items);
+  await writeApiItems(items);
   return returnResponse(res, ErrorCode.SUCCESS, { item: items[index] } as Record<string, unknown>, '更新成功');
 });
 
@@ -102,15 +102,15 @@ router.put('/:id', (req: Request, res: Response) => {
  * 删除 API 条目
  * @route DELETE /:id
  */
-router.delete('/:id', (req: Request, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const items = readApiItems();
+  const items = await readApiItems();
   const index = items.findIndex((item) => item.item_key === id);
   if (index === -1) {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, 'API 条目不存在');
   }
   items.splice(index, 1);
-  writeApiItems(items);
+  await writeApiItems(items);
   return returnResponse(res, ErrorCode.SUCCESS, {} as Record<string, unknown>, '删除成功');
 });
 

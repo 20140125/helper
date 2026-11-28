@@ -1,4 +1,5 @@
 import { readMsgTemplates } from '@/routes/utils';
+import { syncContentLibraryIfStale, readTemplatesFromDb } from '@/utils/database/content-library';
 import type { ToolImpl, ToolResult } from '@/types/ai-chat';
 
 /** 单条模板内容预览长度（字符） */
@@ -68,9 +69,15 @@ export const queryMessageTemplatesTool: ToolImpl = {
   invoke: async (args): Promise<ToolResult> => {
     let raw: Record<string, unknown>;
     try {
-      raw = await readMsgTemplates();
+      await syncContentLibraryIfStale();
+      raw = await readTemplatesFromDb();
     } catch (err) {
-      return { ok: false, data: `读取消息模板失败：${(err as Error).message}` };
+      console.warn('[query_message_templates] 查库失败，回退 JSON：', (err as Error).message);
+      try {
+        raw = await readMsgTemplates();
+      } catch (fileErr) {
+        return { ok: false, data: `读取消息模板失败：${(fileErr as Error).message}` };
+      }
     }
 
     const templates = extractTemplates(raw);

@@ -43,7 +43,7 @@ router.post('/apply', requirePermission(Permission.DASHBOARD_VIEW), async (req: 
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, 'Missing fromPath');
   }
 
-  const store = readPermissionRequests();
+  const store = await readPermissionRequests();
   const trimmedPath = fromPath.trim();
 
   // 已有待处理申请时去重，避免重复通知刷屏
@@ -58,7 +58,7 @@ router.post('/apply', requirePermission(Permission.DASHBOARD_VIEW), async (req: 
     const newRequest = createPermissionRequest(email, trimmedPath, reason);
     requestId = newRequest.request_id;
     store.requests.push(newRequest);
-    writePermissionRequests(store);
+    await writePermissionRequests(store);
   }
 
   const host = `${req.protocol}://${req.get('host')}`;
@@ -78,12 +78,12 @@ router.post('/apply', requirePermission(Permission.DASHBOARD_VIEW), async (req: 
  * @description 管理员查询申请列表（需 JWT 鉴权）
  * @query {{ status?: 'pending'|'approved'|'rejected'|'all', page?: number, pageSize?: number }}
  */
-router.get('/list', requirePermission(Permission.RBAC_REQUESTS_VIEW), (req: Request, res: Response) => {
+router.get('/list', requirePermission(Permission.RBAC_REQUESTS_VIEW), async (req: Request, res: Response) => {
   const status = (req.query.status as string) ?? 'all';
   const page = Math.max(1, parseInt((req.query.page as string) ?? '1', 10));
   const pageSize = Math.min(100, Math.max(1, parseInt((req.query.pageSize as string) ?? '20', 10)));
 
-  const store = readPermissionRequests();
+  const store = await readPermissionRequests();
   const all = store.requests.slice().reverse(); // 最新在前
 
   const filtered = status === 'all' ? all : all.filter((r) => r.status === status);
@@ -112,7 +112,7 @@ router.post('/approve-by-id', requirePermission(Permission.RBAC_REQUESTS_EDIT), 
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, 'Missing id');
   }
 
-  const store = readPermissionRequests();
+  const store = await readPermissionRequests();
   const result = findPendingRequest(store, id);
 
   if ('error' in result) {
@@ -120,7 +120,7 @@ router.post('/approve-by-id', requirePermission(Permission.RBAC_REQUESTS_EDIT), 
   }
 
   const { request } = result;
-  approveRequest(request, store, resolvedBy ?? 'admin');
+  await approveRequest(request, store, resolvedBy ?? 'admin');
 
   await sendApprovalEmail(request.email, request.fromPath);
   notifyAllWebhooks(buildApprovedMarkdown(request.email, request.fromPath, request.resolvedBy)).catch(() => {});
@@ -140,7 +140,7 @@ router.post('/reject', requirePermission(Permission.RBAC_REQUESTS_EDIT), async (
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, 'Missing id');
   }
 
-  const store = readPermissionRequests();
+  const store = await readPermissionRequests();
   const result = findPendingRequest(store, id);
 
   if ('error' in result) {
@@ -152,7 +152,7 @@ router.post('/reject', requirePermission(Permission.RBAC_REQUESTS_EDIT), async (
   request.resolvedAt = formatDate();
   request.resolvedBy = resolvedBy ?? 'admin';
   request.rejectReason = rejectReason?.trim() ?? '';
-  writePermissionRequests(store);
+  await writePermissionRequests(store);
 
   await sendRejectionEmail(request.email, request.fromPath, request.rejectReason);
 
@@ -179,7 +179,7 @@ router.get('/approve', async (req: Request, res: Response) => {
     return;
   }
 
-  const store = readPermissionRequests();
+  const store = await readPermissionRequests();
   const result = findPendingRequest(store, id);
 
   if ('error' in result) {
@@ -193,7 +193,7 @@ router.get('/approve', async (req: Request, res: Response) => {
   }
 
   const { request } = result;
-  approveRequest(request, store, 'wecom-link');
+  await approveRequest(request, store, 'wecom-link');
 
   await sendApprovalEmail(request.email, request.fromPath);
   notifyAllWebhooks(buildApprovedMarkdown(request.email, request.fromPath)).catch(() => {});

@@ -4,7 +4,15 @@ import { formatDate } from './script';
 import type { CacheFileInfo } from '@/types/cache';
 
 /** 列表视图中应被隐藏的系统保留文件 */
-export const RESERVED_CACHE_FILES = ['users.json', 'webhooks.json', 'rbac.json', 'permission_metas.json'];
+export const RESERVED_CACHE_FILES = [
+  'users.json',
+  'webhooks.json',
+  'rbac.json',
+  'permission_metas.json',
+  'permission_requests.json',
+  'api_categories.json',
+  'api_items.json',
+];
 
 /**
  * 校验缓存文件名是否合法

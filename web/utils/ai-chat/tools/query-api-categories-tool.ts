@@ -27,8 +27,7 @@ export const queryApiCategoriesTool: ToolImpl = {
   requiredPermissions: ['api-category:view'],
   invoke: async (args): Promise<ToolResult> => {
     const kw = typeof args.keyword === 'string' ? args.keyword.toLowerCase().trim() : '';
-    const categories = readApiCategories();
-    const items = readApiItems();
+    const [categories, items] = await Promise.all([readApiCategories(), readApiItems()]);
 
     const list = categories
       .filter((c) => {

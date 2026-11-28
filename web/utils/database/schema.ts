@@ -106,5 +106,5 @@ export const previewTableRows = async (
   await assertTableExists(name);
   const safeLimit = Math.min(Math.max(Math.trunc(limit) || DATABASE_ROWS_LIMIT, 1), DATABASE_ROWS_LIMIT);
   const safeOffset = Math.max(Math.trunc(offset) || 0, 0);
-  return executeSql(`SELECT * FROM ${quoted} LIMIT ${safeLimit} OFFSET ${safeOffset}`, [], safeLimit);
+  return executeSql(`SELECT * FROM ${quoted} ORDER BY ID DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`, [], safeLimit);
 };

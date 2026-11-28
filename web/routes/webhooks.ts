@@ -9,8 +9,8 @@ const router = Router();
  * @route GET /webhooks
  * @returns {{ ok: boolean, webhooks: Webhook[] }} 脱敏后的 Webhook 列表（url 中的 key 只显示后 8 位）
  */
-router.get('/', (_req, res) => {
-  const webhooks = readWebhooks();
+router.get('/', async (_req, res) => {
+  const webhooks = await readWebhooks();
   // 脱敏：url 中的 key 只显示后8位；只输出规范字段，剔除历史残留
   const masked = webhooks.map((w) => ({
     id: w.id,
@@ -34,12 +34,12 @@ router.get('/', (_req, res) => {
  * @param {string} url - Webhook 地址
  * @returns {{ ok: boolean, webhook: Webhook }} 新创建的 Webhook 对象
  */
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const { name, url, style } = req.body as WebhookBody;
   if (!name || !url) {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '缺少必填字段：name, url');
   }
-  const webhooks = readWebhooks();
+  const webhooks = await readWebhooks();
   const newWebhook: Webhook = {
     id: `webhook_${Date.now()}`,
     name,
@@ -49,7 +49,7 @@ router.post('/', (req, res) => {
     updated_at: formatDate(),
   };
   webhooks.push(newWebhook);
-  writeWebhooks(webhooks);
+  await writeWebhooks(webhooks);
   return returnResponse(res, ErrorCode.SUCCESS, { webhook: newWebhook }, 'success');
 });
 
@@ -61,9 +61,9 @@ router.post('/', (req, res) => {
  * @param {string} [url] - 新的 Webhook 地址（不允许传入含 * 的脱敏串）
  * @returns {{ ok: boolean, webhook: Webhook }} 更新后的 Webhook 对象
  */
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const webhooks = readWebhooks();
+  const webhooks = await readWebhooks();
   const idx = webhooks.findIndex((w) => w.id === id);
   if (idx === -1) {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, 'Webhook 不存在');
@@ -83,7 +83,7 @@ router.put('/:id', (req, res) => {
     updated_at: formatDate(),
   };
   webhooks[idx] = updated;
-  writeWebhooks(webhooks);
+  await writeWebhooks(webhooks);
   return returnResponse(res, ErrorCode.SUCCESS, { webhook: updated }, 'success');
 });
 
@@ -93,14 +93,14 @@ router.put('/:id', (req, res) => {
  * @param {string} id - Webhook ID
  * @returns {{ ok: boolean, message: string }} 删除结果
  */
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   const { id } = req.params;
-  const webhooks = readWebhooks();
+  const webhooks = await readWebhooks();
   const filtered = webhooks.filter((w) => w.id !== id);
   if (filtered.length === webhooks.length) {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, 'Webhook 不存在');
   }
-  writeWebhooks(filtered);
+  await writeWebhooks(filtered);
   return returnResponse(res, ErrorCode.SUCCESS, {}, 'Webhook 已删除');
 });
 

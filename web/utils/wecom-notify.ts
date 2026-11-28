@@ -124,7 +124,7 @@ export async function sendWecomMarkdown(webhookUrl: string, markdown: string): P
  * @returns Promise<boolean> 全部成功返回 true，任一失败返回 false
  */
 export async function notifyAllWebhooks(markdown: string): Promise<boolean> {
-  const webhooks = readWebhooks();
+  const webhooks = await readWebhooks();
   if (webhooks.length === 0) {
     console.warn('[wecom-notify] 未配置任何 Webhook，跳过通知');
     return false;

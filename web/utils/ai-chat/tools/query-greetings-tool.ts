@@ -1,4 +1,5 @@
 import { readGreetingItems, GREETINGS_GROUPS } from '@/routes/utils';
+import { syncContentLibraryIfStale, readGreetingsFromDb } from '@/utils/database/content-library';
 import type { GreetingsGroup } from '@/types/greetings';
 import type { ToolImpl, ToolResult } from '@/types/ai-chat';
 
@@ -47,7 +48,17 @@ export const queryGreetingsTool: ToolImpl = {
     }
     const kw = typeof args.keyword === 'string' ? args.keyword.toLowerCase().trim() : '';
 
-    const list = readGreetingItems()
+    const allItems = await (async () => {
+      try {
+        await syncContentLibraryIfStale();
+        return await readGreetingsFromDb();
+      } catch (err) {
+        console.warn('[query_greetings] 查库失败，回退 JSON：', (err as Error).message);
+        return readGreetingItems();
+      }
+    })();
+
+    const list = allItems
       .filter((i) => (group ? i.group === group : true))
       .filter((i) => {
         if (!kw) return true;

@@ -26,6 +26,6 @@
       "module": "commonjs"
     }
   },
-  "include": ["*.ts", "routes/**/*.ts", "utils/**/*.ts", "types/**/*.ts", "evals/**/*.ts"],
+  "include": ["*.ts", "routes/**/*.ts", "utils/**/*.ts", "types/**/*.ts", "evals/**/*.ts", "scripts/**/*.ts"],
   "exclude": ["node_modules", "frontend", "public", "dist"]
 }

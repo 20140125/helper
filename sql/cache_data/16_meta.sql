@@ -14,6 +14,8 @@ CREATE TABLE `hp_cache_meta` (
   PRIMARY KEY (`meta_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='缓存目录中的非 JSON 数据';
 
+-- content_library_sync_at 是内容库同步水位（文件 mtime）；置 0 让首次查询自动从 JSON 重建查询表
 INSERT INTO `hp_cache_meta` (`meta_key`, `meta_value`) VALUES
-  ('last_prune', '2026-11-28');
+  ('last_prune', '2026-11-28'),
+  ('content_library_sync_at', '0');
 

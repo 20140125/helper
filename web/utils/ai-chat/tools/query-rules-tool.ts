@@ -24,7 +24,7 @@ export const queryRulesTool: ToolImpl = {
   requiredPermissions: ['rules:view'],
   invoke: async (args): Promise<ToolResult> => {
     const enabledOnly = Boolean(args.enabled_only);
-    const all = readRules();
+    const all = await readRules();
     const list = enabledOnly ? all.filter((r) => r.enabled) : all;
     return {
       ok: true,

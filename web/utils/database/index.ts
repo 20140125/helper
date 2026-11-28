@@ -4,6 +4,38 @@
 // ==============================
 
 export { readDatabaseConfig, getPool, executeSql, getDatabaseStatus } from './connection';
+export { toDateText, normalizeDbDateTime } from './datetime';
+export {
+  collectContentLibraryDiff,
+  hasContentLibraryDiff,
+  syncContentLibraryFromFiles,
+  syncContentLibraryIfStale,
+  readGreetingsFromDb,
+  readReminderQuotesFromDb,
+  readTemplatesFromDb,
+} from './content-library';
+export type { ContentLibraryDiff } from './content-library';
+export {
+  collectCalendarCacheDiff,
+  hasCalendarCacheDiff,
+  syncCalendarCacheFromFiles,
+  syncCalendarCacheIfStale,
+  readCalendarCacheEntry,
+  readCalendarCacheJson,
+  listCalendarCacheKeys,
+  listApiResponseFilesFromDb,
+  listDailyDataFilesFromDb,
+  readApiResponseEntriesFromDb,
+} from './calendar-cache';
+export {
+  collectShellWritersDiff,
+  hasShellWritersDiff,
+  syncShellWritersFromFiles,
+  syncShellWritersIfStale,
+  readShellCacheJson,
+} from './shell-writers';
+export type { ShellWritersDiff } from './shell-writers';
+export type { CalendarCacheDiff, CalendarCacheEntry } from './calendar-cache';
 export { listTables, describeTable, previewTableRows } from './schema';
 export { runReadOnlyQuery, runWriteQuery } from './sql-runner';
 export { listSqlScripts, readSqlScript, expandInitScript, initializeDatabase } from './scripts';

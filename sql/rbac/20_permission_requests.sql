@@ -15,6 +15,7 @@ CREATE TABLE `hp_permission_requests` (
   `resolved_at`   DATETIME        NULL     COMMENT '审批时间',
   `created_at`    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请时间',
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_request_id` (`request_id`),
   KEY `idx_email`  (`email`),
   KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='权限申请记录表';

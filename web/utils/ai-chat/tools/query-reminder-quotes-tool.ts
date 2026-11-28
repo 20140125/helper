@@ -1,4 +1,5 @@
 import { readReminderQuotesFile, flattenReminderQuotes } from '@/routes/utils';
+import { syncContentLibraryIfStale, readReminderQuotesFromDb } from '@/utils/database/content-library';
 import type { ToolImpl, ToolResult } from '@/types/ai-chat';
 
 /**
@@ -30,7 +31,15 @@ export const queryReminderQuotesTool: ToolImpl = {
   invoke: async (args): Promise<ToolResult> => {
     const kw = typeof args.bucket_keyword === 'string' ? args.bucket_keyword.toLowerCase() : '';
     const limit = Math.min(Math.max(Number(args.limit) || 20, 1), 100);
-    const items = flattenReminderQuotes(readReminderQuotesFile());
+    const items = await (async () => {
+      try {
+        await syncContentLibraryIfStale();
+        return await readReminderQuotesFromDb();
+      } catch (err) {
+        console.warn('[query_reminder_quotes] 查库失败，回退 JSON：', (err as Error).message);
+        return flattenReminderQuotes(readReminderQuotesFile());
+      }
+    })();
     const filtered = kw
       ? items.filter((it) => it.bucket.toLowerCase().includes(kw))
       : items;

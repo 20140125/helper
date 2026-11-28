@@ -19,6 +19,8 @@ DROP TABLE IF EXISTS `hp_holiday_data`;
 DROP TABLE IF EXISTS `hp_month_config`;
 DROP TABLE IF EXISTS `hp_daemon_sent_state`;
 DROP TABLE IF EXISTS `hp_daily_data`;
+DROP TABLE IF EXISTS `hp_cache_files`;
+DROP TABLE IF EXISTS `hp_shell_cache_files`;
 DROP TABLE IF EXISTS `hp_message_templates`;
 DROP TABLE IF EXISTS `hp_template_styles`;
 DROP TABLE IF EXISTS `hp_template_names`;

@@ -203,7 +203,7 @@ export const createRuleTool: ToolImpl = {
     const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} `
       + `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
-    const rules = readRules();
+    const rules = await readRules();
     const rule: Rule = {
       id: `rule_${Date.now()}`,
       name: fields.name,

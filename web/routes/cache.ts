@@ -11,8 +11,8 @@ import {
 } from './utils';
 import { RESERVED_CACHE_FILES } from '@/utils/cache';
 
-/** 已迁库的文件（webhooks.json 仍由缓存文件管理，不在此列） */
-const DB_BACKED_CACHE_FILES = RESERVED_CACHE_FILES.filter((name) => name !== 'webhooks.json');
+/** 已迁库的文件：禁止通过 /api/cache 直接覆盖（webhooks.json 保留 JSON 镜像仅供 shell 只读） */
+const DB_BACKED_CACHE_FILES = RESERVED_CACHE_FILES;
 
 const router = Router();
 

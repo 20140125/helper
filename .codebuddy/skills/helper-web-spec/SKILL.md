@@ -69,7 +69,7 @@ description: "helper 项目 web/ 目录全栈开发规范 + 配套自动化工�
 
 **前端**：`types/ → services/ → models/ → views/ → constants/(如有) → locales/ → router/`
 **后端**：`types/ → utils/<模块>.ts → routes/utils.ts barrel 重导出 → routes/<模块>.ts → server.ts 注册`
-**数据配置（容易漏！）**：`.cache/permission_metas.json → .cache/rbac.json → .cache/api_categories.json → .cache/api_items.json`（见 `07-cache-json-sync.md`）
+**数据配置（容易漏！）**：权限与接口元数据现已迁库，以 `hp_permissions` / `hp_roles` / `hp_api_categories` / `hp_api_items` 为唯一真源，通过 Web 管理页或 `sql/` 种子维护；`.cache/*.json` 仅作降级快照，禁止直接覆盖。字段关系与历史脚本见 `07-cache-json-sync.md`（顶部有迁移状态说明）
 
 骨架代码见 `references/01-architecture-overview.md`《最小骨架》。
 

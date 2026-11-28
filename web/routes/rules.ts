@@ -9,8 +9,8 @@ const router = Router();
  * @route GET /rules
  * @returns {{ ok: boolean, rules: Rule[] }} 规则列表
  */
-router.get('/', (_req, res) => {
-  return returnResponse(res, ErrorCode.SUCCESS, { rules: readRules() }, 'success');
+router.get('/', async (_req, res) => {
+  return returnResponse(res, ErrorCode.SUCCESS, { rules: await readRules() }, 'success');
 });
 
 /**
@@ -19,7 +19,7 @@ router.get('/', (_req, res) => {
  * @param {CreateRuleBody} req.body - 规则创建参数
  * @returns {{ ok: boolean, rule: Rule }} 创建成功的规则对象
  */
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const {
     name,
     type,
@@ -53,7 +53,7 @@ router.post('/', (req, res) => {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '缺少必填字段：condition');
   }
 
-  const rules = readRules();
+  const rules = await readRules();
   const newRule: Rule = {
     id: `rule_${Date.now()}`,
     name,
@@ -87,12 +87,12 @@ router.post('/', (req, res) => {
  *              必须注册在 PUT /:id 之前，否则 order 会被当作规则 ID；
  *              未出现在 ids 中的规则（并发新增）追加到末尾，绝不丢弃
  */
-router.put('/order', (req, res) => {
+router.put('/order', async (req, res) => {
   const { ids } = req.body as { ids?: unknown };
   if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string')) {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, 'ids 必须是字符串数组');
   }
-  const rules = readRules();
+  const rules = await readRules();
   const remaining = new Map(rules.map((rule) => [rule.id, rule] as const));
   const ordered: Rule[] = [];
   for (const id of ids as string[]) {
@@ -114,9 +114,9 @@ router.put('/order', (req, res) => {
  * @param {Partial<Rule>} req.body - 需要更新的规则字段
  * @returns {{ ok: boolean, rule: Rule }} 更新后的规则对象
  */
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const rules = readRules();
+  const rules = await readRules();
   const idx = rules.findIndex((r) => r.id === id);
   if (idx === -1) {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, '规则不存在');
@@ -145,9 +145,9 @@ router.put('/:id', (req, res) => {
  * @param {string} req.params.id - 规则 ID
  * @returns {{ ok: boolean, message: string }} 删除结果
  */
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   const { id } = req.params;
-  const rules = readRules();
+  const rules = await readRules();
   const filtered = rules.filter((r) => r.id !== id);
   if (filtered.length === rules.length) {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, '规则不存在');
@@ -164,7 +164,7 @@ router.delete('/:id', (req, res) => {
  */
 router.post('/:id/test', async (req, res) => {
   const { id } = req.params;
-  const rules = readRules();
+  const rules = await readRules();
   const rule = rules.find((r) => r.id === id);
   if (!rule) {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, '规则不存在');

@@ -24,8 +24,8 @@ const CATEGORY_KEY_PATTERN = /^cat_[a-z][a-z0-9_]*$/;
  * 获取所有接口分类
  * @route GET /
  */
-router.get('/', (_req: Request, res: Response) => {
-  const categories = readApiCategories();
+router.get('/', async (_req: Request, res: Response) => {
+  const categories = await readApiCategories();
   return returnResponse(res, ErrorCode.SUCCESS, { categories } as Record<string, unknown>, '');
 });
 
@@ -34,12 +34,12 @@ router.get('/', (_req: Request, res: Response) => {
  * @route POST /
  * @body {CreateApiCategoryBody}
  */
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   const { name, description = '', category_key } = req.body as CreateApiCategoryBody;
   if (!name?.trim()) {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '缺少必填字段：name');
   }
-  const categories = readApiCategories();
+  const categories = await readApiCategories();
 
   // 派生 / 校验 category_key
   let key = (category_key ?? '').trim();
@@ -70,7 +70,7 @@ router.post('/', (req: Request, res: Response) => {
     updated_at: now,
   };
   categories.push(newCategory);
-  writeApiCategories(categories);
+  await writeApiCategories(categories);
   return returnResponse(res, ErrorCode.SUCCESS, { category: newCategory } as Record<string, unknown>, '创建成功');
 });
 
@@ -79,10 +79,10 @@ router.post('/', (req: Request, res: Response) => {
  * @route PUT /:id
  * @body {UpdateApiCategoryBody}
  */
-router.put('/:id', (req: Request, res: Response) => {
+router.put('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, description } = req.body as UpdateApiCategoryBody;
-  const categories = readApiCategories();
+  const categories = await readApiCategories();
   const index = categories.findIndex((c) => c.category_key === id);
   if (index === -1) {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, '分类不存在');
@@ -90,7 +90,7 @@ router.put('/:id', (req: Request, res: Response) => {
   if (name !== undefined) categories[index].name = name.trim();
   if (description !== undefined) categories[index].description = description;
   categories[index].updated_at = formatDate();
-  writeApiCategories(categories);
+  await writeApiCategories(categories);
   return returnResponse(res, ErrorCode.SUCCESS, { category: categories[index] } as Record<string, unknown>, '更新成功');
 });
 
@@ -98,18 +98,18 @@ router.put('/:id', (req: Request, res: Response) => {
  * 删除接口分类
  * @route DELETE /:id
  */
-router.delete('/:id', (req: Request, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const categories = readApiCategories();
+  const categories = await readApiCategories();
   const index = categories.findIndex((c) => c.category_key === id);
   if (index === -1) {
     return returnResponse(res, ErrorCode.NOT_FOUND, {}, '分类不存在');
   }
   categories.splice(index, 1);
-  writeApiCategories(categories);
+  await writeApiCategories(categories);
   // 同步删除该分类下的所有 API 条目
-  const items = readApiItems().filter((item) => item.category_id !== id);
-  writeApiItems(items);
+  const items = (await readApiItems()).filter((item) => item.category_id !== id);
+  await writeApiItems(items);
   return returnResponse(res, ErrorCode.SUCCESS, {} as Record<string, unknown>, '删除成功');
 });
 

@@ -1,35 +1,138 @@
 import fs from 'fs';
+import type { RowDataPacket } from 'mysql2';
 import { formatDate } from './script';
 import { createMailTransporter, getAuthTargetEmail, getAuthMailFromName } from './auth';
+import { getPool } from '@/utils/database/connection';
+import { toDateText, normalizeDbDateTime } from '@/utils/database/datetime';
 import type { PermissionRequest, PermissionRequestsStore } from '@/types/permission-request';
 import { PERMISSION_REQUESTS_FILE } from '@/types/permission-request';
 import { CACHE_DIR } from './paths';
 import { ErrorCode } from './response';
 
 // ==============================
-// 存储读写
+// 存储读写（hp_permission_requests 为唯一真源）
 // ==============================
 
 /**
- * 读取权限申请存储
+ * 读取本地 JSON 快照（数据库不可用时的降级数据）
  * @returns {PermissionRequestsStore} 存储数据
  */
-export function readPermissionRequests(): PermissionRequestsStore {
+const readLegacyPermissionRequests = (): PermissionRequestsStore => {
   if (!fs.existsSync(PERMISSION_REQUESTS_FILE)) return { requests: [] };
   try {
     return JSON.parse(fs.readFileSync(PERMISSION_REQUESTS_FILE, 'utf-8')) as PermissionRequestsStore;
   } catch {
     return { requests: [] };
   }
+};
+
+/**
+ * 写入本地 JSON 快照（数据库不可用时的降级数据）
+ * @param {PermissionRequestsStore} store - 存储数据
+ */
+const writeLegacyPermissionRequests = (store: PermissionRequestsStore): void => {
+  if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+  fs.writeFileSync(PERMISSION_REQUESTS_FILE, JSON.stringify(store, null, 2), 'utf-8');
+};
+
+/**
+ * 从数据库读取权限申请记录
+ * @returns {Promise<PermissionRequestsStore>} 存储数据
+ * @description 数据库列是蛇形命名，读取时映射回业务层驼峰字段
+ */
+const readPermissionRequestsFromDb = async (): Promise<PermissionRequestsStore> => {
+  const [rows] = await getPool().query<RowDataPacket[]>(
+    `SELECT request_id, email, from_path, reason, status, reject_reason, resolved_by, resolved_at, created_at
+     FROM hp_permission_requests ORDER BY id`,
+  );
+  return {
+    requests: rows.map((row) => {
+      const request: PermissionRequest = {
+        request_id: String(row.request_id),
+        email: String(row.email),
+        fromPath: row.from_path === null ? '' : String(row.from_path),
+        reason: row.reason === null ? '' : String(row.reason),
+        status: row.status as PermissionRequest['status'],
+        created_at: toDateText(row.created_at),
+      };
+      if (row.resolved_at) request.resolvedAt = toDateText(row.resolved_at);
+      if (row.resolved_by) request.resolvedBy = String(row.resolved_by);
+      if (row.reject_reason) request.rejectReason = String(row.reject_reason);
+      return request;
+    }),
+  };
+};
+
+/**
+ * 把权限申请全量写回数据库
+ * @param {PermissionRequestsStore} store - 存储数据
+ * @returns {Promise<void>}
+ * @description 已有记录只更新审批字段，避免覆盖库中其它列；单事务内完成
+ */
+const writePermissionRequestsToDb = async (store: PermissionRequestsStore): Promise<void> => {
+  const conn = await getPool().getConnection();
+  try {
+    await conn.beginTransaction();
+    for (const request of store.requests) {
+      const [existing] = await conn.query<RowDataPacket[]>(
+        'SELECT id FROM hp_permission_requests WHERE request_id = ? LIMIT 1',
+        [request.request_id],
+      );
+      if (existing.length > 0) {
+        await conn.execute(
+          `UPDATE hp_permission_requests
+           SET status = ?, reject_reason = ?, resolved_by = ?, resolved_at = ?
+           WHERE request_id = ?`,
+          [request.status, request.rejectReason ?? null, request.resolvedBy ?? null,
+            normalizeDbDateTime(request.resolvedAt), request.request_id],
+        );
+      } else {
+        await conn.execute(
+          `INSERT INTO hp_permission_requests
+           (request_id, email, from_path, reason, status, reject_reason, resolved_by, resolved_at, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [request.request_id, request.email, request.fromPath, request.reason ?? null,
+            request.status, request.rejectReason ?? null, request.resolvedBy ?? null,
+            normalizeDbDateTime(request.resolvedAt), normalizeDbDateTime(request.created_at) ?? formatDate()],
+        );
+      }
+    }
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+};
+
+/**
+ * 读取权限申请存储
+ * @returns {Promise<PermissionRequestsStore>} 存储数据
+ * @description 优先查库；数据库不可用时降级读取本地 JSON 快照
+ */
+export async function readPermissionRequests(): Promise<PermissionRequestsStore> {
+  try {
+    return await readPermissionRequestsFromDb();
+  } catch (err) {
+    console.warn('[permission-request] 读取 hp_permission_requests 失败，回退 JSON：', (err as Error).message);
+    return readLegacyPermissionRequests();
+  }
 }
 
 /**
  * 写入权限申请存储
  * @param {PermissionRequestsStore} store - 存储数据
+ * @returns {Promise<void>}
+ * @description 写库失败时降级写本地快照，数据库恢复后可重跑 migrate:cache 补齐
  */
-export function writePermissionRequests(store: PermissionRequestsStore): void {
-  if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
-  fs.writeFileSync(PERMISSION_REQUESTS_FILE, JSON.stringify(store, null, 2), 'utf-8');
+export async function writePermissionRequests(store: PermissionRequestsStore): Promise<void> {
+  try {
+    await writePermissionRequestsToDb(store);
+  } catch (err) {
+    console.warn('[permission-request] 写入 hp_permission_requests 失败，回退 JSON：', (err as Error).message);
+    writeLegacyPermissionRequests(store);
+  }
 }
 
 /**
@@ -75,12 +178,17 @@ export function findPendingRequest(
  * @param {PermissionRequest} request - 申请记录（引用修改）
  * @param {PermissionRequestsStore} store - 存储数据
  * @param {string} resolvedBy - 操作人标识
+ * @returns {Promise<void>}
  */
-export function approveRequest(request: PermissionRequest, store: PermissionRequestsStore, resolvedBy: string): void {
+export async function approveRequest(
+  request: PermissionRequest,
+  store: PermissionRequestsStore,
+  resolvedBy: string,
+): Promise<void> {
   request.status = 'approved';
   request.resolvedAt = formatDate();
   request.resolvedBy = resolvedBy;
-  writePermissionRequests(store);
+  await writePermissionRequests(store);
 }
 
 // ==============================

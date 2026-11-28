@@ -31,7 +31,7 @@ export const queryWebhooksTool: ToolImpl = {
   },
   requiredPermissions: ['webhook:view'],
   invoke: async (): Promise<ToolResult> => {
-    const list = readWebhooks().map((w) => ({
+    const list = (await readWebhooks()).map((w) => ({
       id: w.id,
       name: w.name,
       style: w.style,

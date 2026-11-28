@@ -65,7 +65,7 @@ export const manageRuleTool: ToolImpl = {
       return { ok: false, data: `action 必须是 update / toggle / delete，当前为 ${action || '空'}` };
     }
 
-    const rules = readRules();
+    const rules = await readRules();
     const idx = rules.findIndex((r) => r.id === ruleId);
     if (idx === -1) {
       return { ok: false, data: `未找到规则 ${ruleId}：请用 query_rules 重新确认 ID` };

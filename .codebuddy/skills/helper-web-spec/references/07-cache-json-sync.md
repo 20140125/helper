@@ -1,5 +1,7 @@
 # 7. 新建页面·数据配置清单（`.cache/*.json` 同步）
 
+> ⚠️ **迁移状态（2026-11-28）**：下列 4 份配置已分批迁到 MySQL，运行时以 `hp_permissions` / `hp_roles` / `hp_role_permissions` / `hp_api_categories` / `hp_api_items` 为唯一真源，且 `/api/cache` 禁止直接覆盖这些文件。新增权限或 API 请在 Web 管理页维护，或在 `sql/` 建表脚本补种子，再用 `cd web && npm run migrate:cache -- --batch=api-metadata --verify` 校验。下文直接改写 JSON 的脚本是迁移前遗留，仅用于理解字段关系，不要再执行。
+
 新建页面时最隐蔽的坑，不在代码里，而在运行时数据里。
 
 `web/` 的几个管理页（权限管理、角色管理、接口管理）并不是扫描代码生成数据的，而是**从 `.cache/*.json` 现读现渲染**。这意味着：你在 `types/permission.ts` 里加了枚举、在 `routes/xxx.ts` 里加了路由，**服务重启后新页面能打开、接口能调通**——但权限管理页看不到新权限、管理员菜单不出现入口、接口管理页查不到这条 API。用户以为功能没做完，其实只是 JSON 没补。

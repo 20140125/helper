@@ -45,7 +45,7 @@ export const queryPermissionRequestsTool: ToolImpl = {
     }
     const emailKw = typeof args.email === 'string' ? args.email.toLowerCase().trim() : '';
 
-    const all = readPermissionRequests().requests ?? [];
+    const all = (await readPermissionRequests()).requests ?? [];
     const list = all
       .filter((r) => (status === 'all' ? true : r.status === status))
       .filter((r) => (emailKw ? r.email.toLowerCase().includes(emailKw) : true));

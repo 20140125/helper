@@ -8,6 +8,7 @@
     "dev": "NODE_ENV=development npx ts-node -r tsconfig-paths/register server.ts",
     "eval": "npx ts-node -r tsconfig-paths/register evals/run-eval.ts",
     "test:tools": "npx ts-node -r tsconfig-paths/register evals/run-tool-tests.ts",
+    "migrate:cache": "npx ts-node -r tsconfig-paths/register scripts/migrate-cache.ts",
     "build": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

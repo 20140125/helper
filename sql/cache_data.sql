@@ -26,3 +26,5 @@ SOURCE sql/cache_data/13_res_news.sql;
 SOURCE sql/cache_data/14_res_ai_doc.sql;
 SOURCE sql/cache_data/15_res_other.sql;
 SOURCE sql/cache_data/16_meta.sql;
+SOURCE sql/cache_data/17_cache_files.sql;
+SOURCE sql/cache_data/18_shell_cache_files.sql;
