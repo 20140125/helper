@@ -16,7 +16,7 @@ CREATE TABLE `hp_cache_dailyword_library` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='基于 .cache/dailyword_library.json 生成';
 
 INSERT INTO `hp_cache_dailyword_library` (`section`, `row_key`, `data`) VALUES
-  ('updated_at', '', '2026-11-21') ,
+  ('updated_at', '', '2026-11-28') ,
   ('entries', '2026-05-09', '{"english":"You can, you should, and if you’re brave, you will.","chinese":"你可以，你应该，若你勇敢，你会做到。","quote":"很多人在喧嚣声中登场，也有少数人在静默中退出。","from":"单独中的洞见2，作家出版社"}') ,
   ('entries', '2026-05-10', '{"english":"Gather all ingredients and whip up something delicious today.","chinese":"收集所有材料，今天做出美味。","quote":"如果你能在浪费时间中获得乐趣，就不算浪费时间。","from":"罗素"}') ,
   ('entries', '2026-05-11', '{"english":"The calendar turns, and time quietly flows forward.","chinese":"日历翻动，时间静静流淌向前。","quote":"我们探索规律，与规律有何相干？","from":"三体"}') ,
@@ -214,4 +214,5 @@ INSERT INTO `hp_cache_dailyword_library` (`section`, `row_key`, `data`) VALUES
   ('entries', '2026-11-18', '{"english":"Keep a warm pocket and a warmer heart.","chinese":"口袋要暖，心要更暖。","quote":"我们办的不是案子，是别人的人生。","from":"第二十条","english_source":"iciba"}') ,
   ('entries', '2026-11-19', '{"english":"Some doors only open for those who knock again.","chinese":"有些门，只肯为再次敲响的人打开。","quote":"我们在峭壁高歌、在雪山诵经、在戈壁对酒、在海上看月。","from":"盗墓笔记·无尽人间","english_source":"iciba"}') ,
   ('entries', '2026-11-20', '{"english":"Even the longest night ends with a sunrise.","chinese":"再长的夜，也会以日出收尾。","quote":"博学而笃志，切问而近思。","from":"论语·子张","english_source":"iciba"}') ,
-  ('entries', '2026-11-21', '{"english":"Gratitude turns what we have into enough.","chinese":"感恩让我们拥有的变成足够。","quote":"讨厌你和别人说话，讨厌你对别人笑。","from":"请和这样的我恋爱吧(17秒片段)","english_source":"iciba"}');
+  ('entries', '2026-11-21', '{"english":"Gratitude turns what we have into enough.","chinese":"感恩让我们拥有的变成足够。","quote":"讨厌你和别人说话，讨厌你对别人笑。","from":"请和这样的我恋爱吧(17秒片段)","english_source":"iciba"}') ,
+  ('entries', '2026-11-28', '{"english":"There is beauty in letting go.","chinese":"在放下之中亦有美感。","quote":"比起想念来，千年又何其长。比起相见来，千年又何其短。","from":"网剧棋魂","english_source":"iciba"}');

@@ -15,5 +15,5 @@ CREATE TABLE `hp_cache_meta` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='缓存目录中的非 JSON 数据';
 
 INSERT INTO `hp_cache_meta` (`meta_key`, `meta_value`) VALUES
-  ('last_prune', '2026-11-21');
+  ('last_prune', '2026-11-28');
 

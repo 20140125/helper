@@ -3,6 +3,7 @@
 -- 本文件只导入 helper_database.sql 中其它 SQL 文件未覆盖的缓存数据；
 -- 顶层 .cache/*.json 的业务数据由 sql/**/*.sql 导入（hp_* 业务表），此处不再重复。
 -- API 响应归档按资源类型拆为 hp_cache_res_* 多张表，每行一个缓存文件，body 为原始 JSON 全文。
+-- asset_key 只存资源标识，不带与表名重复的类别前缀（如星座表存「双子座」而非「horoscope_双子座」）。
 -- 幂等：每个表文件先 DROP 再 CREATE，重复执行以缓存覆盖。
 -- 运行：mysql -u <user> -p <db> < sql/cache_data.sql
 -- 生成时间：2026-11-27 22:44:29
