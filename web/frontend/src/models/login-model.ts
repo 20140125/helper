@@ -1,7 +1,8 @@
-import { ref, computed, onBeforeUnmount, type Ref, type ComputedRef } from 'vue';
+import { ref, computed, watch, onBeforeUnmount, type Ref, type ComputedRef } from 'vue';
 import type { FormInstanceFunctions, FormRules } from 'tdesign-vue-next';
-import { useStatusStore } from '@/stores/status';
+import { useBootstrapStore } from '@/stores/bootstrap';
 import { BaseModel } from '@/models/base-model';
+import { AuthService } from '@/services/auth-service';
 /**
  * 登录弹框数据模型类
  * @description 管理邮箱验证码登录弹框的所有业务逻辑，包括发送验证码、倒计时、验证登录等
@@ -12,11 +13,18 @@ export class LoginModel extends BaseModel {
   // ==============================
 
   /**
-   * 系统状态存储实例
-   * @type {ReturnType<typeof useStatusStore>}
-   * @description 登录成功后启动状态轮询
+   * 首屏聚合数据存储实例
+   * @type {ReturnType<typeof useBootstrapStore>}
+   * @description 登录成功后重新拉取首屏聚合数据并启动状态轮询
    */
-  statusStore: ReturnType<typeof useStatusStore> = useStatusStore();
+  bootstrapStore: ReturnType<typeof useBootstrapStore> = useBootstrapStore();
+
+  /**
+   * 鉴权服务实例
+   * @type {AuthService}
+   * @description 用于拉取系统默认验证码
+   */
+  authService: AuthService = new AuthService();
 
   // ==============================
   // 状态变量（ref）
@@ -33,6 +41,20 @@ export class LoginModel extends BaseModel {
    * @type {Ref<string>}
    */
   code: Ref<string> = ref('');
+
+  /**
+   * 超级管理员邮箱
+   * @type {Ref<string>}
+   * @description 用于匹配并预填系统默认验证码
+   */
+  adminEmail: Ref<string> = ref('');
+
+  /**
+   * 系统默认验证码
+   * @type {Ref<string>}
+   * @description 未配置时为空，登录流程保持原有邮箱验证码逻辑
+   */
+  defaultAuthCode: Ref<string> = ref('');
 
   /**
    * 发送验证码按钮 loading 状态
@@ -182,9 +204,10 @@ export class LoginModel extends BaseModel {
       if (res.code === 0) {
         this.code.value = '';
         this.email.value = '';
-        // 登录成功后启动状态轮询
+        // 登录成功后按新身份重新拉取首屏聚合数据（一次请求替代 4 个）
         // 页面数据刷新由 authStore.routerViewKey 变更自动触发（见 auth.ts）
-        this.statusStore.startPolling();
+        this.bootstrapStore.reset();
+        void this.bootstrapStore.load();
       } else {
         this.formRef.value?.setValidateMessage({
           code: [{ type: 'error', message: res.message }],
@@ -192,6 +215,53 @@ export class LoginModel extends BaseModel {
       }
     } finally {
       this.verifyLoading.value = false;
+    }
+  };
+
+  // ==============================
+  // 系统默认验证码快捷登录
+  // ==============================
+
+  /**
+   * 构造函数：监听邮箱输入并拉取系统默认验证码
+   * @description watch 在 useLoginModel 的 setup 上下文中创建，随组件卸载自动停止
+   */
+  constructor() {
+    super();
+    watch(this.email, () => { this.syncDefaultAuthCode(); });
+    void this.loadDefaultAuthCode();
+  }
+
+  /**
+   * 拉取系统默认验证码
+   * @returns {Promise<void>}
+   * @description 生产环境接口不返回 defaultAuthCode，登录流程保持原有邮箱验证码逻辑
+   */
+  loadDefaultAuthCode = async (): Promise<void> => {
+    try {
+      const { code, data } = await this.authService.fetchAdminContact();
+      if (code !== 0 || !data?.email || !data.defaultAuthCode) return;
+      this.adminEmail.value = data.email;
+      this.defaultAuthCode.value = data.defaultAuthCode;
+      this.syncDefaultAuthCode();
+    } catch {
+      // 接口异常时保持原有登录流程
+    }
+  };
+
+  /**
+   * 输入超管邮箱时预填系统默认验证码，切回普通邮箱时清除
+   * @returns {void}
+   * @description 仅覆盖空验证码，避免打断用户已输入的内容
+   */
+  syncDefaultAuthCode = (): void => {
+    const defaultAuthCode = this.defaultAuthCode.value;
+    if (!defaultAuthCode) return;
+    const matched = this.email.value.trim() === this.adminEmail.value;
+    if (matched && !this.code.value) {
+      this.code.value = defaultAuthCode;
+    } else if (!matched && this.code.value === defaultAuthCode) {
+      this.code.value = '';
     }
   };
 

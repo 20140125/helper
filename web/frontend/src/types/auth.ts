@@ -46,7 +46,12 @@ export type VerifyTokenResult = ApiResponse<IVerifyTokenData>;
  * 管理员联系信息响应类型
  * @description 获取超级管理员邮箱接口的响应数据结构
  */
-export type AdminContactResult = ApiResponse<{ email: string }>;
+export type AdminContactResult = ApiResponse<{
+  /** 超级管理员邮箱 */
+  email: string;
+  /** 开发模式下回显的系统默认验证码（生产环境为空） */
+  defaultAuthCode?: string;
+}>;
 
 /**
  * 权限申请响应类型

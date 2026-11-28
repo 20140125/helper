@@ -7,14 +7,15 @@
 # 功能说明：
 #   1. 由于crontab不可用，使用守护进程每分钟检查是否到达执行时间
 #   2. 每年12月31日 23:59 自动触发年度更新（annual_update.sh）
-#   3. 每月1号和15号 00:01 执行日志清理（每15天清空一次所有日志）
+#   3. 每月1号和15号 00:01 执行日志保留期清理（删除 hp_run_logs 里的过期记录）
 #   4. 后台运行，通过 daemon.sh 统一管理
 #
 # 调度可配置化：
 #   两个任务的日期 / 时间 / 开关与主循环节拍均可在 .env 中覆盖（见 schedule_config.sh），
 #   每轮循环开头重读一次，改完不用重启：
 #   SCHED_ANNUAL_POLL_SECONDS / SCHED_ANNUAL_UPDATE_{DATE,TIME} / SCHED_LOG_CLEAN_{DAYS,TIME}；
-#   未配置则沿用上面的默认值，时间点留空即停用对应任务
+#   保留天数由 LOG_RETENTION_DAYS 控制（默认 15 天），未配置则沿用默认值，
+#   时间点留空即停用对应任务
 #
 # 使用方式：
 #   通过 daemon.sh 启动：bash daemon.sh start
@@ -39,9 +40,7 @@ source "${PROJECT_DIR}/log_utils.sh"
 # 引入调度配置（日期 / 时间 / 开关 / 节拍统一从 .env 读，支持热更新）
 source "${PROJECT_DIR}/schedule_config.sh"
 
-# 引入日志清理模块（提供 force_clean_logs 函数）
-# 注意：log_cleaner.sh 内部依赖 LOG_DIR 变量，需在 source 前定义
-LOG_DIR="${PROJECT_DIR}"
+# 引入日志清理模块（提供 force_clean_logs：按保留天数删除库记录）
 source "${SCRIPT_DIR}/view_logs/log_cleaner.sh"
 
 # 防止多实例运行
@@ -74,7 +73,7 @@ log_info "======================================"
 log_info "🚀 年度自动更新调度器启动"
 log_info "📅 当前时间: $(date '+%Y-%m-%d %H:%M:%S')"
 log_info "⏰ 年度更新: $(sched_get SCHED_ANNUAL_UPDATE_DATE 12-31) $(sched_get SCHED_ANNUAL_UPDATE_TIME 23:59)（时间点留空即停用）"
-log_info "🧹 日志清理: 每月 $(sched_get SCHED_LOG_CLEAN_DAYS '01,15') 号 $(sched_get SCHED_LOG_CLEAN_TIME 00:01)（时间点留空即停用）"
+log_info "🧹 日志清理: 每月 $(sched_get SCHED_LOG_CLEAN_DAYS '01,15') 号 $(sched_get SCHED_LOG_CLEAN_TIME 00:01)，保留 ${LOG_RETENTION_DAYS:-15} 天（时间点留空即停用）"
 log_info "======================================"
 
 # 记录上次执行日志清理的月份，避免重复执行
@@ -98,7 +97,7 @@ while true; do
             log_info "🧹 触发日志清理任务！"
             log_info "📅 当前时间: $(date '+%Y-%m-%d %H:%M:%S')"
             
-            # 执行日志清理（清空 LOG_DIR 下所有 .log 文件，跳过自身日志）
+            # 执行日志清理（按 LOG_RETENTION_DAYS 删除 hp_run_logs 过期记录）
             force_clean_logs
             
             # 记录本次已执行（月份+日期，避免同一天重复执行）
@@ -118,7 +117,7 @@ while true; do
         log_info "⏰ 触发年度自动更新！"
         
         # 执行年度更新脚本
-        "${PROJECT_DIR}/annual_update.sh" >> "$LOG_FILE" 2>&1
+        "${PROJECT_DIR}/annual_update.sh" > /dev/null 2>&1
         
         log_success "年度更新执行完成"
         

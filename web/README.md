@@ -30,7 +30,7 @@ bash scripts/start_web.sh status
 
 > **脱离 `scripts/` 运行**：Web 侧不依赖 `scripts/` 也能独立启动。
 > 没有 `scripts/start_web.sh` 时，「Web 服务」页面的启停 / 重启会自动降级为直接拉起 / 结束 `server.ts` 进程，
-> PID 与日志落在 `web/.runtime/`（`web.pid` / `launcher.pid` / `web_server.log` / `web_launcher.log`）。
+> PID 文件落在 `web/.runtime/`（`web.pid` / `launcher.pid`）；日志统一写入 `hp_run_logs`，不落文件。
 > 此时提醒类脚本（守护进程、脚本执行、卡片出图等）不可用，属预期降级。
 >
 > ```bash
@@ -84,7 +84,6 @@ web/
 ├── routes/                # 后端路由模块（每个模块一个文件）
 ├── types/                 # 后端类型定义
 ├── utils/                 # 后端工具（auth / cache / logger / rbac / access-log / …）
-├── data/                  # 静态数据（playground-templates.json 等）
 │
 ├── public/                # 前端构建产物 + favicon（生产环境静态托管）
 │   ├── index.html
@@ -180,7 +179,7 @@ web/
 | `/api/system` | 系统状态（仪表盘） | `DASHBOARD_VIEW` |
 | `/api/config` | 读写 `.env`（`web/.env` 优先） | `CONFIG_VIEW` / `CONFIG_EDIT` |
 | `/api/webhooks` | 企业微信机器人管理 | `CONFIG_VIEW` / `WEBHOOK_EDIT` |
-| `/api/logs` | 日志文件列表 / 读取 / 清空 | `LOGS_VIEW` / `LOGS_EDIT` |
+| `/api/logs` | 日志来源列表 / 读取 / 清空（`hp_run_logs`） | `LOGS_VIEW` / `LOGS_EDIT` |
 | `/api/daemon` | 守护进程 start / stop / restart | — / `DAEMON_EDIT` |
 | `/api/trigger` | 手动触发脚本 + 自定义规则 | 路由内细粒度判权 |
 | `/api/update-tools` | 年度更新工具列表 / 执行 | `TRIGGER_ANNUAL_UPDATE_VIEW` / `..._EDIT` |

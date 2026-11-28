@@ -47,7 +47,7 @@ const formatSize = (bytes: number): string => {
  * manage_logs 工具实现（日志写能力）
  * @description query_logs 只能看，清空此前只能去 Web「运行日志」页手点。
  *   本工具补齐清空能力（单个 / 全部），并纳入增删改白名单——严格模式下会先建审批单，
- *   由超级管理员通过后生效。只覆盖 LOG_FILES 里已注册的日志，不动 scripts/logs 下的历史归档。
+ *   由超级管理员通过后生效。清空的是 hp_run_logs 里对应来源的记录，不再涉及任何日志文件。
  *
  * 触发示例（仅供维护者参考，不会发送给 LLM）：
  *   - "把自定义规则日志清空"        → { action: 'clear', log_key: 'custom_rules' }
@@ -83,20 +83,20 @@ export const manageLogsTool: ToolImpl = {
     }
 
     // 列表快照：既用于体积统计，也用于 clear_all 的目标集合
-    const files = listLogFiles();
+    const files = await listLogFiles();
 
     if (action === 'clear_all') {
       const targets = files.filter((f) => f.exists && f.size > 0);
       if (targets.length === 0) {
-        return { ok: true, data: { cleared: [], freed_bytes: 0 }, summary: '所有日志本来就是空的，无需清空' };
+        return { ok: true, data: { cleared: [], freed_bytes: 0 }, summary: '库里本来就没有日志记录，无需清空' };
       }
       const freedBytes = targets.reduce((sum, f) => sum + f.size, 0);
       const cleared = targets.map((f) => ({ key: f.key, label: LOG_LABELS[f.key] ?? f.key, size: f.size }));
-      targets.forEach((f) => clearLogFile(f.key));
+      await Promise.all(targets.map((f) => clearLogFile(f.key)));
       return {
         ok: true,
         data: { cleared, freed_bytes: freedBytes },
-        summary: `已清空 ${cleared.length} 个日志文件，释放 ${formatSize(freedBytes)}`,
+        summary: `已清空 ${cleared.length} 个日志来源（删除对应库记录），释放 ${formatSize(freedBytes)}`,
       };
     }
 
@@ -112,13 +112,13 @@ export const manageLogsTool: ToolImpl = {
 
     const target = files.find((f) => f.key === logKey);
     const label = LOG_LABELS[logKey] ?? logKey;
-    clearLogFile(logKey);
+    const removed = await clearLogFile(logKey);
     return {
       ok: true,
-      data: { key: logKey, label, freed_bytes: target?.size ?? 0 },
+      data: { key: logKey, label, freed_bytes: target?.size ?? 0, removed },
       summary: target?.exists
-        ? `已清空「${label}」（${logKey}），释放 ${formatSize(target.size)}`
-        : `已清空「${label}」（${logKey}），文件原本为空`,
+        ? `已清空「${label}」（${logKey}），删除 ${removed} 条库记录`
+        : `已清空「${label}」（${logKey}），该来源原本没有记录`,
     };
   },
 };

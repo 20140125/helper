@@ -331,9 +331,6 @@ export const en: Locale = {
     tableSearchPlaceholder: 'Search table name',
     noTables: 'No tables or views in the current database',
     noTableSelected: 'Select a table from the list',
-    tableTypeTable: 'Table',
-    tableTypeView: 'View',
-    rowCount: (n: number) => `~${n} rows`,
     tabSchema: 'Columns',
     tabRows: 'Rows',
     tabDdl: 'DDL',
@@ -368,8 +365,10 @@ export const en: Locale = {
     affectedRows: (n: number) => `${n} rows affected`,
     scriptsTitle: 'Schema Scripts',
     scriptsCount: (n: number) => `${n} SQL files`,
+    scriptSearchPlaceholder: 'Search script path or module',
     scriptEntry: 'Entry',
     noScripts: 'No schema scripts found',
+    noMatchingScripts: 'No matching scripts',
     scriptPreviewTitle: 'Script Content',
     scriptSelectHint: 'Select a script to view its content',
     initHeader: 'Initialize Database (Dangerous)',
@@ -627,7 +626,7 @@ export const en: Locale = {
     copyFailedManual: 'Copy failed, please copy manually',
     loadTemplateListFailed: 'Failed to load template list',
 
-    // ──────────────── Business templates schema text (referenced by $t: in playground-templates.json) ────────────────
+    // ──────────────── Business templates schema text (referenced by $t: in hp_playground_templates fields) ────────────────
     schema: {
       // —— Built-in template tab names ——
       tplLabelWeather: 'Weather Service',
@@ -744,6 +743,10 @@ export const en: Locale = {
       mailFromNameLabel: 'From Name',
       mailFromNamePlaceholder: 'e.g. Long',
       mailFromNameRequired: 'From name is required',
+      defaultAuthCodeLabel: 'Default verification code',
+      defaultAuthCodePlaceholder: 'Leave empty to disable; admin email only',
+      defaultAuthCodeHelp: 'Stored in hp_env_config, effective immediately; admin email only',
+      defaultAuthCodePattern: 'Enter up to 6 digits, or leave empty to disable',
 
       // —— AI model & memory (now per model config group) ——
       configAiLabel: 'AI Model & Memory',
@@ -1267,7 +1270,7 @@ export const en: Locale = {
   // ──────────────── AI Cost Dashboard ────────────────
   aiCost: {
     pageTitle: 'AI Cost Dashboard',
-    subtitle: 'Trace-driven metrics from .cache/ai-traces: token cost, latency and tool failure rate',
+    subtitle: 'Trace-driven metrics from hp_ai_run_traces: token cost, latency and tool failure rate',
     scopeMe: 'Mine only',
     scopeAll: 'All users',
     refresh: 'Refresh',

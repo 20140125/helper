@@ -32,7 +32,7 @@
 
 1. `weather_config.sh`：TZ、Webhook、`JUHE_*_KEY`
 2. `holiday_config.sh`：节假日判断
-3. `LOG_FILE="${PROJECT_DIR}/脚本名.log"`
+3. `LOG_FILE="${PROJECT_DIR}/脚本名.log"`（仅作来源标识，日志已入库，不再落文件）
 4. `log_utils.sh`
 5. 其他业务配置
 
@@ -68,7 +68,9 @@
 - `log_duration`：耗时，超过 5000ms 自动升级为 WARNING
 - `log_separator`：分隔线
 
-环境变量：`LOG_FORMAT`（text/json）、`LOG_FILE`、`LOG_LEVEL`、`LOG_MAX_BYTES`、`LOG_KEEP`。
+环境变量：`LOG_FORMAT`（text/json，仅影响终端输出）、`LOG_FILE`（仅推导 `source`）、`LOG_LEVEL`、`LOG_RETENTION_DAYS`。
+
+每条日志同时输出到 stderr 并写入 `hp_run_logs`；`log_db.sh` 负责读 `web/.env` 的 `DB_*`、转义与 INSERT。入库失败静默降级为仅 stderr，绝不阻塞业务。文件轮转（`LOG_MAX_BYTES` / `LOG_KEEP`）已移除。
 
  macOS 兼容注意：毫秒时间统一用 `now_ms()`，不要直接写 `date +%s%3N`；BSD date 不支持 `%3N`，会输出带 `N` 的字符串并导致算术运算报错。
 
@@ -203,7 +205,7 @@ Crontab 保活：
 - 输出目录统一 `CARD_OUTPUT_DIR`，即 `web/public/skill-images/`。
 - 成功时 stdout 只输出一行 PNG 路径，失败输出 `FAILED`。
 - 打印 PNG 路径必须裸 `echo "$OUTPUT_FILE"`，不能用 `log_*` 包装。
-- `log_*` 写 stderr 和 `tools.log`，不会污染 stdout。
+- `log_*` 写 stderr 并入库，不产生日志文件，也不会污染 stdout。
 - SVG 禁止 emoji，用 Unicode 几何字符或实体引用。
 - 所有 `date` 显式加 `TZ=Asia/Shanghai`。
 - XML 特殊字符 `& < > " '` 拼进 SVG 前必须转义。

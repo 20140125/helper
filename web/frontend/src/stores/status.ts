@@ -1,9 +1,12 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { BootstrapService } from '@/services/bootstrap-service';
 import { StatusService } from '@/services/status-service';
 import { WebServiceService } from '@/services/web-service-service';
+import type { SystemStatusData } from '@/types/status';
+import type { WebServiceStatusData } from '@/types/web-service';
 import { formatServerTime } from '@/utils/format';
-import { WEB_SERVICE_STATUS_POLL_MS, SYSTEM_STATUS_POLL_MS, SERVER_TIME_TICK_MS } from '@/constants/polling';
+import { SYSTEM_STATUS_POLL_MS, SERVER_TIME_TICK_MS } from '@/constants/polling';
 
 /**
  * 系统状态全局Store类
@@ -148,16 +151,31 @@ export class StatusStore {
   // ==============================
 
   /**
-   * 轮询定时器
-   * @description 用于定时刷新系统状态的定时器
+   * 状态轮询定时器
+   * @description 按 SYSTEM_STATUS_POLL_MS 间隔一次拉取系统状态与 Web 服务状态
    */
   private pollingTimer: ReturnType<typeof setInterval> | null = null;
 
   /**
-   * Web服务状态轮询定时器
-   * @description 按 WEB_SERVICE_STATUS_POLL_MS 间隔检查Web服务运行状态
+   * 轮询会话是否已启动
+   * @type {boolean}
+   * @description startPolling 的判重标记；页面隐藏只暂停定时器，不清此标记
    */
-  private webStatusTimer: ReturnType<typeof setInterval> | null = null;
+  private pollingStarted = false;
+
+  /**
+   * 系统状态轮询间隔
+   * @type {number}
+   * @description 记录 startPolling 传入的间隔，页面恢复可见时按原间隔重启定时器
+   */
+  private pollIntervalMs = SYSTEM_STATUS_POLL_MS;
+
+  /**
+   * 页面可见性变化回调
+   * @type {(() => void) | null}
+   * @description 页面隐藏时暂停网络轮询，恢复可见时补拉一次状态；stopPolling 时移除监听
+   */
+  private visibilityHandler: (() => void) | null = null;
 
   // ==============================
   // 私有方法
@@ -189,9 +207,68 @@ export class StatusStore {
     }, SERVER_TIME_TICK_MS);
   };
 
+  /**
+   * 用聚合接口刷新两块状态
+   * @returns {Promise<void>}
+   * @description 一次请求替代 /api/system 与 /api/web-service/status 两条轮询；
+   *   仅写入状态 Store，不触碰规则与日志；失败时按原接口并发兜底
+   */
+  private refreshStatusSnapshot = async (): Promise<void> => {
+    try {
+      const { data } = await this.bootstrapService.fetchStatusSnapshot();
+      if (data.system) this.hydrateSystem(data.system);
+      if (data.webService) this.hydrateWebService(data.webService);
+    } catch {
+      await Promise.all([this.fetchStatus(true), this.loadWebStatus()]);
+    }
+  };
+
+  /**
+   * 启动网络状态轮询定时器
+   * @returns {void}
+   * @description 页面不可见时不启动，避免后台标签页持续请求 /api/bootstrap
+   */
+  private startPollingTimers = (): void => {
+    if (this.pollingTimer !== null) return;
+    if (document.visibilityState === 'hidden') return;
+    this.pollingTimer = setInterval(() => void this.refreshStatusSnapshot(), this.pollIntervalMs);
+  };
+
+  /**
+   * 暂停网络状态轮询定时器
+   * @returns {void}
+   * @description 只清网络轮询定时器，1s 的服务器时间本地推进由 stopPolling 统一清理
+   */
+  private stopPollingTimers = (): void => {
+    if (this.pollingTimer !== null) {
+      clearInterval(this.pollingTimer);
+      this.pollingTimer = null;
+    }
+  };
+
+  /**
+   * 页面可见性变化时暂停或恢复状态轮询
+   * @returns {void}
+   * @description 隐藏时停定时器；恢复可见时用聚合接口补一次最新状态并重启定时器
+   */
+  private handleVisibilityChange = (): void => {
+    if (document.visibilityState === 'hidden') {
+      this.stopPollingTimers();
+      return;
+    }
+    void this.refreshStatusSnapshot();
+    this.startPollingTimers();
+  };
+
   // ==============================
   // 依赖注入
   // ==============================
+
+  /**
+   * 首屏聚合服务实例
+   * @description 用于轮询时一次拉取系统状态与 Web 服务状态
+   */
+  private bootstrapService: BootstrapService = new BootstrapService();
 
   /**
    * 状态服务实例
@@ -222,6 +299,43 @@ export class StatusStore {
   // ==============================
 
   /**
+   * 用系统状态数据填充 Store
+   * @param {SystemStatusData} data - 系统状态数据
+   * @returns {void}
+   * @description 统一 /api/system 与 /api/bootstrap 的写入路径，并重启服务器时间本地推进
+   */
+  hydrateSystem = (data: SystemStatusData): void => {
+    this.daemonRunning.value = data.daemonRunning;
+    this.daemonPid.value = data.daemonPid;
+    this.annualPid.value = data.annualPid ?? null;
+    this.daemonStartTime.value = data.daemonStartTime ?? null;
+    this.projectDir.value = data.projectDir;
+    this.cacheFiles.value = data.cacheFiles;
+    this.serverTime.value = data.serverTime;
+    this.startServerTimeTimer(data.serverTime);
+    this.hostname.value = data.hostname ?? '';
+    this.osRelease.value = data.osRelease ?? '';
+    this.kernelVersion.value = data.kernelVersion ?? '';
+    this.cpuCores.value = data.cpuCores ?? 0;
+    this.memory.value = data.memory ?? null;
+    this.disk.value = data.disk ?? null;
+    this.systemUptime.value = data.systemUptime ?? 0;
+    this.nodeVersion.value = data.nodeVersion ?? '';
+  }
+
+  /**
+   * 用 Web 服务状态数据填充 Store
+   * @param {WebServiceStatusData} data - Web 服务状态数据
+   * @returns {void}
+   * @description 统一 /api/web-service/status 与 /api/bootstrap 的写入路径
+   */
+  hydrateWebService = (data: WebServiceStatusData): void => {
+    this.webRunning.value = data.running;
+    this.webPid.value = data.pid;
+    this.launcherPid.value = data.launcherPid ?? null;
+  }
+
+  /**
    * 获取系统状态
    * @param {boolean} silent - 是否静默刷新（不触发 loading 状态），默认 false
    * @param {boolean} force - 是否强制刷新，默认 true（status 数据实时性高，默认强制刷新）
@@ -234,40 +348,8 @@ export class StatusStore {
       this.loading.value = true;
     }
     try {
-      const { data: statusData } = await this.statusService.fetchStatus();
-      const {
-        daemonRunning,
-        daemonPid,
-        annualPid,
-        daemonStartTime,
-        projectDir,
-        cacheFiles,
-        serverTime,
-        hostname,
-        osRelease,
-        kernelVersion,
-        cpuCores,
-        memory,
-        disk,
-        systemUptime,
-        nodeVersion,
-      } = statusData
-      this.daemonRunning.value = daemonRunning;
-      this.daemonPid.value = daemonPid;
-      this.annualPid.value = annualPid ?? null;
-      this.daemonStartTime.value = daemonStartTime ?? null;
-      this.projectDir.value = projectDir;
-      this.cacheFiles.value = cacheFiles;
-      this.serverTime.value = serverTime;
-      this.startServerTimeTimer(serverTime);
-      this.hostname.value = hostname ?? '';
-      this.osRelease.value = osRelease ?? '';
-      this.kernelVersion.value = kernelVersion ?? '';
-      this.cpuCores.value = cpuCores ?? 0;
-      this.memory.value = memory ?? null;
-      this.disk.value = disk ?? null;
-      this.systemUptime.value = systemUptime ?? 0;
-      this.nodeVersion.value = nodeVersion ?? '';
+      const { data } = await this.statusService.fetchStatus();
+      this.hydrateSystem(data);
     } catch {
       // 请求失败时保持原有状态，不阻塞页面
     } finally {
@@ -282,10 +364,8 @@ export class StatusStore {
    */
   loadWebStatus = async (retries: number = 0): Promise<void> => {
     try {
-      const { data: { running, pid, launcherPid } } = await this.webServiceService.fetchWebServiceStatus();
-      this.webRunning.value = running;
-      this.webPid.value = pid;
-      this.launcherPid.value = launcherPid ?? null;
+      const { data } = await this.webServiceService.fetchWebServiceStatus();
+      this.hydrateWebService(data);
     } catch (e: unknown) {
       // 401 未授权或网络错误：直接走兜底，不重试
       const axiosError = e as { response?: { status?: number } };
@@ -313,34 +393,43 @@ export class StatusStore {
   /**
    * 开始轮询系统状态
    * @param {number} interval - 轮询间隔（毫秒），默认 SYSTEM_STATUS_POLL_MS
+   * @param {boolean} immediate - 是否立即拉取一次状态，默认 false
    * @returns {void}
-   * @description 立即获取一次状态，然后按指定间隔定时静默刷新
+   * @description 首屏数据由 /api/bootstrap 一次性提供，默认只启动定时器；
+   *   轮询统一走 /api/bootstrap?only=system,webService，失败时降级到原两个状态接口；
+   *   immediate 仅用于首屏聚合接口不可用时直接走原接口；判重在立即请求之前，避免双入口重复发请求；
+   *   页面隐藏时由 visibilitychange 暂停轮询，恢复可见时补拉一次
    */
-  startPolling = (interval: number = SYSTEM_STATUS_POLL_MS): void => {
-    this.fetchStatus();
-    this.loadWebStatus();
-    if (this.pollingTimer !== null) return;
-    this.pollingTimer = setInterval(() => this.fetchStatus(true), interval);
-    this.webStatusTimer = setInterval(() => this.loadWebStatus(), WEB_SERVICE_STATUS_POLL_MS);
+  startPolling = (interval: number = SYSTEM_STATUS_POLL_MS, immediate: boolean = false): void => {
+    if (this.pollingStarted) return;
+    this.pollingStarted = true;
+    this.pollIntervalMs = interval;
+    if (immediate) {
+      this.fetchStatus();
+      this.loadWebStatus();
+    }
+    this.startPollingTimers();
+    if (this.visibilityHandler === null) {
+      this.visibilityHandler = this.handleVisibilityChange;
+      document.addEventListener('visibilitychange', this.visibilityHandler);
+    }
   }
 
   /**
    * 停止轮询系统状态
    * @returns {void}
-   * @description 清除定时器，停止状态轮询
+   * @description 清除定时器、移除可见性监听，允许后续 startPolling 重新启动
    */
   stopPolling = (): void => {
-    if (this.pollingTimer !== null) {
-      clearInterval(this.pollingTimer);
-      this.pollingTimer = null;
-    }
-    if (this.webStatusTimer !== null) {
-      clearInterval(this.webStatusTimer);
-      this.webStatusTimer = null;
-    }
+    this.pollingStarted = false;
+    this.stopPollingTimers();
     if (this.serverTimeTimer !== null) {
       clearInterval(this.serverTimeTimer);
       this.serverTimeTimer = null;
+    }
+    if (this.visibilityHandler !== null) {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
     }
   }
 }

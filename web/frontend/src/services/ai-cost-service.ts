@@ -16,7 +16,7 @@ export class AiCostService extends BaseService {
    * @param {number} days - 统计天数（1~90，后端会夹紧）
    * @param {string} scope - 统计范围（me=仅自己 / all=全量，非管理员传 all 会降级为 me）
    * @returns {Promise<AiCostStatsResponse>} 统计响应
-   * @description Trace 数据由后端按次 append 到 `.cache/ai-traces/*.jsonl`，本接口返回其聚合结果。
+   * @description Trace 数据由后端按次写入 hp_ai_run_traces，本接口返回其聚合结果。
    */
   fetchStats = async (days: number, scope: string): Promise<AiCostStatsResponse> => {
     return this.get<AiCostStatsResponse>('/ai-chat/stats', { params: { days, scope } });

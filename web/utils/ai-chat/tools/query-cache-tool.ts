@@ -6,6 +6,8 @@ import {
   readApiResponse,
   listApiResponses,
 } from '@/routes/utils';
+import { readPermissionMetas, readRbacConfig } from '@/utils/rbac';
+import { readUsers } from '@/utils/auth';
 import type { ToolImpl, ToolResult } from '@/types/ai-chat';
 
 // ──────────────────────────
@@ -65,16 +67,16 @@ const buildCacheListResult = (): ToolResult => ({
     available_targets: [...CACHE_TARGETS],
     description: {
       holiday: '节假日数据（含调休）',
-      permission_metas: '权限码元信息列表',
+      permission_metas: '权限码元信息列表（数据来自数据库，非 .cache JSON）',
       permission_requests: '权限申请记录列表',
-      rbac: '角色权限配置（roles + userRoles）',
+      rbac: '角色权限配置（roles + userRoles，数据来自数据库，非 .cache JSON）',
       api_categories: 'API 接口分类',
       message_templates: '消息模板列表',
       month_config: '月份配置',
       greetings: '节日祝福语（数据量大，建议用 keyword 过滤）',
       daily_data: '每日数据缓存（需指定 date 参数）',
       api_response: 'API 响应缓存（需指定 filename 或用 list 模式）',
-      users: '用户数据（含管理员标识、首次/最近登录时间）',
+      users: '用户数据（含管理员标识、首次/最近登录时间，数据来自数据库，非 .cache JSON）',
       daemon_sent_state: '守护进程各类提醒的最近发送日期',
     },
   },
@@ -100,6 +102,19 @@ const handleSimpleCacheFile = (target: string, fileName: string): ToolResult => 
     data,
     summary: summaryMap[target] ?? `缓存文件：${fileName}`,
   };
+};
+
+/** 处理已迁库的 target：直接读数据库，不再读 .cache 下的 JSON 文件 */
+const handleDbCacheTarget = async (target: string): Promise<ToolResult> => {
+  let data: unknown;
+  if (target === 'permission_metas') {
+    data = await readPermissionMetas();
+  } else if (target === 'rbac') {
+    data = await readRbacConfig();
+  } else {
+    data = (await readUsers()).users;
+  }
+  return { ok: true, data, summary: '数据来自数据库' };
 };
 
 /** 处理 greetings（支持 keyword 过滤 + limit） */
@@ -169,16 +184,16 @@ const handleApiResponse = (filenameArg: unknown): ToolResult => {
 };
 
 /** target → handler 映射表（消除 if-else 分支） */
-const CACHE_HANDLER_MAP: Record<string, (args: Record<string, unknown>, keyword: string, limitNum: number) => ToolResult> = {
+const CACHE_HANDLER_MAP: Record<string, (args: Record<string, unknown>, keyword: string, limitNum: number) => ToolResult | Promise<ToolResult>> = {
   // 简单 JSON 文件读取（直接从映射表读取）
   holiday: () => handleSimpleCacheFile('holiday', SIMPLE_CACHE_FILE_MAP.holiday),
-  permission_metas: () => handleSimpleCacheFile('permission_metas', SIMPLE_CACHE_FILE_MAP.permission_metas),
+  permission_metas: () => handleDbCacheTarget('permission_metas'),
   permission_requests: () => handleSimpleCacheFile('permission_requests', SIMPLE_CACHE_FILE_MAP.permission_requests),
-  rbac: () => handleSimpleCacheFile('rbac', SIMPLE_CACHE_FILE_MAP.rbac),
+  rbac: () => handleDbCacheTarget('rbac'),
   api_categories: () => handleSimpleCacheFile('api_categories', SIMPLE_CACHE_FILE_MAP.api_categories),
   message_templates: () => handleSimpleCacheFile('message_templates', SIMPLE_CACHE_FILE_MAP.message_templates),
   month_config: () => handleSimpleCacheFile('month_config', SIMPLE_CACHE_FILE_MAP.month_config),
-  users: () => handleSimpleCacheFile('users', SIMPLE_CACHE_FILE_MAP.users),
+  users: () => handleDbCacheTarget('users'),
   daemon_sent_state: () => handleSimpleCacheFile('daemon_sent_state', SIMPLE_CACHE_FILE_MAP.daemon_sent_state),
   // 特殊处理逻辑
   greetings: (_args, keyword, limitNum) => handleGreetings(keyword, limitNum),
@@ -240,7 +255,7 @@ export const queryCacheTool: ToolImpl = {
     // 从映射表获取处理函数并执行
     const handler = CACHE_HANDLER_MAP[target];
     if (handler) {
-      return handler(args, keyword, limitNum);
+      return await handler(args, keyword, limitNum);
     }
 
     return { ok: false, data: `target="${target}" 未实现` };

@@ -303,10 +303,10 @@ const ADMIN_LIKE_PERMISSIONS = ['rbac:view', 'rbac:edit'];
 /**
  * 获取 AI 运行统计
  * @route GET /stats?days=7&scope=me|all
- * @description 数据源为 .cache/ai-traces/*.jsonl（每次 /send 追加一行）；
+ * @description 数据源为 hp_ai_run_traces（每次 /send 落一条记录）；
  *   scope=all 需要管理员权限，否则静默降级为 me，不让普通用户探测他人用量。
  */
-router.get('/stats', (req: Request, res: Response) => {
+router.get('/stats', async (req: Request, res: Response) => {
   const { email, permissions } = getUser(req);
   if (!email) {
     return returnResponse(res, ErrorCode.UNAUTHORIZED, {}, '未识别到用户身份');
@@ -318,7 +318,7 @@ router.get('/stats', (req: Request, res: Response) => {
 
   const to = Date.now();
   const from = to - days * 24 * 60 * 60 * 1000;
-  const traces = listRunTraces({
+  const traces = await listRunTraces({
     user: scope === 'all' ? undefined : email,
     from,
     to,

@@ -90,7 +90,7 @@ export const handleIncomingMessage = async (
   }
 
   const isAdmin = isAdminEmail(email);
-  const permissions = getUserPermissionsByEmail(email, isAdmin);
+  const permissions = await getUserPermissionsByEmail(email, isAdmin);
   const context: ToolContext = { userEmail: email, userPermissions: permissions };
 
   const allowSideEffects = (process.env.AI_CHAT_WEBHOOK_ALLOW_SIDE_EFFECTS ?? '').trim() === 'true';

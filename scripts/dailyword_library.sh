@@ -12,7 +12,6 @@
 #
 #     .cache/dailyword_library.json
 #     {
-#       "description": "每日一词历史沉淀（金山词霸每日英语 + 一言语录），只增不删",
 #       "updated_at": "2026-10-14",
 #       "entries": {
 #         "2026-05-12": {"english": "...", "chinese": "...", "quote": "...", "from": "..."},
@@ -40,6 +39,8 @@
 #   6. 残缺数据不入库：quote / english / chinese 任一为空直接跳过
 #      （2026-10-28 起 open.iciba.com/dsapi/ 失效，取数兜底曾把只有 quote
 #       的 JSON 沉淀进来，导致历史库连续多天空英文）
+#   7. 顶层只保留 updated_at / entries：description 之类说明文字属于元信息，
+#      同步到 hp_cache_* 表会多出一行无用记录，不写入缓存文件
 #
 # 使用方式：
 #   source "${PROJECT_DIR}/dailyword_library.sh"
@@ -51,7 +52,7 @@
 #   - scripts/daily_data_manager/prefetch.sh   凌晨预取（早安播报）
 #
 # 作者：智能提醒系统
-# 更新：2026-11-06
+# 更新：2026-11-28
 # ======================================
 
 # 历史库文件路径（依赖 project_config.sh 导出的 CACHE_DIR，未加载时按脚本位置兜底）
@@ -93,6 +94,10 @@ if os.path.isfile(lib_path) and os.path.getsize(lib_path) > 0:
             doc = json.load(f)
         if not isinstance(doc, dict) or not isinstance(doc.get('entries'), dict):
             doc = None
+        else:
+            # 早期版本把说明文字存成顶层 description，同步到 hp_cache_* 表时
+            # 会多出一条无用的描述行；读到旧库顺手清掉
+            doc.pop('description', None)
     except Exception:
         doc = None
     # 库读不出来（写一半被中断 / 手工改坏）时，先另存一份再重建：
@@ -106,7 +111,6 @@ if os.path.isfile(lib_path) and os.path.getsize(lib_path) > 0:
 
 if doc is None:
     doc = {
-        'description': '每日一词历史沉淀（金山词霸每日英语 + 一言语录），按天去重，只增不删',
         'updated_at': today,
         'entries': {},
     }

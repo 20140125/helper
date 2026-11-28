@@ -1,4 +1,5 @@
 import type { ChatMessage, ToolDefinition } from '@/types/ai-chat';
+import { describeFetchError } from '@/utils/ai-model-config-test';
 import { getLlmConfigForModel } from './config';
 import { isContentPartArray } from '../content';
 
@@ -164,12 +165,12 @@ export const requestChatCompletion = async (
       if (attempt < MAX_RETRIES) {
         retriesUsed += 1;
         const delayMs = RETRY_BASE_DELAY_MS * 2 ** attempt;
-        console.warn(`[llm] 网络异常，${delayMs}ms 后发起第 ${retriesUsed}/${MAX_RETRIES} 次重试：${lastError.message}`);
+        console.warn(`[llm] 网络异常，${delayMs}ms 后发起第 ${retriesUsed}/${MAX_RETRIES} 次重试：${describeFetchError(lastError)}`);
         onRetry?.(retriesUsed, delayMs, 'network');
         await sleep(delayMs, signal);
         continue;
       }
-      throw new Error(`网络异常，已自动重试 ${retriesUsed} 次仍未成功。${lastError.message}`);
+      throw new Error(`网络异常，已自动重试 ${retriesUsed} 次仍未成功。${describeFetchError(lastError)}`);
     }
 
     if (resp.ok) {
@@ -221,5 +222,5 @@ export const requestChatCompletion = async (
     }
     throw error;
   }
-  throw new Error(`已自动重试 ${retriesUsed} 次仍未成功。${lastError?.message ?? '未知错误'}`);
+  throw new Error(`已自动重试 ${retriesUsed} 次仍未成功。${lastError ? describeFetchError(lastError) : '未知错误'}`);
 };

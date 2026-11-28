@@ -1,76 +1,61 @@
 #!/bin/bash
 
 # ======================================
-# 日志清理模块
+# 日志清理模块（数据库版）
 # ======================================
 #
 # 功能说明：
-#   1. 交互式清空所有日志文件
-#   2. 非交互式批量清空（供 Web/脚本调用）
+#   1. 交互式清空全部日志记录
+#   2. 非交互式按保留天数删除过期记录（供定时调度调用）
 #
 # 作者：智能提醒系统
-# 更新：2026-03-24
+# 更新：2026-11-28
 # ======================================
 
 # 清空所有日志（交互式）
 clean_logs() {
+    _log_db_check || return 1
+
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${YELLOW}    🧹 清空所有日志文件${NC}"
+    echo -e "${YELLOW}    🧹 清空 hp_run_logs 全部记录${NC}"
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    
-    read -p "确定要清空所有日志文件吗？(y/N) " -n 1 -r
+
+    read -r -p "确定要清空所有日志记录吗？此操作不可恢复 (y/N) " -n 1
     echo ""
-    
+
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        while IFS= read -r -d '' log_file; do
-            > "$log_file"
-            echo -e "${GREEN}✅ 已清空: ${log_file#${LOG_DIR}/}${NC}"
-        done < <(find "${LOG_DIR}" -type f -name "*.log" -print0)
-        echo ""
-        echo -e "${GREEN}✅ 所有日志已清空${NC}"
+        local removed
+        removed=$(log_db_query "DELETE FROM hp_run_logs; SELECT ROW_COUNT();" | tail -1)
+        echo -e "${GREEN}✅ 已删除 ${removed:-0} 条日志记录${NC}"
     else
         echo -e "${YELLOW}⚠️  操作已取消${NC}"
     fi
 }
 
-# 非交互式批量清空所有日志
-# 适用于 Web 界面触发或脚本调用
+# 非交互式清理：按 LOG_RETENTION_DAYS 删除过期记录
+# 适用于年度调度器定时调用（替代原先「清空所有 .log 文件」）
 force_clean_logs() {
-    # 加载日志工具以记录操作本身
-    LOG_FILE="${LOG_DIR}/view_logs.log"
-    source "${SCRIPT_DIR}/log_utils.sh" 2>/dev/null
-
     log_info "======================================"
-    log_info "🧹 清除所有日志记录脚本启动"
+    log_info "🧹 日志保留期清理启动"
     log_info "📅 当前时间: $(date '+%Y-%m-%d %H:%M:%S')"
+    log_info "🗓️  保留天数: ${LOG_RETENTION_DAYS:-15}"
     log_info "======================================"
 
-    local cleared_count=0
-    local failed_count=0
-
-    # 递归查找 LOG_DIR 及其所有子目录（如 tools/、update-tools/）下的 .log 文件
-    while IFS= read -r -d '' log_file; do
-        # 展示用的相对路径，方便辨识子目录下的日志
-        local rel_path="${log_file#${LOG_DIR}/}"
-        # 跳过自身日志文件，避免清空后立即写入导致的竞争
-        if [ "$log_file" = "$LOG_FILE" ]; then
-            continue
-        fi
-        if > "$log_file" 2>/dev/null; then
-            log_success "已清空: ${rel_path}"
-            cleared_count=$((cleared_count + 1))
-        else
-            log_error "清空失败: ${rel_path}"
-            failed_count=$((failed_count + 1))
-        fi
-    done < <(find "${LOG_DIR}" -type f -name "*.log" -print0)
-
-    log_info "======================================"
-    if [ "$failed_count" -eq 0 ]; then
-        log_success "清除完成，共清空 ${cleared_count} 个日志文件"
-    else
-        log_warning "清除完成，成功 ${cleared_count} 个，失败 ${failed_count} 个"
+    if ! log_db_available; then
+        log_error "日志数据库不可用，跳过本次清理（检查 web/.env 的 DB_* 与 mysql 客户端）"
+        return 1
     fi
+
+    local days="${LOG_RETENTION_DAYS:-15}"
+    case "$days" in
+        ''|*[!0-9]*) days=15 ;;
+    esac
+
+    local removed
+    removed=$(log_db_query "DELETE FROM hp_run_logs WHERE logged_at < DATE_SUB(NOW(), INTERVAL ${days} DAY); SELECT ROW_COUNT();" | tail -1)
+    removed=${removed:-0}
+
+    log_success "清理完成，共删除 ${removed} 条过期日志记录"
     log_info "======================================"
 }

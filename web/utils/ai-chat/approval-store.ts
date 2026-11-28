@@ -225,7 +225,7 @@ export const executeApproval = async (
   }
 
   const isAdmin = isAdminEmail(operator);
-  const permissions: string[] = getUserPermissionsByEmail(operator, isAdmin);
+  const permissions: string[] = await getUserPermissionsByEmail(operator, isAdmin);
   const required = tool.requiredPermissions ?? [];
   if (required.length > 0 && !required.some((p) => permissions.includes(p))) {
     return reject(`审批人权限不足（需 ${required.join(' 或 ')}）`);

@@ -55,7 +55,9 @@ export {
 } from '@/utils/cache';
 
 export {
-  codeStore,
+  saveAuthCode,
+  getAuthCode,
+  consumeAuthCode,
   getAuthTargetEmail,
   getAuthMailFromName,
   createMailTransporter,
@@ -64,16 +66,26 @@ export {
   signJwt,
   verifyJwt,
   readUsers,
-  writeUsers,
   recordUserLogin,
   setAuthCookie,
   clearAuthCookie,
   buildAuthCodeMailHtml,
 } from '@/utils/auth';
-export { PLAYGROUND_TEMPLATES_FILE, type TemplateData } from '@/types/playground';
 export {
-  readTemplates,
-  writeTemplates,
+  DEFAULT_AUTH_CODE_KEY,
+  ensureEnvConfigSeed,
+  readEnvConfigMap,
+  upsertEnvConfig,
+  getDefaultAuthCode,
+} from '@/utils/env-config';
+export { ensureRbacSchema } from '@/utils/rbac/db';
+export { type TemplateData, type PlaygroundTemplateInput } from '@/types/playground';
+export {
+  listTemplates,
+  getTemplateById,
+  createTemplate,
+  updateTemplateFields,
+  deleteTemplateById,
   parseAndValidateFields,
 } from '@/utils/playground';
 export { runDaemonScript } from '@/utils/daemon';
@@ -107,6 +119,16 @@ export {
   readLogTail,
   clearLogFile,
 } from '@/utils/logs';
+export {
+  insertRunLog,
+  flushRunLogs,
+  getLogRetentionDays,
+  listRunLogSources,
+  readRunLogRows,
+  renderRunLogRows,
+  clearRunLogs,
+  purgeExpiredRunLogs,
+} from '@/utils/run-log';
 export { notifyAllWebhooks } from '@/utils/wecom-notify';
 export { getOsRelease, getMemoryInfo, getDiskInfo, getSystemUptime, readDaemonPidInfo, readAnnualPid } from '@/utils/system';
 export { handleFileUpload } from '@/utils/upload';
@@ -251,8 +273,9 @@ export {
   handleGenerativeModel,
   isGenerativeModel,
   appendRunTrace,
+  flushRunTraces,
   listRunTraces,
-  pruneTraceFiles,
+  pruneRunTraces,
   summarizeTraces,
   runInspection,
   buildInspectionPrompt,
@@ -316,3 +339,7 @@ export {
   getDocContentBytes,
   resolveKnowledgeDirPaths,
 } from '@/utils/knowledge';
+
+// 首页首屏聚合
+export type { BootstrapData, BootstrapDataKey, SystemStatusSnapshot } from '@/types/bootstrap';
+export { getSystemStatus, buildBootstrapData, parseBootstrapOnly } from '@/utils/bootstrap';

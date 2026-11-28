@@ -14,7 +14,7 @@
     <!-- 中间内容 -->
     <div class="side-list-item__body">
       <p class="side-list-item__title">{{ title }}</p>
-      <p class="side-list-item__meta">
+      <p v-if="size !== undefined || mtime || meta || $slots.meta" class="side-list-item__meta">
         <slot name="meta">
           <span v-if="size !== undefined">{{ formatSize(size) }}</span>
           <span v-if="size !== undefined && mtime"> · </span>
@@ -68,6 +68,8 @@ defineEmits<{
   display: flex;
   align-items: center;
   gap: 10px;
+  box-sizing: border-box;
+  height: auto;
   padding: 12px 16px;
   cursor: pointer;
   border-bottom: 1px solid var(--border-color);
@@ -108,6 +110,7 @@ defineEmits<{
 }
 
 .side-list-item__title {
+  margin: 0;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
@@ -117,9 +120,9 @@ defineEmits<{
 }
 
 .side-list-item__meta {
+  margin: 2px 0 0;
   font-size: 11px;
   color: var(--text-muted);
-  margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

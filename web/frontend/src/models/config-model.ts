@@ -198,6 +198,7 @@ export class ConfigModel extends BaseModel {
     MAIL_ENCRYPTION: 'ssl',
     MAIL_FROM_ADDRESS: '',
     MAIL_FROM_NAME: '',
+    DEFAULT_AUTH_CODE: '',
   });
 
   /**
@@ -425,7 +426,20 @@ export class ConfigModel extends BaseModel {
    * @returns {AutoFormField[]} 从 JSON 模板增强后的字段配置
    */
   private get mailFields(): AutoFormField[] {
-    return this.getEnhancedFields('config-mail');
+    const fields = this.getEnhancedFields('config-mail');
+    // 运行时模板可能尚未同步新字段，兜底注入，保证默认验证码始终可配置
+    if (fields.some((field) => field.name === 'DEFAULT_AUTH_CODE')) return fields;
+    const fallback = enhanceFields([{
+      name: 'DEFAULT_AUTH_CODE',
+      label: '$t:playground.schema.defaultAuthCodeLabel',
+      type: 'input',
+      placeholder: '$t:playground.schema.defaultAuthCodePlaceholder',
+      help: '$t:playground.schema.defaultAuthCodeHelp',
+      clearable: true,
+      maxlength: 6,
+      rules: [{ pattern: '^[0-9]{0,6}$', message: '$t:playground.schema.defaultAuthCodePattern', trigger: 'blur' }],
+    }], this.configHandlers);
+    return [...fields, ...fallback];
   }
 
   /**
@@ -673,6 +687,7 @@ export class ConfigModel extends BaseModel {
       MAIL_ENCRYPTION: config.MAIL_ENCRYPTION ?? 'ssl',
       MAIL_FROM_ADDRESS: config.MAIL_FROM_ADDRESS ?? '',
       MAIL_FROM_NAME: config.MAIL_FROM_NAME ?? '',
+      DEFAULT_AUTH_CODE: config.DEFAULT_AUTH_CODE ?? '',
     };
 
     // 长期记忆与单价表已下沉到每个模型配置组，由 /api/ai-model-configs 单独加载
@@ -749,6 +764,7 @@ export class ConfigModel extends BaseModel {
       MAIL_ENCRYPTION: String(mail.MAIL_ENCRYPTION ?? ''),
       MAIL_FROM_ADDRESS: String(mail.MAIL_FROM_ADDRESS ?? ''),
       MAIL_FROM_NAME: String(mail.MAIL_FROM_NAME ?? ''),
+      DEFAULT_AUTH_CODE: String(mail.DEFAULT_AUTH_CODE ?? ''),
       AI_INSPECTOR_ENABLED: inspector.AI_INSPECTOR_ENABLED ? 'true' : 'false',
       AI_INSPECTOR_TIME: String(inspector.AI_INSPECTOR_TIME ?? ''),
       AI_INSPECTOR_SCHEDULE: String(inspector.AI_INSPECTOR_SCHEDULE ?? ''),

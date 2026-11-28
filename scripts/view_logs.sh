@@ -5,32 +5,32 @@
 # ======================================
 #
 # 功能说明：
-#   1. 快速查看和分析系统各模块日志
-#   2. 支持按模块筛选（天气、生日、节假日等）
+#   1. 快速查看和分析 hp_run_logs 里的系统日志
+#   2. 支持按来源筛选（天气、生日、节假日等）
 #   3. 支持按日志级别过滤（INFO/SUCCESS/WARNING/ERROR）
-#   4. 支持实时跟踪日志输出（tail -f 模式）
-#   5. 提供日志统计和清理功能
+#   4. 支持实时跟踪新日志（轮询数据库）
+#   5. 提供日志统计和按保留天数清理
 #
 # 使用方式：
 #   bash view_logs.sh              # 显示帮助信息
-#   bash view_logs.sh all          # 查看所有日志
-#   bash view_logs.sh errors       # 查看所有错误日志
-#   bash view_logs.sh <模块名>     # 查看指定模块日志
-#   bash view_logs.sh follow       # 实时跟踪日志
-#   bash view_logs.sh clean        # 交互式清理日志
+#   bash view_logs.sh list         # 列出所有日志来源
+#   bash view_logs.sh error        # 查看最近错误日志
+#   bash view_logs.sh view <来源>  # 查看指定来源日志
+#   bash view_logs.sh tail <来源>  # 实时跟踪日志
+#   bash view_logs.sh clean        # 交互式清空日志
 #
-# 说明：非交互式批量清空（force_clean_logs）不再作为子命令暴露——
-#   它由 annual_scheduler.sh 直接 source view_logs/log_cleaner.sh 后定时调用（清项目下所有 .log）；
-#   日常清日志走「运行日志页 / 贾维斯 manage_logs」（只清已注册的日志），两者范围不同。
+# 说明：日志唯一真源是 hp_run_logs，本工具不再读取/清空任何 .log 文件。
+#   非交互式按保留期清理（force_clean_logs）不作为子命令暴露，
+#   由 annual_scheduler.sh 定时 source view_logs/log_cleaner.sh 后调用。
 #
 # 模块拆分：
-#   view_logs/log_config.sh    - 帮助信息与日志路径映射
+#   view_logs/log_config.sh    - 帮助信息与来源映射
 #   view_logs/log_viewer.sh    - 日志查看/筛选/跟踪
 #   view_logs/log_reporter.sh  - 日志统计与报告生成
 #   view_logs/log_cleaner.sh   - 日志清理功能
 #
 # 作者：智能提醒系统
-# 更新：2026-03-24
+# 更新：2026-11-28
 # ======================================
 
 # 颜色定义
@@ -44,9 +44,6 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/project_config.sh"
 source "${SCRIPT_DIR}/log_utils.sh"
-
-# 日志目录
-LOG_DIR="${PROJECT_DIR}"
 
 # ======================================
 # 加载子模块

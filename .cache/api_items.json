@@ -82,7 +82,7 @@
     "name": "发送验证码",
     "method": "POST",
     "path": "/api/auth/send-code",
-    "description": "生成6位验证码并通过 SMTP 发送到用户邮箱，验证码5分钟内有效",
+    "description": "生成6位验证码写入 hp_verification_codes 并通过 SMTP 发送，5分钟内有效；配置默认验证码的超管跳过邮件",
     "enabled": true,
     "created_at": "2026-04-17 02:47:00",
     "updated_at": "2026-04-17 02:47:00"
@@ -92,8 +92,8 @@
     "category_id": "cat_auth",
     "name": "邮箱验证码登录",
     "method": "POST",
-    "path": "/api/auth/login",
-    "description": "校验邮箱验证码，验证通过后签发 JWT Token",
+    "path": "/api/auth/verify-code",
+    "description": "校验 hp_verification_codes 中的验证码（或系统默认验证码），通过后签发 JWT 并把用户写入 hp_users",
     "enabled": true,
     "created_at": "2026-04-17 02:47:00",
     "updated_at": "2026-04-17 02:47:00"
@@ -115,7 +115,7 @@
     "name": "获取管理员联系邮箱",
     "method": "GET",
     "path": "/api/auth/admin-contact",
-    "description": "返回超级管理员的邮箱地址，供无权限页面展示联系方式（公开接口，无需鉴权）",
+    "description": "返回超级管理员邮箱（开发模式附带默认验证码），供无权限页面展示联系方式（公开接口，无需鉴权）",
     "enabled": true,
     "created_at": "2026-04-17 02:47:00",
     "updated_at": "2026-04-17 02:47:00"
@@ -126,7 +126,7 @@
     "name": "获取配置",
     "method": "GET",
     "path": "/api/config",
-    "description": "读取 scripts/.env 文件中的所有配置项，并附加 PROJECT_DIR",
+    "description": "读取 web/.env 与 hp_env_config 合并后的配置项，并附加 PROJECT_DIR",
     "enabled": true,
     "created_at": "2026-04-17 02:47:00",
     "updated_at": "2026-04-17 02:47:00"
@@ -137,7 +137,7 @@
     "name": "更新配置",
     "method": "POST",
     "path": "/api/config",
-    "description": "更新 scripts/.env 文件中的配置项，禁止修改系统环境变量",
+    "description": "更新配置：hp_env_config 登记项写库立即生效，其余写 web/.env，禁止修改系统环境变量",
     "enabled": true,
     "created_at": "2026-04-17 02:47:00",
     "updated_at": "2026-04-17 02:47:00"
@@ -346,7 +346,7 @@
     "name": "获取模板列表",
     "method": "GET",
     "path": "/api/playground",
-    "description": "获取 playground-templates.json 中的全部模板列表",
+    "description": "获取 hp_playground_templates 中的全部模板列表",
     "enabled": true,
     "created_at": "2026-04-17 02:47:00",
     "updated_at": "2026-04-17 02:47:00"
@@ -1285,5 +1285,16 @@
     "enabled": true,
     "created_at": "2026-11-28 00:37:16",
     "updated_at": "2026-11-28 00:37:16"
+  },
+  {
+    "item_key": "api_bootstrap_get",
+    "category_id": "cat_system",
+    "name": "获取首页首屏聚合数据",
+    "method": "GET",
+    "path": "/api/bootstrap",
+    "description": "合并系统状态、Web 服务状态、规则列表与日志来源列表的首屏数据，按权限逐块裁剪",
+    "enabled": true,
+    "created_at": "2026-11-28 11:09:57",
+    "updated_at": "2026-11-28 11:09:57"
   }
 ]

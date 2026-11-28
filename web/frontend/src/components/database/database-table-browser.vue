@@ -24,7 +24,6 @@
           :active="selectedTable === table.name"
           icon="server"
           :title="table.name"
-          :meta="metaText(table)"
           @click="emit('select', table.name)"
         />
       </div>
@@ -127,7 +126,7 @@ import type {
   SqlExecution,
 } from '@/types/database';
 
-const props = defineProps<{
+defineProps<{
   /** i18n 文案集合 */
   t: Locale;
   /** 过滤后的表清单 */
@@ -164,13 +163,6 @@ const keywordModel = defineModel<string>('keyword', { required: true });
 
 /** 右侧详情标签页（v-model:tab，Vue 3.4+ defineModel 语法糖） */
 const tabModel = defineModel<string>('tab', { required: true });
-
-const metaText = (table: DatabaseTable): string => {
-  const kind = table.type === 'view'
-    ? props.t.database.tableTypeView
-    : props.t.database.tableTypeTable;
-  return `${kind} · ${props.t.database.rowCount(table.rows)}`;
-};
 </script>
 
 <style scoped>
@@ -181,20 +173,58 @@ const metaText = (table: DatabaseTable): string => {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   gap: 16px;
-  min-height: 480px;
+  align-items: stretch;
+}
+
+/* 右侧详情卡：不设任何高度，字段/预览/DDL 切换时的内容高度即为整行高度 */
+.db-browser-main {
+  min-width: 0;
+}
+
+/* 左侧列表卡：跟随右侧等高。
+   grid 自动行高取两列 max-content 的较大值，min-height: 0 压不住长列表对行高的贡献，
+   用 contain: size + height: 0 把左列从行高计算中摘出去，再由 min-height: 100% 拉伸到右侧定下的行高 */
+.db-browser-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 0;
+  min-height: 100%;
+  contain: size;
+  overflow: hidden;
+}
+
+.db-browser-list :deep(.card-header) {
+  flex-shrink: 0;
+}
+
+.db-browser-list :deep(.card-body) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.db-browser-list :deep(.t-input) {
+  flex-shrink: 0;
+}
+
+.db-browser-list :deep(.empty-tip) {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .t-tab-panel {
   padding: 16px;
 }
 
-.db-browser-list,
-.db-browser-main {
-  min-width: 0;
-}
-
+/* 表清单吃掉剩余高度，超出部分在卡片内部滚动 */
 .db-table-list {
-  max-height: 380px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   margin-top: 10px;
 }
@@ -229,6 +259,23 @@ const metaText = (table: DatabaseTable): string => {
 @media (max-width: 900px) {
   .db-browser {
     grid-template-columns: 1fr;
+  }
+
+  /* 单列时没有右侧可跟随：解除 contain/0 高度，列表改回限高滚动 */
+  .db-browser-list {
+    display: block;
+    height: auto;
+    min-height: 0;
+    contain: none;
+  }
+
+  .db-browser-list :deep(.card-body) {
+    display: block;
+    overflow: visible;
+  }
+
+  .db-table-list {
+    max-height: min(380px, 50vh);
   }
 }
 </style>

@@ -78,7 +78,7 @@ render_skill_text() {
     fi
 
     local content
-    content=$(bash "${SCRIPT_DIR}/custom_rules/skill_text_llm.sh" "$key" 2>>"$LOG_FILE")
+    content=$(bash "${SCRIPT_DIR}/custom_rules/skill_text_llm.sh" "$key")
     if [ $? -ne 0 ] || [ -z "$content" ]; then
         log_error "技能 [${key}] LLM 排版失败或结果为空"
         return 1

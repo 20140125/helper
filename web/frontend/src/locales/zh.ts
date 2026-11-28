@@ -336,9 +336,6 @@ export const zh = {
     tableSearchPlaceholder: '搜索表名',
     noTables: '当前库暂无表或视图',
     noTableSelected: '请从左侧选择一张表',
-    tableTypeTable: '表',
-    tableTypeView: '视图',
-    rowCount: (n: number) => `约 ${n} 行`,
     tabSchema: '字段结构',
     tabRows: '数据预览',
     tabDdl: '建表语句',
@@ -373,8 +370,10 @@ export const zh = {
     affectedRows: (n: number) => `影响 ${n} 行`,
     scriptsTitle: '建表脚本',
     scriptsCount: (n: number) => `${n} 个 SQL 文件`,
+    scriptSearchPlaceholder: '搜索脚本路径或模块',
     scriptEntry: '入口',
     noScripts: '未找到建表脚本',
+    noMatchingScripts: '没有匹配的脚本',
     scriptPreviewTitle: '脚本内容',
     scriptSelectHint: '选择一个脚本查看内容',
     initHeader: '初始化数据库（高危）',
@@ -652,7 +651,7 @@ export const zh = {
     copyFailedManual: '复制失败，请手动复制',
     loadTemplateListFailed: '加载模板列表失败',
 
-    // ──────────────── 业务模板 schema 文案（供 playground-templates.json $t: 引用） ────────────────
+    // ──────────────── 业务模板 schema 文案（供 hp_playground_templates 的 $t: 引用） ────────────────
     schema: {
       // —— 内置模板 Tab 名称 ——
       tplLabelWeather: '天气服务',
@@ -769,6 +768,10 @@ export const zh = {
       mailFromNameLabel: '发件人名称',
       mailFromNamePlaceholder: '例如：龙哥',
       mailFromNameRequired: '发件人名称不能为空',
+      defaultAuthCodeLabel: '默认验证码',
+      defaultAuthCodePlaceholder: '留空关闭，仅超管邮箱可用',
+      defaultAuthCodeHelp: '存于数据库配置表，保存后立即生效；仅超级管理员邮箱可用',
+      defaultAuthCodePattern: '请输入最多 6 位数字，留空表示关闭',
 
       // —— AI 模型与记忆（已下沉到每个模型配置组）——
       configAiLabel: 'AI 模型与记忆',
@@ -1292,7 +1295,7 @@ export const zh = {
   // ──────────────── AI 成本看板 ai-cost 相关 ────────────────
   aiCost: {
     pageTitle: 'AI 成本看板',
-    subtitle: '基于 .cache/ai-traces 运行追踪，统计 Token 成本、响应延迟与工具失败率',
+    subtitle: '基于 hp_ai_run_traces 运行追踪，统计 Token 成本、响应延迟与工具失败率',
     scopeMe: '仅看自己',
     scopeAll: '看全量',
     refresh: '刷新',

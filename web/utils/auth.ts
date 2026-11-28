@@ -1,19 +1,64 @@
 import fs from 'fs';
 import type { Response } from 'express';
+import type { RowDataPacket } from 'mysql2';
 import nodemailer from 'nodemailer';
 import jwt from 'jsonwebtoken';
 import type { CodeRecord, JwtPayload, UserRecord, UsersStore } from '@/types/auth';
 import { formatDate } from './script';
 import { PROJECT_DIR, CACHE_DIR } from './paths';
-/** 已登录用户存储文件路径 */
+import { getPool } from '@/utils/database/connection';
+import { readUsersFromDb, upsertUserLogin } from '@/utils/rbac/db';
+
+/** 已登录用户 JSON 快照路径（数据库不可用时的降级数据） */
 const USERS_FILE = `${PROJECT_DIR}/.cache/users.json`;
 
 // ==============================
-// 验证码工具
+// 邮箱验证码（数据库 hp_verification_codes 为唯一真源）
 // ==============================
 
-/** 验证码内存存储（key 为邮箱地址） */
-export const codeStore = new Map<string, CodeRecord>();
+/**
+ * 保存邮箱验证码
+ * @param {string} email - 用户邮箱
+ * @param {string} code - 验证码
+ * @param {number} expiresAt - 过期时间戳（毫秒）
+ * @returns {Promise<void>}
+ * @description 同一邮箱只保留最新一条有效记录，并顺带清理全表过期记录
+ */
+export const saveAuthCode = async (email: string, code: string, expiresAt: number): Promise<void> => {
+  const pool = getPool();
+  await pool.execute('DELETE FROM hp_verification_codes WHERE email = ? OR expires_at < NOW()', [email]);
+  await pool.execute(
+    'INSERT INTO hp_verification_codes (email, code, expires_at, used) VALUES (?, ?, ?, 0)',
+    [email, code, new Date(expiresAt)],
+  );
+};
+
+/**
+ * 读取邮箱最近一条未使用的验证码
+ * @param {string} email - 用户邮箱
+ * @returns {Promise<CodeRecord | null>} 验证码记录，不存在时返回 null
+ */
+export const getAuthCode = async (email: string): Promise<CodeRecord | null> => {
+  const [rows] = await getPool().query<RowDataPacket[]>(
+    'SELECT code, expires_at FROM hp_verification_codes WHERE email = ? AND used = 0 ORDER BY id DESC LIMIT 1',
+    [email],
+  );
+  if (rows.length === 0) return null;
+  return { code: String(rows[0].code), expiresAt: new Date(rows[0].expires_at as string).getTime() };
+};
+
+/**
+ * 消费邮箱验证码（标记为已使用）
+ * @param {string} email - 用户邮箱
+ * @returns {Promise<void>}
+ */
+export const consumeAuthCode = async (email: string): Promise<void> => {
+  await getPool().execute('UPDATE hp_verification_codes SET used = 1 WHERE email = ? AND used = 0', [email]);
+};
+
+// ==============================
+// 邮件工具
+// ==============================
 
 /**
  * 获取目标邮箱地址（发送和接收均为同一邮箱，也作为发件人地址）
@@ -32,12 +77,12 @@ export const getAuthMailFromName = (): string => process.env.MAIL_FROM_NAME ?? '
  * @returns {nodemailer.Transporter} 邮件传输器实例
  */
 export const createMailTransporter = (): nodemailer.Transporter => nodemailer.createTransport({
-    host: process.env.MAIL_HOST ?? 'smtp.qq.com',
-    port: Number(process.env.MAIL_PORT ?? 465),
-    secure: (process.env.MAIL_ENCRYPTION ?? 'ssl') === 'ssl',
+  host: process.env.MAIL_HOST ?? 'smtp.qq.com',
+  port: Number(process.env.MAIL_PORT ?? 465),
+  secure: (process.env.MAIL_ENCRYPTION ?? 'ssl') === 'ssl',
   auth: {
-      user: process.env.MAIL_USERNAME ?? '',
-      pass: process.env.MAIL_PASSWORD ?? '',
+    user: process.env.MAIL_USERNAME ?? '',
+    pass: process.env.MAIL_PASSWORD ?? '',
   },
 });
 
@@ -89,17 +134,15 @@ export const verifyJwt = (token: string): JwtPayload | null => {
 };
 
 // ==============================
-// 用户存储文件读写
+// 用户登录记录（数据库 hp_users 为唯一真源）
 // ==============================
 
 /**
- * 读取已登录用户列表
+ * 读取本地用户快照
  * @returns {UsersStore} 用户存储数据
  */
-export const readUsers = (): UsersStore => {
-  if (!fs.existsSync(USERS_FILE)) {
-    return { users: [] };
-  }
+const readLegacyUsers = (): UsersStore => {
+  if (!fs.existsSync(USERS_FILE)) return { users: [] };
   try {
     return JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8')) as UsersStore;
   } catch {
@@ -108,22 +151,22 @@ export const readUsers = (): UsersStore => {
 };
 
 /**
- * 写入用户存储数据
+ * 写入本地用户快照
  * @param {UsersStore} store - 用户存储数据
+ * @returns {void}
  */
-export const writeUsers = (store: UsersStore): void => {
-  if (!fs.existsSync(CACHE_DIR)) {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
-  }
+const writeLegacyUsers = (store: UsersStore): void => {
+  if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
   fs.writeFileSync(USERS_FILE, JSON.stringify(store, null, 2), 'utf-8');
 };
 
 /**
- * 记录用户登录信息（新用户写入，老用户更新最近登录时间和管理员状态）
+ * 在本地快照中记录用户登录
  * @param {string} email - 用户邮箱
+ * @returns {void}
  */
-export const recordUserLogin = (email: string): void => {
-  const store = readUsers();
+const recordLegacyUserLogin = (email: string): void => {
+  const store = readLegacyUsers();
   const now = formatDate();
   const isAdmin = isAdminEmail(email);
   const existing = store.users.find((u) => u.email === email);
@@ -134,7 +177,35 @@ export const recordUserLogin = (email: string): void => {
     const newUser: UserRecord = { email, isAdmin, firstLoginAt: now, lastLoginAt: now };
     store.users.push(newUser);
   }
-  writeUsers(store);
+  writeLegacyUsers(store);
+};
+
+/**
+ * 读取已登录用户列表
+ * @returns {Promise<UsersStore>} 用户存储数据
+ * @description 优先查库；数据库不可用时降级读取本地 JSON 快照
+ */
+export const readUsers = async (): Promise<UsersStore> => {
+  try {
+    return await readUsersFromDb();
+  } catch (err) {
+    console.warn('[auth] 读取 hp_users 失败，回退 JSON：', (err as Error).message);
+    return readLegacyUsers();
+  }
+};
+
+/**
+ * 记录用户登录信息
+ * @param {string} email - 用户邮箱
+ * @returns {Promise<void>}
+ */
+export const recordUserLogin = async (email: string): Promise<void> => {
+  try {
+    await upsertUserLogin(email, isAdminEmail(email));
+  } catch (err) {
+    console.warn('[auth] 写入 hp_users 失败，回退 JSON：', (err as Error).message);
+    recordLegacyUserLogin(email);
+  }
 };
 
 // ==============================

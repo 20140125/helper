@@ -14,6 +14,7 @@ DROP TABLE IF EXISTS `hp_webhooks`;
 DROP TABLE IF EXISTS `hp_roles`;
 DROP TABLE IF EXISTS `hp_permissions`;
 DROP TABLE IF EXISTS `hp_users`;
+DROP TABLE IF EXISTS `hp_env_config`;
 DROP TABLE IF EXISTS `hp_holiday_data`;
 DROP TABLE IF EXISTS `hp_month_config`;
 DROP TABLE IF EXISTS `hp_daemon_sent_state`;

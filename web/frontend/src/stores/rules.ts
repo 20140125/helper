@@ -17,11 +17,6 @@ export class RulesStore {
   public loading = ref(false);
 
   // ==============================
-  // 私有变量（不导出）
-  // ==============================
-  private pollingTimer: ReturnType<typeof setInterval> | null = null;
-
-  // ==============================
   // 依赖注入
   // ==============================
   private ruleService: RuleService = new RuleService();
@@ -51,11 +46,21 @@ export class RulesStore {
    * @returns {Promise<void>}
    * @description 从服务端获取规则数据并更新状态；有缓存时默认复用，避免重复请求
    */
+  /**
+   * 用聚合接口的规则列表填充状态
+   * @param {Rule[]} rules - 规则列表
+   * @returns {void}
+   * @description 供 /api/bootstrap 首屏分发使用，与 fetchRules 共用同一份响应式数据
+   */
+  hydrateRules = (rules: Rule[]): void => {
+    this.rules.value = rules;
+  }
+
   fetchRules = async (force = false): Promise<void> => {    if (!force && this.rules.value.length > 0) return;
     this.loading.value = true;
     try {
       const { data: { rules } } = await this.ruleService.fetchRules();
-      this.rules.value = rules;
+      this.hydrateRules(rules);
     } catch {
       // 请求失败时保持原有数据，不阻塞页面
     } finally {
@@ -137,27 +142,6 @@ export class RulesStore {
     return data;
   }
 
-  /**
-   * 开始轮询规则状态
-   * @param {number} interval - 轮询间隔（毫秒），默认30000
-   * @returns {void}
-   */
-  startPolling = (interval: number = 30000): void => {
-    this.fetchRules(true);
-    if (this.pollingTimer !== null) return;
-    this.pollingTimer = setInterval(() => this.fetchRules(true), interval);
-  }
-
-  /**
-   * 停止轮询规则状态
-   * @returns {void}
-   */
-  stopPolling = (): void => {
-    if (this.pollingTimer !== null) {
-      clearInterval(this.pollingTimer);
-      this.pollingTimer = null;
-    }
-  }
 }
 
 /**

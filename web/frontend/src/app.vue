@@ -55,9 +55,9 @@
           @reorder="handleTabReorder"
         />
 
-        <!-- 页面内容 -->
+        <!-- 页面内容：未登录时不挂载页面组件，避免登录弹框遮罩下仍向后端发出业务请求 -->
         <t-content class="page-content">
-          <router-view :key="authStore.routerViewKey" />
+          <router-view v-if="authStore.isLoggedIn" :key="authStore.routerViewKey" />
         </t-content>
 
         <!--
@@ -73,8 +73,8 @@
         <back-to-top :t="t" />
         <!-- 页内锚点导航（由 page-anchor 内部 collectAnchors 检测） -->
         <page-anchor :t="t" />
-        <!-- AI 助手悬浮按钮 + 抽屉（鉴权后才渲染） -->
-        <ai-chat-launcher />
+        <!-- AI 助手悬浮按钮 + 抽屉（登录后渲染；未唤起时不发起任何 AI 请求） -->
+        <ai-chat-launcher v-if="authStore.isLoggedIn" />
       </t-layout>
     </t-layout>
 

@@ -7,13 +7,23 @@
  * 当主 Web 服务（9527）停止时，前端可通过此进程重新启动主服务
  */
 import fs from 'fs';
+import path from 'path';
+import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 
 import { setupTimestampLogger } from '@/utils/logger';
+import { flushRunLogs } from '@/utils/run-log';
 import { LAUNCHER_PID_FILE } from '@/types/web-service';
 import { ensureRuntimeDir } from '@/utils/runtime';
 import launcherRouter from '@/routes/launcher';
+
+// 启动器是独立进程，需自己加载 DB_* 才能把 console 日志写入 hp_run_logs
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ path: path.resolve(__dirname, '../scripts/.env') });
+
+// 与主服务区分来源：启动器的 console 日志写 hp_run_logs(source='web_launcher')
+process.env.LOG_CONSOLE_SOURCE = 'web_launcher';
 
 setupTimestampLogger();
 
@@ -53,7 +63,8 @@ const cleanup = () => {
   } catch {
     // 忽略
   }
-  process.exit(0);
+  // 退出前排空在途日志写入，避免最后几条丢失
+  void flushRunLogs().finally(() => process.exit(0));
 };
 
 process.on('SIGTERM', cleanup);

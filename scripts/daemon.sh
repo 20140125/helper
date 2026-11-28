@@ -23,11 +23,11 @@ source "${SCRIPT_DIR}/project_config.sh"
 
 DAEMON_SCRIPT="${SCRIPT_DIR}/reminder_daemon.sh"
 PID_FILE="${SCRIPT_DIR}/reminder_daemon.pid"
-LOG_FILE="${PROJECT_DIR}/reminder_daemon.log"
+# LOG_FILE 仅作为日志来源标识（不再指向文件）；守护进程日志统一入库
+LOG_FILE="${PROJECT_DIR}/daemon.log"
 
 ANNUAL_SCRIPT="${SCRIPT_DIR}/annual_scheduler.sh"
 ANNUAL_PID_FILE="${SCRIPT_DIR}/annual_scheduler.pid"
-ANNUAL_LOG_FILE="${PROJECT_DIR}/annual_scheduler.log"
 
 # 引入统一日志工具
 source "${PROJECT_DIR}/log_utils.sh"
@@ -113,7 +113,8 @@ start_daemon() {
     return 1
   fi
 
-  nohup bash "$DAEMON_SCRIPT" >> "$LOG_FILE" 2>/dev/null &
+  # 子进程自己通过 log_utils.sh 入库；这里丢弃 stdio，避免 nohup 生成 nohup.out
+  nohup bash "$DAEMON_SCRIPT" > /dev/null 2>&1 &
   local pid=$!
   # 等待子进程写入自己的 PID 文件（启动时可能有多实例清理，需要较长时间）
   for i in $(seq 1 8); do
@@ -161,7 +162,7 @@ start_annual() {
     return 1
   fi
 
-  nohup bash "$ANNUAL_SCRIPT" >> "$ANNUAL_LOG_FILE" 2>/dev/null &
+  nohup bash "$ANNUAL_SCRIPT" > /dev/null 2>&1 &
   local pid=$!
   # 等待子进程写入自己的 PID 文件（启动时可能有多实例清理，需要较长时间）
   for i in $(seq 1 8); do

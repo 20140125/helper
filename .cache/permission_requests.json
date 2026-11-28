@@ -101,6 +101,14 @@
       "created_at": "2026-04-16 15:45:00",
       "resolvedAt": "2026/4/16 16:58:48",
       "resolvedBy": "redacted3@example.com"
+    },
+    {
+      "request_id": "pr_1795837936655",
+      "email": "loveqin0125@foxmail.com",
+      "fromPath": "/database",
+      "reason": "",
+      "status": "pending",
+      "created_at": "2026-11-28 11:52:16"
     }
   ]
 }

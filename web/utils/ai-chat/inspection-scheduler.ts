@@ -1,9 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
+import type { RowDataPacket } from 'mysql2';
+import { getPool } from '@/utils/database/connection';
 import { getUserPermissionsByEmail } from '@/utils/rbac';
 import { isAdminEmail } from '@/utils/auth';
-import { RUNTIME_DIR, SCRIPTS_DIR, WEB_DIR } from '@/utils/paths';
+import { SCRIPTS_DIR, WEB_DIR } from '@/utils/paths';
 import { runInspection, type InspectionResult } from './inspection';
 import { isValidCron, matchCron } from './cron';
 
@@ -14,7 +16,7 @@ import { isValidCron, matchCron } from './cron';
  *   而 Web 进程本来就是长驻的、且已经持有工具与 RBAC 能力，放在这里最省事。
  *
  *   相比初版补齐的四件事：
- *   1. 运行标记落盘（web/.runtime/ai-inspector-state.json），Web 重启不再重复巡检；
+ *   1. 运行标记入库（hp_ai_inspection_state 的 scheduler 行），Web 重启不再重复巡检；
  *   2. 到点判定改为「时间窗」而非「精确相等」，定时器漂移不会整天漏跑，
  *      服务晚启动也能在补跑窗口内补一次（AI_INSPECTOR_CATCHUP_MINUTES）；
  *   3. 每分钟重读 .env 的 AI_INSPECTOR_* 键，改配置不用重启 Web；
@@ -80,8 +82,12 @@ const INSPECTOR_ENV_KEYS = [
   'AI_INSPECTOR_MAX_FAILS',
 ];
 
-/** 运行标记落盘位置 */
-const STATE_FILE = path.join(RUNTIME_DIR, 'ai-inspector-state.json');
+/** 当前状态行的来源标识（hp_ai_inspection_state.source_file 唯一键） */
+const STATE_SOURCE = 'scheduler';
+
+/** 当前状态行的查询列 */
+const STATE_COLUMNS = 'SELECT last_run_date, last_run_minute, last_run_at, last_status, last_error, '
+  + 'last_summary, fail_count, last_result FROM hp_ai_inspection_state';
 
 /** 定时器间隔（ms） */
 const TICK_MS = 60_000;
@@ -117,7 +123,7 @@ export interface InspectionRunRecord {
   manual: boolean;
 }
 
-/** 落盘的运行标记 */
+/** 入库的运行标记 */
 interface PersistedState {
   /** 最近一次成功执行的本地日期（YYYY-MM-DD，每日一次模式去重） */
   lastRunDate: string;
@@ -148,11 +154,14 @@ const DEFAULT_PERSISTED: PersistedState = {
   lastResult: null,
 };
 
-/** 内存状态：落盘字段 + 执行中标记 */
+/** 内存状态：持久化字段 + 执行中标记 */
 const state: PersistedState & { running: boolean } = {
   ...DEFAULT_PERSISTED,
   running: false,
 };
+
+/** 状态恢复 Promise：tick 在它完成前不判断是否巡检，避免重启后重复跑 */
+let stateReady: Promise<void> = Promise.resolve();
 
 /** 是否已经打印过「未启用」提示（避免每分钟刷屏） */
 let disabledLogged = false;
@@ -160,26 +169,53 @@ let disabledLogged = false;
 /** 上一次生效的启用状态（用于检测配置变化并打印日志） */
 let lastEnabled: boolean | null = null;
 
+/** hp_ai_inspection_state 中 scheduler 行的字段 */
+interface InspectionStateRow {
+  last_run_date: string | null;
+  last_run_minute: string | null;
+  last_run_at: string | null;
+  last_status: string | null;
+  last_error: string | null;
+  last_summary: string | null;
+  fail_count: number;
+  last_result: InspectionRunRecord | string | null;
+}
+
 /**
- * 读取落盘的运行标记
- * @returns {PersistedState} 运行标记；文件缺失或损坏时返回默认值
- * @description 只在进程启动时读一次；之后由内存态维护并写回，避免每次 tick 都碰磁盘。
+ * 解析库里的 last_result JSON 列
+ * @param {unknown} raw - mysql2 返回值（通常已是对象，兼容字符串形态）
+ * @returns {InspectionRunRecord | null} 最近一次巡检产出
  */
-const loadPersistedState = (): PersistedState => {
+const parseLastResult = (raw: unknown): InspectionRunRecord | null => {
+  if (!raw) return null;
+  const value = typeof raw === 'string' ? JSON.parse(raw) as InspectionRunRecord : raw as InspectionRunRecord;
+  return typeof value === 'object' && value !== null ? value : null;
+};
+
+/**
+ * 读取数据库中的运行标记
+ * @returns {Promise<PersistedState>} 运行标记；无记录或读取失败时返回默认值
+ * @description 只在进程启动时读一次；之后由内存态维护并写回，避免每次 tick 都查库。
+ */
+export const loadPersistedState = async (): Promise<PersistedState> => {
   try {
-    if (!fs.existsSync(STATE_FILE)) return { ...DEFAULT_PERSISTED };
-    const raw = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8')) as Partial<PersistedState>;
+    const [rows] = await getPool().query<RowDataPacket[]>(
+      `${STATE_COLUMNS} WHERE source_file = ? LIMIT 1`,
+      [STATE_SOURCE],
+    );
+    const row = (rows as InspectionStateRow[])[0];
+    if (!row) return { ...DEFAULT_PERSISTED };
     return {
-      lastRunDate: typeof raw.lastRunDate === 'string' ? raw.lastRunDate : '',
-      lastRunMinute: typeof raw.lastRunMinute === 'string' ? raw.lastRunMinute : '',
-      lastRunAt: typeof raw.lastRunAt === 'string' ? raw.lastRunAt : '',
-      lastStatus: raw.lastStatus === 'ok' || raw.lastStatus === 'fail' ? raw.lastStatus : 'idle',
-      lastError: typeof raw.lastError === 'string' ? raw.lastError : '',
-      lastSummary: typeof raw.lastSummary === 'string' ? raw.lastSummary : '',
-      failCount: Number.isInteger(raw.failCount) && (raw.failCount as number) >= 0
-        ? (raw.failCount as number)
+      lastRunDate: typeof row.last_run_date === 'string' ? row.last_run_date : '',
+      lastRunMinute: typeof row.last_run_minute === 'string' ? row.last_run_minute : '',
+      lastRunAt: typeof row.last_run_at === 'string' ? row.last_run_at : '',
+      lastStatus: row.last_status === 'ok' || row.last_status === 'fail' ? row.last_status : 'idle',
+      lastError: typeof row.last_error === 'string' ? row.last_error : '',
+      lastSummary: typeof row.last_summary === 'string' ? row.last_summary : '',
+      failCount: Number.isInteger(row.fail_count) && Number(row.fail_count) >= 0
+        ? Number(row.fail_count)
         : 0,
-      lastResult: raw.lastResult && typeof raw.lastResult === 'object' ? (raw.lastResult as InspectionRunRecord) : null,
+      lastResult: parseLastResult(row.last_result),
     };
   } catch (err) {
     console.warn(`[ai-inspect] 读取运行标记失败，按未执行处理：${(err as Error).message}`);
@@ -188,24 +224,37 @@ const loadPersistedState = (): PersistedState => {
 };
 
 /**
- * 写回运行标记
- * @returns {void}
- * @description 落盘失败只告警不抛出：它只影响「重启后是否重复跑」，不该拖垮巡检本身。
+ * 写回运行标记到数据库
+ * @param {PersistedState} [persisted] - 要保存的状态，默认取内存态
+ * @returns {Promise<void>}
+ * @description 以 source_file='scheduler' 做 UPSERT；写库失败只告警不抛出，
+ *   它只影响「重启后是否重复跑」，不该拖垮巡检本身。
  */
-const savePersistedState = (): void => {
+export const savePersistedState = async (persisted: PersistedState = state): Promise<void> => {
   try {
-    fs.mkdirSync(RUNTIME_DIR, { recursive: true });
     const {
       lastRunDate, lastRunMinute, lastRunAt, lastStatus, lastError, lastSummary, failCount, lastResult,
-    } = state;
-    fs.writeFileSync(
-      STATE_FILE,
-      JSON.stringify(
-        { lastRunDate, lastRunMinute, lastRunAt, lastStatus, lastError, lastSummary, failCount, lastResult },
-        null,
-        2,
-      ),
-      'utf-8',
+    } = persisted;
+    const r = lastResult;
+    await getPool().execute(
+      'INSERT INTO hp_ai_inspection_state '
+      + '(source_file, last_run_date, last_run_minute, last_run_at, last_status, last_error, last_summary, '
+      + 'fail_count, report, duration_ms, total_tokens, tool_calls, pushed, run_at, manual, last_result) '
+      + 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
+      + 'ON DUPLICATE KEY UPDATE '
+      + 'last_run_date = VALUES(last_run_date), last_run_minute = VALUES(last_run_minute), '
+      + 'last_run_at = VALUES(last_run_at), last_status = VALUES(last_status), '
+      + 'last_error = VALUES(last_error), last_summary = VALUES(last_summary), '
+      + 'fail_count = VALUES(fail_count), report = VALUES(report), '
+      + 'duration_ms = VALUES(duration_ms), total_tokens = VALUES(total_tokens), '
+      + 'tool_calls = VALUES(tool_calls), pushed = VALUES(pushed), run_at = VALUES(run_at), '
+      + 'manual = VALUES(manual), last_result = VALUES(last_result)',
+      [
+        STATE_SOURCE, lastRunDate, lastRunMinute, lastRunAt, lastStatus, lastError, lastSummary, failCount,
+        r ? r.report : null, r ? r.duration_ms : 0, r ? r.total_tokens : 0, r ? r.tool_calls : 0,
+        r && r.pushed ? 1 : 0, r ? r.run_at : null, r && r.manual ? 1 : 0,
+        r ? JSON.stringify(r) : null,
+      ],
     );
   } catch (err) {
     console.warn(`[ai-inspect] 写入运行标记失败：${(err as Error).message}`);
@@ -364,7 +413,7 @@ const runOnce = async (
   const today = localDateKey(now);
   try {
     const isAdmin = isAdminEmail(config.email);
-    const permissions = getUserPermissionsByEmail(config.email, isAdmin);
+    const permissions = await getUserPermissionsByEmail(config.email, isAdmin);
     console.log(`[ai-inspect] 开始${options.manual ? '手动' : '定时'}巡检（身份 ${config.email}）`);
     const result = await runInspection({
       userEmail: config.email,
@@ -401,7 +450,7 @@ const runOnce = async (
       state.lastSummary = '';
       console.warn(`[ai-inspect] 巡检未产出简报：${state.lastError}（当日第 ${state.failCount} 次）`);
     }
-    savePersistedState();
+    await savePersistedState();
     return result;
   } catch (err) {
     state.lastRunAt = new Date().toISOString();
@@ -409,7 +458,7 @@ const runOnce = async (
     state.lastError = (err as Error).message;
     state.failCount += 1;
     state.lastSummary = '';
-    savePersistedState();
+    await savePersistedState();
     console.warn(`[ai-inspect] 巡检失败：${state.lastError}（当日第 ${state.failCount} 次）`);
     throw err;
   } finally {
@@ -477,17 +526,17 @@ export const getInspectorStatus = (): InspectorStatus => {
 /**
  * 跨天重置失败计数
  * @param {Date} now - 当前时间
- * @returns {void}
+ * @returns {Promise<void>}
  * @description 昨天的失败不该占用今天的重试额度，否则一次限流会让巡检永久停摆。
  */
-const resetIfNewDay = (now: Date): void => {
+const resetIfNewDay = async (now: Date): Promise<void> => {
   if (!state.lastRunAt || state.failCount === 0) return;
   if (localDateKey(new Date(state.lastRunAt)) === localDateKey(now)) return;
   state.failCount = 0;
   state.lastError = '';
   state.lastSummary = '';
   if (state.lastStatus === 'fail') state.lastStatus = 'idle';
-  savePersistedState();
+  await savePersistedState();
 };
 
 /**
@@ -495,9 +544,10 @@ const resetIfNewDay = (now: Date): void => {
  * @returns {Promise<void>}
  */
 const tick = async (): Promise<void> => {
+  await stateReady;
   reloadInspectorEnv();
   const config = readInspectorConfig();
-  resetIfNewDay(new Date());
+  await resetIfNewDay(new Date());
 
   if (!config.enabled) {
     if (!disabledLogged) {
@@ -526,7 +576,7 @@ const tick = async (): Promise<void> => {
   try {
     await runOnce(config);
   } catch {
-    // 失败细节已在 runOnce 内记日志并落盘，这里只吞掉异常避免定时器崩掉
+    // 失败细节已在 runOnce 内记日志并入库，这里只吞掉异常避免定时器崩掉
   }
 };
 
@@ -538,10 +588,16 @@ const tick = async (): Promise<void> => {
  *   未启用的常态开销只有「读一个文件 + 几次字符串比较」。
  */
 export const startInspectionScheduler = (): (() => void) => {
-  Object.assign(state, loadPersistedState());
-  if (state.lastRunAt) {
-    console.log(`[ai-inspect] 已恢复上次运行标记：${state.lastRunAt}（${state.lastStatus}）`);
-  }
+  stateReady = loadPersistedState()
+    .then((persisted) => {
+      Object.assign(state, persisted);
+      if (state.lastRunAt) {
+        console.log(`[ai-inspect] 已恢复上次运行标记：${state.lastRunAt}（${state.lastStatus}）`);
+      }
+    })
+    .catch((err: Error) => {
+      console.warn(`[ai-inspect] 恢复运行标记失败：${err.message}`);
+    });
 
   const timer = setInterval(() => void tick(), TICK_MS);
   // 不阻止进程退出：巡检是附属能力，不该把事件循环钉住

@@ -3,7 +3,7 @@ import { ref, computed, nextTick } from 'vue';
 import { AuthService } from '@/services/auth-service';
 import { usePermissionStore } from '@/stores/permission';
 import { useLocaleStore } from '@/stores/locale';
-import { AUTH_STORAGE_KEY } from '@/constants/auth';
+import { AUTH_SESSION_ACTIVE_KEY, AUTH_STORAGE_KEY } from '@/constants/auth';
 
 /**
  * 鉴权全局 Store 类
@@ -57,6 +57,13 @@ export class AuthStore {
 
   private authService: AuthService = new AuthService();
 
+  /**
+   * 登出请求的在途 Promise
+   * @type {Promise<void> | null}
+   * @description 并发调用 logout 时复用同一个请求，保证一次登出只发一次 /auth/logout
+   */
+  private logoutInFlight: Promise<void> | null = null;
+
   // ==============================
   // 计算属性
   // ==============================
@@ -74,18 +81,26 @@ export class AuthStore {
   /**
    * 初始化：从 localStorage 读取 token 并向后端校验有效性
    * @returns {Promise<void>}
-   * @description 页面加载时调用，防止用户篡改 localStorage 绕过登录
+   * @description 页面加载时调用，防止用户篡改 localStorage 绕过登录；
+   *   仅在曾登录过（AUTH_SESSION_ACTIVE_KEY 存在）且无 token / token 失效时才同步清除服务端 Cookie，
+   *   避免未登录状态下每次刷新都重复发起 /auth/logout
    */
   init = async (): Promise<void> => {
     this.checking.value = true;
     try {
       const token = localStorage.getItem(AUTH_STORAGE_KEY);
       if (!token) {
-        this.isLoggedIn.value = false;
+        // 后端可能仍持有有效的 auth_token Cookie（HttpOnly，前端 JS 无法删除），
+        // 但只在「曾登录过」时清一次；登出后标记已移除，刷新页面不再重复登出。
+        if (localStorage.getItem(AUTH_SESSION_ACTIVE_KEY)) {
+          await this.logout();
+        }
         return;
       }
       const { code, data } = await this.authService.verifyToken(token);
       if (code === 0) {
+        // verify-token 会刷新服务端 Cookie，置位标记以便日后本地 token 丢失时同步清除一次
+        localStorage.setItem(AUTH_SESSION_ACTIVE_KEY, '1');
         this.isLoggedIn.value = true;
         this.isAdmin.value = data.isAdmin ?? false;
         this.email.value = data.email ?? '';
@@ -94,14 +109,11 @@ export class AuthStore {
         const permissionStore = usePermissionStore();
         permissionStore.setPermissions(data.permissions ?? []);
       } else {
-      // token 无效，清除本地存储
-        localStorage.removeItem(AUTH_STORAGE_KEY);
-        this.isLoggedIn.value = false;
-        this.email.value = '';
-        this.roleId.value = '';
+        // token 无效：清本地存储的同时清掉服务端 Cookie，避免 Cookie 继续为未登录页面兜底鉴权
+        await this.logout();
       }
     } catch {
-      // 网络异常等情况，清除本地存储，要求重新登录
+      // 网络异常等情况，清除本地存储，要求重新登录（后端不可达时不强清 Cookie）
       localStorage.removeItem(AUTH_STORAGE_KEY);
       this.isLoggedIn.value = false;
       this.isAdmin.value = false;
@@ -141,8 +153,9 @@ export class AuthStore {
     try {
       const { code: resCode, data: resData, message } = await this.authService.verifyCode(email, code);
       if (resCode === 0 && resData.token) {
-        // 登录成功，持久化 JWT Token
+        // 登录成功，持久化 JWT Token，并标记后端已下发鉴权 Cookie
         localStorage.setItem(AUTH_STORAGE_KEY, resData.token);
+        localStorage.setItem(AUTH_SESSION_ACTIVE_KEY, '1');
         this.isLoggedIn.value = true;
         this.isAdmin.value = resData.isAdmin ?? false;
         this.email.value = email;
@@ -168,21 +181,33 @@ export class AuthStore {
   /**
    * 退出登录
    * @returns {Promise<void>}
-   * @description 通知后端清除鉴权 Cookie，并清除本地登录状态
+   * @description 通知后端清除鉴权 Cookie，并清除本地登录状态；
+   *   并发调用共用同一个在途请求，保证只发一次 /auth/logout
    */
   logout = async (): Promise<void> => {
+    if (this.logoutInFlight) return this.logoutInFlight;
+    const task = (async (): Promise<void> => {
+      try {
+        await this.authService.logout();
+      } catch {
+        // 网络异常等情况忽略，仍然清空本地状态
+      }
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      // 标记已清除，后续刷新页面不会再重复发起登出
+      localStorage.removeItem(AUTH_SESSION_ACTIVE_KEY);
+      this.isLoggedIn.value = false;
+      this.isAdmin.value = false;
+      this.email.value = '';
+      this.roleId.value = '';
+      const permissionStore = usePermissionStore();
+      permissionStore.clearPermissions();
+    })();
+    this.logoutInFlight = task;
     try {
-      await this.authService.logout();
-    } catch {
-      // 网络异常等情况忽略，仍然清空本地状态
+      await task;
+    } finally {
+      this.logoutInFlight = null;
     }
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    this.isLoggedIn.value = false;
-    this.isAdmin.value = false;
-    this.email.value = '';
-    this.roleId.value = '';
-    const permissionStore = usePermissionStore();
-    permissionStore.clearPermissions();
   };
 }
 

@@ -14,6 +14,7 @@ export const KNOWN_KEYS: string[] = [
   'BIRTHDAY_ADVANCE_DAYS',
   'BIRTHDAY_SEND_ON_BIRTHDAY',
   'BIRTHDAY_REMINDER_TIME',
+  'DEFAULT_AUTH_CODE',
 ];
 
 export const BIRTHDAY_KEYS: string[] = [

@@ -2,30 +2,27 @@ import fs from 'fs';
 import { Permission } from '@/types/permission';
 import type { RbacConfig } from '@/types/rbac';
 import { formatDate } from '@/utils/script';
-import { PROJECT_DIR, CACHE_DIR } from '@/utils/paths';
+import { PROJECT_DIR } from '@/utils/paths';
 import { readAllPermissionCodes } from './permission-meta';
+import { readRbacConfigFromDb, writeRbacConfigToDb } from './db';
 
-/** RBAC 配置文件路径 */
+/** RBAC 配置 JSON 快照路径（数据库不可用时的降级数据） */
 const RBAC_FILE = `${PROJECT_DIR}/.cache/rbac.json`;
-
-// ==============================
-// 内置角色 ID 列表（仅用于首次生成默认配置）
-// ==============================
 
 /** 内置角色 ID 集合，用于判断角色是否为内置角色 */
 const BUILTIN_ROLE_IDS = new Set(['super_admin', 'admin', 'viewer']);
 
 // ==============================
-// RBAC 配置文件读写
+// 默认配置与本地 JSON 降级
 // ==============================
 
 /**
  * 生成首次运行时的默认 RBAC 配置
- * @description 仅在 rbac.json 不存在或损坏时调用，后续权限完全以 JSON 文件为准
+ * @returns {Promise<RbacConfig>} 默认配置
  */
-const createDefaultConfig = (): RbacConfig => {
+const createDefaultConfig = async (): Promise<RbacConfig> => {
   const now = formatDate();
-  const allPermissions = readAllPermissionCodes() as Permission[];
+  const allPermissions = (await readAllPermissionCodes()) as Permission[];
   const viewPermissions = allPermissions.filter((p) => p.endsWith(':view'));
 
   return {
@@ -63,75 +60,66 @@ const createDefaultConfig = (): RbacConfig => {
 };
 
 /**
- * 读取 RBAC 配置
- * @returns RBAC 配置数据
- * @description 如果文件不存在则生成默认配置写入；文件存在时完全信任 JSON 内容，权限以 JSON 为准
+ * 读取本地 RBAC 配置快照
+ * @returns {Promise<RbacConfig>} RBAC 配置
  */
-export const readRbacConfig = (): RbacConfig => {
-  if (!fs.existsSync(RBAC_FILE)) {
-    const defaultConfig = createDefaultConfig();
-    writeRbacConfig(defaultConfig);
-    return defaultConfig;
-  }
+const readLegacyRbacConfig = async (): Promise<RbacConfig> => {
+  if (!fs.existsSync(RBAC_FILE)) return createDefaultConfig();
   try {
-    const config = JSON.parse(fs.readFileSync(RBAC_FILE, 'utf-8')) as RbacConfig;
-    // 仅确保内置角色 ID 存在（不会覆盖已有角色的权限配置）
-    return ensureBuiltinRoleIds(config);
+    return ensureBuiltinRoleIds(JSON.parse(fs.readFileSync(RBAC_FILE, 'utf-8')) as RbacConfig);
   } catch {
-    const defaultConfig = createDefaultConfig();
-    writeRbacConfig(defaultConfig);
-    return defaultConfig;
+    return createDefaultConfig();
+  }
+};
+
+/**
+ * 确保内置角色存在，并保证 super_admin 拥有全部权限
+ * @param {RbacConfig} config - 待校正的配置
+ * @returns {Promise<RbacConfig>} 校正后的配置
+ * @description 只在内存中校正；写库由显式管理接口完成，避免读请求触发写操作
+ */
+const ensureBuiltinRoleIds = async (config: RbacConfig): Promise<RbacConfig> => {
+  const defaultConfig = await createDefaultConfig();
+  const allPermissions = (await readAllPermissionCodes()) as Permission[];
+
+  for (const builtinId of BUILTIN_ROLE_IDS) {
+    const existing = config.roles.find((r) => r.id === builtinId);
+    if (!existing) {
+      const defaultRole = defaultConfig.roles.find((r) => r.id === builtinId)!;
+      config.roles.unshift(defaultRole);
+    } else {
+      existing.builtin = true;
+      if (builtinId === 'super_admin') {
+        existing.permissions = allPermissions;
+      }
+    }
+  }
+  return config;
+};
+
+// ==============================
+// RBAC 配置读写（数据库为唯一真源）
+// ==============================
+
+/**
+ * 读取 RBAC 配置
+ * @returns {Promise<RbacConfig>} RBAC 配置数据
+ * @description 优先查库；数据库不可用时降级读取本地 JSON 快照
+ */
+export const readRbacConfig = async (): Promise<RbacConfig> => {
+  try {
+    return await ensureBuiltinRoleIds(await readRbacConfigFromDb());
+  } catch (err) {
+    console.warn('[RBAC] 读取 hp_roles 失败，回退 JSON：', (err as Error).message);
+    return readLegacyRbacConfig();
   }
 };
 
 /**
  * 写入 RBAC 配置
- * @param config - RBAC 配置数据
+ * @param {RbacConfig} config - RBAC 配置数据
+ * @returns {Promise<void>}
  */
-export const writeRbacConfig = (config: RbacConfig): void => {
-  if (!fs.existsSync(CACHE_DIR)) {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
-  }
-  fs.writeFileSync(RBAC_FILE, JSON.stringify(config, null, 2), 'utf-8');
-};
-
-/**
- * 确保内置角色 ID 始终存在，并保证 super_admin 始终拥有全部权限
- * @description 仅在角色被意外删除时补回默认配置；super_admin 权限始终与最新权限码同步
- */
-const ensureBuiltinRoleIds = (config: RbacConfig): RbacConfig => {
-  const defaultConfig = createDefaultConfig();
-  const allPermissions = readAllPermissionCodes() as Permission[];
-  let changed = false;
-
-  for (const builtinId of BUILTIN_ROLE_IDS) {
-    const existing = config.roles.find((r) => r.id === builtinId);
-    if (!existing) {
-      // 角色被删除了，补回默认配置
-      const defaultRole = defaultConfig.roles.find((r) => r.id === builtinId)!;
-      config.roles.unshift(defaultRole);
-      changed = true;
-    } else {
-      if (!existing.builtin) {
-        // 确保 builtin 标记正确
-        existing.builtin = true;
-        changed = true;
-      }
-      // super_admin 始终拥有全部权限，自动同步新增的权限码
-      if (builtinId === 'super_admin') {
-        const currentCodes = new Set(existing.permissions);
-        const missingPermissions = allPermissions.filter((p) => !currentCodes.has(p));
-        if (missingPermissions.length > 0) {
-          existing.permissions = allPermissions;
-          existing.updated_at = formatDate();
-          changed = true;
-        }
-      }
-    }
-  }
-
-  if (changed) {
-    writeRbacConfig(config);
-  }
-  return config;
+export const writeRbacConfig = async (config: RbacConfig): Promise<void> => {
+  await writeRbacConfigToDb(config);
 };

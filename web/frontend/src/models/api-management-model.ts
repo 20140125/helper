@@ -250,7 +250,7 @@ export class ApiManagementModel extends BaseModel {
   /**
    * 表单字段配置
    * @type {ComputedRef<AutoFormField[]>}
-   * @description 从 playground-templates.json 读取并注入动态 handler 后的字段配置
+   * @description 从模板 Store 读取并注入动态 handler 后的字段配置（数据源 hp_playground_templates）
    */
   itemFormFields: ComputedRef<AutoFormField[]> = computed(() => {
     const playgroundStore = usePlaygroundStore();

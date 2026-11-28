@@ -14,6 +14,23 @@
 - 新增 `/api/database/*` 接口与 `database:view` / `database:edit` 权限码；权限元数据、RBAC、接口分类/条目及建表 SQL 镜像同步
 - 后端引入 `mysql2` 连接池；`web/.env.example` 补充 `DB_*` 配置段
 - 新增 `hp_run_logs` 运行日志表（`sql/logs/33_run_logs.sql`）：统一收录脚本、Web、接口访问、AI 等运行日志，并接入 `helper_database.sql` 初始化入口
+- **日志链路全面切到数据库**：`hp_run_logs` 成为全系统日志唯一落点，不再写任何日志文件
+  - shell 侧新增 `scripts/log_db.sh`，`log_utils.sh` 的 `log_info/success/warning/error` 在输出 stderr 的同时直接 INSERT；`LOG_FILE` 退化为来源标识
+  - Web 侧新增 `web/utils/run-log/`（写入 / 查询 / 保留期清理），`access-log/rotation.ts` 不再 `appendFileSync`，console 与 HTTP 访问日志直接入库；启动器独立进程也接入
+  - AI 运行追踪改写入 `hp_ai_run_traces`，不再生成 `.cache/ai-traces/*.jsonl`
+  - 日志查看页、`/api/logs`、贾维斯 `query_logs` / `manage_logs`、`scripts/view_logs.sh` 全部改为查询/删除库记录
+  - `daemon.sh` / `start_web.sh` / `web-service.ts` / 年度调度器去掉所有日志文件重定向；清理改为按 `LOG_RETENTION_DAYS`（默认 15 天）删除过期记录
+  - 新增 `LOG_RETENTION_DAYS` 配置（`web/.env` / `.env.example`）；文档与 SQL 注释同步
+- 新增 `hp_playground_templates` 表（`sql/playground/34_playground_templates.sql`）：将 21 个表单模板全量入库（`fields` 按 JSON 原文整列保存），并接入 `helper_database.sql` 初始化入口
+- **Playground 模板读写切到数据库**：`hp_playground_templates` 成为唯一真源，`web/utils/playground.ts` 改为 mysql2 查询/增删改，`/api/playground` 5 个接口改为异步；迁移完成后删除原 JSON 数据文件与 `web/data/` 目录，初始数据固化在 34 号建表脚本中
+- **贾维斯巡检状态入库**：`hp_ai_inspection_state` 新增 `last_result` JSON 列与 `source_file` 唯一键，2 份历史报告与当前状态（含 11-28 最新简报）全量入库；`inspection-scheduler.ts` 运行标记改为查库 / UPSERT，删除 `web/.runtime/ai-inspector-state*`；`launcher.pid` 等进程文件保留
+- **登录与 RBAC 全量接入数据库**：验证码落 `hp_verification_codes`、登录用户 UPSERT 到 `hp_users`；权限元信息 / 角色 / 角色权限 / 用户角色以 `hp_permissions`、`hp_roles`、`hp_role_permissions`、`hp_user_roles` 为唯一真源
+  - `/api/auth/*`、`/api/rbac/*`、JWT 中间件、贾维斯 `manage_rbac` / `query_rbac` / `query_cache` 全部改为异步查库；数据库不可用时降级读取 `.cache/*.json` 快照
+  - `hp_permissions` 补 `type` / `route` 列并在 03 号建表脚本固化 70 条种子；启动时自动补列并用旧快照回填；`/api/cache` 禁止直接覆盖已迁库的三个保留文件
+- **默认验证码改为系统配置项**：删除硬编码 `DEV_ADMIN_CODE` 与 `NODE_ENV` 门控，新增 `DEFAULT_AUTH_CODE` 存入 `hp_env_config`
+  - 「系统配置 → 邮件配置」卡片可编辑（留空关闭，仅 `MAIL_USERNAME` 超管邮箱可用，保存后立即生效）；`/api/config` 改为 `web/.env` + 数据库混合真源，数据库项优先
+  - 公开接口 `GET /api/auth/admin-contact` 仅开发模式回显该验证码，生产环境不泄露；登录页预填逻辑同步改名
+  - `sql/config/32_env_config.sql` 加种子、`sql/01_drop_tables.sql` 补 DROP、`sql/playground/34_playground_templates.sql` 的 `config-mail` 模板加字段；接口元数据与 `22_api_items.sql` 镜像同步
 
 ---
 

@@ -6,20 +6,22 @@
     :disable-anchor="true"
   >
     <template #actions>
-      <t-button variant="outline" size="large" :loading="pageLoading" @click="refreshAll">
-        <template #icon><t-icon name="refresh" /></template>
-        {{ t.database.refreshAll }}
-      </t-button>
-      <t-button
-        v-if="canEdit()"
-        theme="danger"
-        variant="outline"
-        size="large"
-        @click="openInitDrawer"
-      >
-        <template #icon><t-icon name="refresh" /></template>
-        {{ t.database.initBtn }}
-      </t-button>
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <t-button variant="outline" size="large" :loading="pageLoading" @click="refreshAll">
+          <template #icon><t-icon name="refresh" /></template>
+          {{ t.database.refreshAll }}
+        </t-button>
+        <t-button
+          v-if="canEdit()"
+          theme="danger"
+          variant="outline"
+          size="large"
+          @click="openInitDrawer"
+        >
+          <template #icon><t-icon name="refresh" /></template>
+          {{ t.database.initBtn }}
+        </t-button>
+      </div>
     </template>
 
     <database-status-card
@@ -60,8 +62,9 @@
     />
 
     <database-scripts-panel
+      v-model:keyword="scriptKeyword"
       :t="t"
-      :scripts="scripts"
+      :scripts="filteredScripts"
       :selected-script="selectedScript"
       :content="scriptContent"
       @select="selectScript"
@@ -112,7 +115,8 @@ const {
   running,
   queryColumns,
   queryRows,
-  scripts,
+  filteredScripts,
+  scriptKeyword,
   selectedScript,
   scriptContent,
   initDrawerVisible,

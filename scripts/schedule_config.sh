@@ -27,8 +27,9 @@
 #   SCHED_ANNUAL_POLL_SECONDS=60     年度调度器主循环节拍（秒）
 #   SCHED_ANNUAL_UPDATE_DATE=12-31   年度数据更新（MM-DD，留空停用）
 #   SCHED_ANNUAL_UPDATE_TIME=23:59
-#   SCHED_LOG_CLEAN_DAYS=01,15       日志清理（每月哪几号，逗号分隔）
+#   SCHED_LOG_CLEAN_DAYS=01,15       日志保留期清理（每月哪几号，逗号分隔）
 #   SCHED_LOG_CLEAN_TIME=00:01
+#   LOG_RETENTION_DAYS=15            日志保留天数（由 log_db.sh 读取，非 SCHED_ 前缀）
 #
 # 使用方式（需先 source project_config.sh 拿到 ENV_FILE）：
 #   source "${PROJECT_DIR}/schedule_config.sh"

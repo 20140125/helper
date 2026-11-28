@@ -1,10 +1,13 @@
 import { Router, Request, Response } from 'express';
 import {
-  codeStore,
+  saveAuthCode,
+  getAuthCode,
+  consumeAuthCode,
   getAuthTargetEmail,
   getAuthMailFromName,
   createMailTransporter,
   generateAuthCode,
+  getDefaultAuthCode,
   signJwt,
   verifyJwt,
   recordUserLogin,
@@ -20,6 +23,9 @@ import {
 
 const router = Router();
 
+/** 验证码有效期（毫秒） */
+const AUTH_CODE_TTL_MS = 5 * 60 * 1000;
+
 // ==============================
 // POST /api/auth/send-code
 // 发送邮箱验证码
@@ -27,7 +33,8 @@ const router = Router();
 
 /**
  * POST /send-code
- * @description 生成6位验证码并通过 SMTP 发送到用户填写的邮箱，验证码5分钟内有效
+ * @description 生成6位验证码并落库，通过 SMTP 发送到用户填写的邮箱，验证码5分钟内有效；
+ *   系统配置了默认验证码且邮箱为超管时跳过邮件
  * @body {{ email: string }} 接收验证码的邮箱地址
  * @returns {{ ok: boolean; message: string }} 发送结果
  */
@@ -42,10 +49,14 @@ router.post('/send-code', async (req: Request, res: Response) => {
 
     const targetEmail = email.trim();
 
-    const code = generateAuthCode();
-    const expiresAt = Date.now() + 5 * 60 * 1000; // 5分钟有效期
+    // 系统配置里的默认验证码仅对超级管理员邮箱生效，命中时跳过 SMTP
+    const defaultCode = isAdminEmail(targetEmail) ? await getDefaultAuthCode() : '';
+    const code = defaultCode || generateAuthCode();
+    await saveAuthCode(targetEmail, code, Date.now() + AUTH_CODE_TTL_MS);
 
-    codeStore.set(targetEmail, { code, expiresAt });
+    if (defaultCode) {
+      return returnResponse(res, ErrorCode.SUCCESS, {}, '已启用系统默认验证码，无需发送邮件');
+    }
 
     const senderEmail = getAuthTargetEmail();
     const transporter = createMailTransporter();
@@ -71,11 +82,11 @@ router.post('/send-code', async (req: Request, res: Response) => {
 
 /**
  * POST /verify-code
- * @description 校验用户输入的验证码，验证通过后签发 JWT Token，并记录用户登录信息
+ * @description 校验落库验证码，验证通过后签发 JWT Token，并把登录用户写入 hp_users
  * @body {{ email: string; code: string }} 邮箱地址和用户输入的验证码
  * @returns {{ ok: boolean; message: string; token?: string }} 验证结果及 JWT Token
  */
-router.post('/verify-code', (req: Request, res: Response) => {
+router.post('/verify-code', async (req: Request, res: Response) => {
   const { email, code } = req.body as { email?: string; code?: string };
 
   if (!email || !email.trim()) {
@@ -87,30 +98,34 @@ router.post('/verify-code', (req: Request, res: Response) => {
   }
 
   const targetEmail = email.trim();
-  const record = codeStore.get(targetEmail);
+  const record = await getAuthCode(targetEmail);
 
-  if (!record) {
+  // 系统配置的默认验证码仅对超管邮箱生效，且无需先发送邮件
+  const configuredDefault = await getDefaultAuthCode();
+  const defaultLogin = !!configuredDefault && isAdminEmail(targetEmail) && code.trim() === configuredDefault;
+
+  if (!defaultLogin && !record) {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '验证码不存在，请重新发送');
   }
 
-  if (Date.now() > record.expiresAt) {
-    codeStore.delete(targetEmail);
+  if (!defaultLogin && record && Date.now() > record.expiresAt) {
+    await consumeAuthCode(targetEmail);
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '验证码已过期，请重新发送');
   }
 
-  if (record.code !== code.trim()) {
+  if (!defaultLogin && record && record.code !== code.trim()) {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, '验证码错误');
   }
 
   // 先完成登录记录与权限读取，全部成功后才消费验证码：
   // 任何一步失败都保留验证码，用户可直接重试，不会被误报「验证码不存在」
   try {
-    recordUserLogin(targetEmail);
+    await recordUserLogin(targetEmail);
     const token = signJwt(targetEmail);
     const isAdmin = isAdminEmail(targetEmail);
-    const permissions = getUserPermissionsByEmail(targetEmail, isAdmin);
-    const roleId = getUserRoleId(targetEmail, isAdmin);
-    codeStore.delete(targetEmail);
+    const permissions = await getUserPermissionsByEmail(targetEmail, isAdmin);
+    const roleId = await getUserRoleId(targetEmail, isAdmin);
+    await consumeAuthCode(targetEmail);
     // 同步下发 Cookie，让浏览器地址栏直访接口也能识别登录态
     setAuthCookie(res, token);
     return returnResponse(res, ErrorCode.SUCCESS, { token, isAdmin, permissions, roleId }, '登录成功');
@@ -132,7 +147,7 @@ router.post('/verify-code', (req: Request, res: Response) => {
  * @body {{ token: string }} JWT Token 字符串
  * @returns {{ ok: boolean; email?: string; message: string }} 验证结果
  */
-router.post('/verify-token', (req: Request, res: Response) => {
+router.post('/verify-token', async (req: Request, res: Response) => {
   const { token } = req.body as { token?: string };
 
   if (!token) {
@@ -146,8 +161,8 @@ router.post('/verify-token', (req: Request, res: Response) => {
   }
 
   const isAdmin = isAdminEmail(payload.email);
-  const permissions = getUserPermissionsByEmail(payload.email, isAdmin);
-  const roleId = getUserRoleId(payload.email, isAdmin);
+  const permissions = await getUserPermissionsByEmail(payload.email, isAdmin);
+  const roleId = await getUserRoleId(payload.email, isAdmin);
 
   // Token 验证通过同时刷新 Cookie，保证存量用户也能享受地址栏直访能力
   setAuthCookie(res, token);
@@ -177,12 +192,14 @@ router.post('/logout', (_req: Request, res: Response) => {
 
 /**
  * GET /admin-contact
- * @description 返回超级管理员的邮箱地址，供无权限页面展示联系方式
- * @returns {{ ok: boolean; data: { email: string }; message: string }}
+ * @description 返回超级管理员邮箱；开发模式额外返回默认验证码供登录页预填，
+ *   生产环境不回显，避免公开接口泄露通用验证码
+ * @returns {{ ok: boolean; data: { email: string; defaultAuthCode: string }; message: string }}
  */
-router.get('/admin-contact', (_req: Request, res: Response) => {
+router.get('/admin-contact', async (_req: Request, res: Response) => {
   const adminEmail = process.env.MAIL_USERNAME ?? '';
-  return returnResponse(res, ErrorCode.SUCCESS, { email: adminEmail }, 'success');
+  const defaultAuthCode = process.env.NODE_ENV === 'development' ? await getDefaultAuthCode() : '';
+  return returnResponse(res, ErrorCode.SUCCESS, { email: adminEmail, defaultAuthCode }, 'success');
 });
 
 export default router;

@@ -222,6 +222,13 @@ export class AiChatModel extends BaseModel {
   private resizeObserver: ResizeObserver | null = null;
 
   /**
+   * 首次唤起时的数据加载 Promise
+   * @type {Promise<void> | null}
+   * @description 保证 health 心跳及模型/技能/工具/会话只在用户首次打开 AI 助手时加载一次
+   */
+  private initPromise: Promise<void> | null = null;
+
+  /**
    * 「贴底判定」阈值（px），距底部小于该值即视为贴底
    * @type {number}
    */
@@ -907,11 +914,43 @@ export class AiChatModel extends BaseModel {
   // ==============================
 
   /**
+   * 首次唤起 AI 助手时加载数据
+   * @returns {Promise<void>}
+   * @description 未打开助手时不发起任何 AI 请求（含 /ai-chat/health 心跳）；
+   *   通过 in-flight Promise 复用，多次打开/关闭只加载一次；
+   *   模型/技能/工具/会话列表并发拉取，health 在列表就绪后才更新，
+   *   保证输入区在下拉数据加载完成前保持禁用
+   */
+  private loadOnFirstOpen = async (): Promise<void> => {
+    if (this.initPromise) return this.initPromise;
+    this.initPromise = (async (): Promise<void> => {
+      // 四个列表接口互不依赖，并发发出，避免首次打开时的串行瀑布
+      await Promise.all([
+        this.loadModels(),
+        this.loadSkills(),
+        this.loadTools(),
+        this.loadConversations(),
+      ]);
+      // 会话详情依赖列表结果，与 health 互不依赖，两者并发；
+      // health 仍在列表数据就绪后才更新，输入区不会过早启用
+      await Promise.all([
+        this.conversations.value.length > 0
+          ? this.loadConversation(this.conversations.value[0].id)
+          : Promise.resolve(),
+        this.loadHealth(),
+      ]);
+    })();
+    return this.initPromise;
+  };
+
+  /**
    * 打开 AI 助手抽屉
    * @returns {void}
+   * @description 首次打开时才触发数据加载与 health 校验
    */
   openDrawer = (): void => {
     this.visible.value = true;
+    void this.loadOnFirstOpen();
   };
 
   /**
@@ -983,19 +1022,10 @@ export class AiChatModel extends BaseModel {
 
   /**
    * 组件挂载时调用的生命周期方法
-   * @description 启动 resize 监听 + 拉取健康状态 + 加载会话列表
+   * @description 只启动 resize 监听；health 心跳与会话数据延迟到用户首次唤起 AI 助手时加载
    */
-  mounted = async (): Promise<void> => {
+  mounted = (): void => {
     this.startResizeListener();
-    await this.loadHealth();
-    await this.loadModels();
-    await this.loadSkills();
-    await this.loadTools();
-    await this.loadConversations();
-    // 默认选中第一个会话；没有会话则保持空白等用户首次发消息时自动创建
-    if (this.conversations.value.length > 0) {
-      await this.loadConversation(this.conversations.value[0].id);
-    }
   };
 
   /**
@@ -1023,7 +1053,7 @@ export const useAiChatModel = () => {
 
   // 在组件挂载时调用 mounted 方法
   onMounted(() => {
-    void model.mounted();
+    model.mounted();
   });
 
   // 在组件卸载前调用 beforeUnmount 方法

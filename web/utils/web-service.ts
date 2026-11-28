@@ -9,7 +9,6 @@ import {
   LAUNCHER_PID_FILE,
   LEGACY_PID_FILE,
   LEGACY_LAUNCHER_PID_FILE,
-  WEB_LOG_FILE,
   ACTION_TIMEOUT,
   STOP_ACTION_DELAY,
   WebServiceStatus,
@@ -98,15 +97,15 @@ export const readWebServiceStatus = (callback: (status: WebServiceStatus) => voi
 /**
  * 以 Node 方式后台拉起 Web 服务
  * @returns {number} 子进程 PID
- * @description 用于 scripts/start_web.sh 缺失时的兜底：detached 方式 spawn `npx ts-node server.ts`，
- *   输出追加到 web/.runtime/web_server.log，PID 写入 web/.runtime/web.pid
+ * @description 用于 scripts/start_web.sh 缺失时的兜底：detached 方式 spawn `npx ts-node server.ts`。
+ *   服务自身的 console 日志由 server.ts 入库，这里不再重定向到任何日志文件；
+ *   stdio 全部丢弃，避免 detached 进程因持有 stdout 管道而不退出。
  */
 const spawnWebService = (): number => {
-  const logFd = fs.openSync(WEB_LOG_FILE, 'a');
   const child = spawn('npx', ['ts-node', 'server.ts'], {
     cwd: WEB_DIR,
     detached: true,
-    stdio: ['ignore', logFd, logFd],
+    stdio: 'ignore',
     env: { ...process.env, PROJECT_DIR },
   });
   child.on('error', (err) => {
@@ -158,7 +157,7 @@ export const startWebServiceByNode = (res: Response): void => {
   }
   waitForPortListening(ACTION_TIMEOUT.start ?? 30000, (running) => {
     if (!running) {
-      returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, `Web 服务启动超时，查看日志：${WEB_LOG_FILE}`);
+      returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, 'Web 服务启动超时，请在「运行日志」页查看 web_server 日志');
       return;
     }
     returnResponse(res, ErrorCode.SUCCESS, { pid }, '启动成功');

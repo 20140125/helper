@@ -15,7 +15,7 @@
 # 注意事项：
 #   - Web 服务监听端口 9527，启动器监听端口 3001
 #   - PID 文件存放在 scripts/ 目录下
-#   - 日志文件存放在 scripts/ 目录下
+#   - 运行日志统一写入 hp_run_logs（不产生日志文件）
 #
 # 作者：智能提醒系统
 # 更新：2026-03-13
@@ -30,16 +30,12 @@ source "${SCRIPT_DIR}/project_config.sh"
 # ======================================
 
 WEB_DIR="$(cd "${SCRIPT_DIR}/../web" && pwd)"
-# LOG_FILE 供 log_utils.sh 使用：记录脚本自身的启停操作（量小，与服务运行日志不同源）
+# LOG_FILE 只是来源标识，不再是落盘路径；本脚本的启停操作与 Web 服务日志同归 web_server 来源
 LOG_FILE="${SCRIPT_DIR}/web_server.log"
-# Web 服务运行日志由 Node 侧以 JSONL 落盘，是唯一真源；shell 不再重定向 stdout，
-# 否则同一条 console 输出会在两份文件里各写一遍
-SERVER_LOG_FILE="${WEB_DIR}/.runtime/web_server.jsonl"
 source "${SCRIPT_DIR}/log_utils.sh"
 
 PID_FILE="${SCRIPT_DIR}/web.pid"
 LAUNCHER_PID_FILE="${SCRIPT_DIR}/launcher.pid"
-LAUNCHER_LOG="${SCRIPT_DIR}/web_launcher.log"
 
 # ======================================
 # 工具函数
@@ -51,7 +47,8 @@ LAUNCHER_LOG="${SCRIPT_DIR}/web_launcher.log"
 #   成功：启动器进程已在后台运行，返回 0
 #   失败：返回 1
 start_launcher() {
-  # 启动前先 kill 旧进程
+  # 启动前先 kill 旧进程：PID 文件可能丢失/过期，此时端口仍被占用会导致 EADDRINUSE，
+  # 故与 stop_launcher 一样再按 3001 端口兜底清理
   if [ -f "$LAUNCHER_PID_FILE" ]; then
     local pid
     pid=$(cat "$LAUNCHER_PID_FILE")
@@ -61,8 +58,15 @@ start_launcher() {
     fi
     rm -f "$LAUNCHER_PID_FILE"
   fi
+  local port_pid
+  port_pid=$(lsof -ti:3001 2>/dev/null | head -1)
+  if [ -n "$port_pid" ]; then
+    kill "$port_pid" 2>/dev/null
+    sleep 0.5
+  fi
   cd "$WEB_DIR" || return 1
-  nohup npx ts-node web-launcher.ts >> "$LAUNCHER_LOG" 2>&1 &
+  # 启动器的 console 输出由 web-launcher.ts 自行入库；这里丢弃 stdio，不生成日志文件
+  nohup npx ts-node web-launcher.ts > /dev/null 2>&1 &
   log_info "🔌 Web 启动器已启动（端口 3001）"
 }
 
@@ -129,12 +133,8 @@ start_web() {
     echo $nohup_pid > "$PID_FILE"
     log_success "Web 服务已启动，PID: $nohup_pid"
   else
-    log_error "Web 服务启动失败，查看日志: $SERVER_LOG_FILE"
-    if [ -f "$SERVER_LOG_FILE" ]; then
-      tail -20 "$SERVER_LOG_FILE"
-    else
-      log_info "运行日志尚未生成（多为启动阶段即失败），可前台运行查看错误：cd web && npx ts-node server.ts"
-    fi
+    log_error "Web 服务启动失败，请在「运行日志」页查看 web_server 来源，或查 hp_run_logs"
+    log_info "也可前台运行查看启动错误：cd web && npx ts-node server.ts"
   fi
 }
 

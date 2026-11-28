@@ -122,7 +122,7 @@
         <file-content
           v-else
           class="p-0"
-          :filename="activeKey ? `${activeKey}.log` : ''"
+          :filename="activeKey ? `${activeKey}.txt` : ''"
           :t="t"
           :content="logContent"
           :empty-text="t.logs.emptyHint"

@@ -73,6 +73,9 @@ SOURCE sql/config/32_env_config.sql;
 -- ──────────────── 项目运行日志 ────────────────
 SOURCE sql/logs/33_run_logs.sql;
 
+-- ──────────────── Playground 表单模板 ────────────────
+SOURCE sql/playground/34_playground_templates.sql;
+
 -- ──────────────── 补充缓存数据（其它 SQL 文件未覆盖的 .cache/ 数据） ────────────────
 SOURCE sql/cache_data.sql;
 

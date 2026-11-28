@@ -9,6 +9,10 @@ import {
   listCacheFiles,
   readCacheFile,
 } from './utils';
+import { RESERVED_CACHE_FILES } from '@/utils/cache';
+
+/** 已迁库的文件（webhooks.json 仍由缓存文件管理，不在此列） */
+const DB_BACKED_CACHE_FILES = RESERVED_CACHE_FILES.filter((name) => name !== 'webhooks.json');
 
 const router = Router();
 
@@ -59,6 +63,11 @@ router.put('/:filename(*)', (req, res) => {
   const validationError = validateCacheWriteParams(filename, content);
   if (validationError) {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, validationError);
+  }
+
+  // 已迁库的系统文件不允许通过缓存接口直接覆盖
+  if (DB_BACKED_CACHE_FILES.includes(filename)) {
+    return returnResponse(res, ErrorCode.FORBIDDEN, {}, '该文件已迁库，禁止直接覆盖');
   }
 
   try {

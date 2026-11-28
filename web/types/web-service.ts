@@ -18,12 +18,6 @@ export const LEGACY_PID_FILE = path.join(SCRIPTS_DIR, 'web.pid');
 /** 旧版启动器 PID 文件路径（scripts/launcher.pid，读取时兼容历史部署） */
 export const LEGACY_LAUNCHER_PID_FILE = path.join(SCRIPTS_DIR, 'launcher.pid');
 
-/** Web 服务后台日志路径（无 start_web.sh 时由 Node 兜底启动写入） */
-export const WEB_LOG_FILE = path.join(RUNTIME_DIR, 'web_server.jsonl');
-
-/** Web 启动器后台日志路径 */
-export const LAUNCHER_LOG_FILE = path.join(RUNTIME_DIR, 'web_launcher.log');
-
 /** Launcher 监听的 Web 服务端口 */
 export const WEB_PORT = 9527;
 

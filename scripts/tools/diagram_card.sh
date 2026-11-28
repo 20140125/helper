@@ -412,7 +412,7 @@ main() {
 
     # 1) 校验 + 规范化：非法 JSON / 缺字段在此终止，并给出可定位的错误
     local normalized height body title subtitle
-    normalized=$(printf '%s' "$spec" | python3 -c "$DIAGRAM_PY" normalize 2>>"$LOG_FILE")
+    normalized=$(printf '%s' "$spec" | python3 -c "$DIAGRAM_PY" normalize)
     if [ -z "$normalized" ]; then
         log_error "图描述解析失败（非法 JSON 或缺少必填字段）"
         exit 1
@@ -422,7 +422,7 @@ main() {
 
     # 2) 生成 SVG 主体
     local rendered
-    rendered=$(printf '%s' "$spec" | python3 -c "$DIAGRAM_PY" svg 2>>"$LOG_FILE")
+    rendered=$(printf '%s' "$spec" | python3 -c "$DIAGRAM_PY" svg)
     if [ -z "$rendered" ]; then
         log_error "SVG 生成失败"
         exit 1

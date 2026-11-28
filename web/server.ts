@@ -9,6 +9,7 @@ dotenv.config({ path: path.resolve(__dirname, '../scripts/.env') });
 import express from 'express';
 import cors from 'cors';
 import http from 'http';
+import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 
 import { setupTimestampLogger } from '@/utils/logger';
 import { getLocalIp } from '@/utils/network';
@@ -24,9 +25,12 @@ import {
 } from '@/routes/utils';
 import { Permission } from '@/types/permission';
 import { AI_CHAT_SEND_BODY_LIMIT } from '@/types/ai-chat';
+import { ensureRbacSchema } from '@/utils/rbac/db';
+import { ensureEnvConfigSeed } from '@/utils/env-config';
 
 setupTimestampLogger();
 import systemRouter from '@/routes/system';
+import bootstrapRouter from '@/routes/bootstrap';
 import configRouter from '@/routes/config';
 import aiModelConfigsRouter from '@/routes/ai-model-configs';
 import logsRouter from '@/routes/logs';
@@ -55,9 +59,31 @@ import aiChatRouter, { aiWebhookRouter } from '@/routes/ai-chat';
 import knowledgeRouter from '@/routes/knowledge';
 import databaseRouter from '@/routes/database';
 import amapRouter from '@/routes/amap';
-import { TOOLS_IMAGES_DIR, TOOLS_IMAGES_URL_PREFIX, pruneTraceFiles } from '@/routes/utils';
+import {
+  TOOLS_IMAGES_DIR,
+  TOOLS_IMAGES_URL_PREFIX,
+  pruneRunTraces,
+  flushRunTraces,
+  purgeExpiredRunLogs,
+  flushRunLogs,
+  getLogRetentionDays,
+} from '@/routes/utils';
 import { startInspectionScheduler } from '@/utils/ai-chat';
 import { getAuthToken } from './utils/permission';
+
+// Node 内置 fetch 不读取 HTTP(S)_PROXY，外部模型接口必须经代理才能连通。
+// EnvHttpProxyAgent 按 NO_PROXY 放行本地/内网地址；connect 超时放宽，避免代理握手慢被误判为失败。
+const outboundProxy = process.env.HTTPS_PROXY ?? process.env.https_proxy
+  ?? process.env.HTTP_PROXY ?? process.env.http_proxy;
+if (outboundProxy) {
+  // 无论 NO_PROXY 怎么配，本机地址都强制直连，避免本地回调被代理吞掉
+  const noProxy = [process.env.NO_PROXY ?? process.env.no_proxy, '127.0.0.1', 'localhost', '::1']
+    .filter(Boolean).join(',');
+  setGlobalDispatcher(new EnvHttpProxyAgent({
+    noProxy,
+    connect: { timeout: 30_000 },
+  }));
+}
 
 const app = express();
 const PORT = Number(process.env.WEB_PORT) || 9527;
@@ -103,7 +129,7 @@ if (!DEV_MODE) {
 // JWT 鉴权中间件（保护所有非 /api/auth 路由）
 // =================================================
 
-app.use('/api', (req, res, next) => {
+app.use('/api', async (req, res, next) => {
   // 仅处理真正的 /api/ 路径
   if (!req.path.startsWith('/')) {
     return next();
@@ -115,7 +141,8 @@ app.use('/api', (req, res, next) => {
   }
 
   // /api/ai-chat/webhook 为外部渠道入口（无登录态），由路由内的 AI_CHAT_WEBHOOK_TOKEN 令牌把关
-  if (req.path.startsWith('/ai-chat/webhook')) {
+  // 必须精确匹配：startsWith 会让 /ai-chat/webhook/../health 这类路径绕过 JWT 校验进入业务路由
+  if (req.path === '/ai-chat/webhook') {
     return next();
   }
 
@@ -133,10 +160,13 @@ app.use('/api', (req, res, next) => {
     return;
   }
 
-  // 解析用户信息并挂载权限到 req 上
-  attachUserInfo(req);
-
-  return next();
+  // 解析用户信息并挂载权限到 req 上（RBAC 已迁库，必须 await 后再放行）
+  try {
+    await attachUserInfo(req);
+    return next();
+  } catch (err) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, `读取用户权限失败：${(err as Error).message}`);
+  }
 });
 
 // =================================================
@@ -159,6 +189,10 @@ app.use('/api', (req, res, next) => {
 app.use('/api/system', ...withPermission(systemRouter, {
   read: Permission.DASHBOARD_VIEW,
 }));
+
+// 首页首屏聚合：全局 JWT 中间件已保证登录态，各数据块按原接口权限码在 utils 内裁剪。
+// 不设整路由权限基线，避免低权限用户被 403 拦截后首屏导航被挂起。
+app.use('/api/bootstrap', bootstrapRouter);
 
 // 配置相关路由
 app.use('/api/config', ...withPermission(configRouter, {
@@ -376,20 +410,59 @@ if (DEV_MODE) {
 // 启动服务
 // =================================================
 
-app.listen(PORT, '0.0.0.0', () => {
-  const localIp = getLocalIp();
-  // 启动时清理过期的 AI Trace 按月文件（只保留最近 N 个月，失败不影响启动）
-  const removed = pruneTraceFiles();
-  if (removed.length > 0) {
-    console.log(`🧹 已清理过期 AI Trace 文件：${removed.join('、')}`);
+// 日志按保留天数清理：启动跑一次，之后每 24 小时一次（失败不影响服务）
+const purgeLogs = (): void => {
+  void purgeExpiredRunLogs()
+    .then((removed) => {
+      if (removed > 0) {
+        console.log(`🧹 已清理过期日志 ${removed} 条（保留 ${getLogRetentionDays()} 天）`);
+      }
+    })
+    .catch(() => undefined);
+};
+const logPurgeTimer = setInterval(purgeLogs, 24 * 60 * 60 * 1000);
+logPurgeTimer.unref();
+
+// 进程退出前排空在途日志写入，避免重启时丢掉最后几条
+const gracefulExit = (): void => {
+  void Promise.all([flushRunLogs(), flushRunTraces()]).finally(() => process.exit(0));
+};
+process.on('SIGTERM', gracefulExit);
+process.on('SIGINT', gracefulExit);
+
+/**
+ * 启动 Web 服务
+ * @description 监听端口并启动日志清理、AI Trace 清理与定时巡检
+ */
+const startWebServer = (): void => {
+  app.listen(PORT, '0.0.0.0', () => {
+    const localIp = getLocalIp();
+    purgeLogs();
+    // 启动时清理过期的 AI Trace 库记录（只保留最近 N 个月，失败不影响启动）
+    void pruneRunTraces()
+      .then((removed) => {
+        if (removed > 0) console.log(`🧹 已清理过期 AI Trace 记录：${removed} 条`);
+      })
+      .catch(() => undefined);
+    // 启动 AI 定时巡检调度器（AI_INSPECTOR_ENABLED=true 时生效）
+    startInspectionScheduler();
+    console.log('✅ Helper Web 管理界面已启动');
+    console.log(`🌐 访问地址: http://${localIp}:${PORT}  (可通过服务器 IP 访问)`);
+    console.log(`📁 项目目录: ${PROJECT_DIR}`);
+    if (DEV_MODE) {
+      console.log(`🔥 开发模式：前端请求代理到 Vite dev server (http://${localIp}:${VITE_PORT})`);
+      console.log('   请同时运行：cd web/frontend && npm run dev');
+    }
+  });
+};
+
+// 启动前补齐迁库所需的表结构与数据库配置种子；失败只告警，读取链路会降级到本地 JSON
+void (async (): Promise<void> => {
+  try {
+    await ensureRbacSchema();
+    await ensureEnvConfigSeed();
+  } catch (err) {
+    console.warn('[DB] 鉴权表结构/配置种子初始化失败，登录与权限将回退本地 JSON：', (err as Error).message);
   }
-  // 启动 AI 定时巡检调度器（AI_INSPECTOR_ENABLED=true 时生效）
-  startInspectionScheduler();
-  console.log('✅ Helper Web 管理界面已启动');
-  console.log(`🌐 访问地址: http://${localIp}:${PORT}  (可通过服务器 IP 访问)`);
-  console.log(`📁 项目目录: ${PROJECT_DIR}`);
-  if (DEV_MODE) {
-    console.log(`🔥 开发模式：前端请求代理到 Vite dev server (http://${localIp}:${VITE_PORT})`);
-    console.log('   请同时运行：cd web/frontend && npm run dev');
-  }
-});
+  startWebServer();
+})();

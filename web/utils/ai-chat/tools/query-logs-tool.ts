@@ -72,7 +72,7 @@ export const queryLogsTool: ToolImpl = {
 
     // list 模式：返回可用日志（带中文标签，方便 LLM 后续按中文名引导用户）
     if (!rawKey) {
-      const files = listLogFiles();
+      const files = await listLogFiles();
       const enriched = files.map((f) => ({
         ...f,
         label: LOG_LABELS[f.key] ?? f.key,
@@ -80,7 +80,7 @@ export const queryLogsTool: ToolImpl = {
       return {
         ok: true,
         data: { available_logs: enriched },
-        summary: `当前共有 ${enriched.length} 个可用日志文件`,
+        summary: `当前共有 ${enriched.length} 个可用日志来源`,
       };
     }
 
@@ -96,7 +96,7 @@ export const queryLogsTool: ToolImpl = {
     const result = await readLogTail(logKey, lines);
     const label = LOG_LABELS[logKey] ?? logKey;
     if ('missing' in result) {
-      return { ok: true, data: { log_key: logKey, label, content: '' }, summary: `${label}（${logKey}）日志文件尚未生成` };
+      return { ok: true, data: { log_key: logKey, label, content: '' }, summary: `${label}（${logKey}）暂无日志记录` };
     }
     if ('error' in result) {
       return { ok: false, data: `读取 ${label}（${logKey}）日志失败：${result.error}` };

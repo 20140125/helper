@@ -89,7 +89,7 @@ bash scripts/start_web.sh status    # 查看状态
 | `project_config.sh` | 项目路径自动配置 |
 | `weather_config.sh` | 统一配置（.env 加载、Webhook） |
 | `holiday_config.sh` | 节假日/调休日数据与判断 |
-| `log_utils.sh` | 统一日志工具（JSON/TEXT） |
+| `log_utils.sh` / `log_db.sh` | 统一日志工具（JSON/TEXT，全量写入 `hp_run_logs`） |
 | `template_utils.sh` | 消息模板渲染 |
 | `greetings_loader.sh` | 祝福语加载器 |
 | `date_utils.py` | 日期管理（农历互转、工作日计算） |
@@ -111,7 +111,7 @@ bash scripts/start_web.sh status    # 查看状态
 |------|------|
 | 仪表盘 | 守护进程状态监控、快速控制 |
 | 系统配置 | 编辑 `.env` 配置项 |
-| 运行日志 | 查看/清空各脚本日志 |
+| 运行日志 | 查看/清空 `hp_run_logs` 里的各来源日志 |
 | 自定义规则 | 规则 CRUD 与测试 |
 | AI 审批 | 贾维斯增删改审批单：通过执行 / 驳回（仅超级管理员） |
 | 缓存文件 | 查看/编辑 JSON 缓存 |
@@ -163,7 +163,7 @@ helper/
 │   ├── festival_greetings.sh  # 节日祝福（含子模块）
 │   ├── daily_data_manager.sh  # 每日数据（含子模块）
 │   ├── custom_rules.sh        # 自定义规则（含子模块）
-│   ├── view_logs.sh           # 日志管理（含子模块）
+│   ├── view_logs.sh           # 日志管理（查库 / 清理，含子模块）
 │   ├── ...                    # 独立提醒 & 工具脚本
 │   └── start_web.sh           # Web 服务管理
 ├── web/                       # Web 管理界面（详见 web/README.md）

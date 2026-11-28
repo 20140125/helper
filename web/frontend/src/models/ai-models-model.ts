@@ -268,8 +268,10 @@ export class AiModelsModel extends BaseModel {
         MessagePlugin.warning(schema.aiModelTestAutoHidden.replace('{reason}', data.message));
       }
     } catch (err) {
+      const responseMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       MessagePlugin.error(
-        err instanceof Error ? err.message : this.localeStore.t.common.operationFailedRetry,
+        responseMessage
+          || (err instanceof Error ? err.message : this.localeStore.t.common.operationFailedRetry),
       );
     } finally {
       this.testingModelId.value = '';

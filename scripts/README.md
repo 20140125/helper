@@ -43,7 +43,8 @@ scripts/
 ├── ── 基础设施 ──
 ├── project_config.sh           # 项目路径配置（所有脚本首先 source）
 ├── weather_config.sh           # 加载 .env + 时区 + 全局变量 + 企微发送封装
-├── log_utils.sh                # 统一日志工具（替代 echo；彩色 stderr + 落盘）
+├── log_utils.sh                # 统一日志工具（替代 echo；彩色 stderr + 入库 hp_run_logs）
+├── log_db.sh                   # 日志数据库通道（读 DB_* / INSERT / 查询 / 清理）
 ├── holiday_config.sh           # 节假日数据 + 工作日/调休判断
 ├── template_utils.sh           # 消息模板渲染入口
 ├── template_utils/             # 模板子模块（loader/renderer/validator）
@@ -401,7 +402,7 @@ cp web/.env.example web/.env
 > 时间、工作日条件、推送目标、开关都在规则上；各脚本内部自行判断当天该不该发。
 > `reminder_daemon.sh` 不再直接发任何提醒，只负责数据预取与触发规则。
 
-守护进程由 **crontab** 保活（`@reboot` 自启 + 定时检查），日志写入 `scripts/reminder_daemon.log` / `scripts/annual_scheduler.log`。
+守护进程由 **crontab** 保活（`@reboot` 自启 + 定时检查），运行日志统一写入 `hp_run_logs`，不落文件。
 
 **调度可配置化**：上表的时间点、任务开关、主循环节拍与触发窗口全部可在 `.env` 覆盖（见 `schedule_config.sh`），
 守护进程每轮循环开头重读一次，**改完自动生效，无需重启**；未配置的项沿用上表默认值。
@@ -414,7 +415,8 @@ cp web/.env.example web/.env
 | `SCHED_PREFETCH_BACKUP_TIME` | 07:55 | 备用预取（当天缓存缺失才跑） |
 | `SCHED_ANNUAL_POLL_SECONDS` | 60 | 年度调度器主循环节拍（秒） |
 | `SCHED_ANNUAL_UPDATE_DATE` / `_TIME` | 12-31 / 23:59 | 年度数据更新（日期留空即停用） |
-| `SCHED_LOG_CLEAN_DAYS` / `_TIME` | 01,15 / 00:01 | 日志清理（每月哪几号，逗号分隔；留空即停用） |
+| `SCHED_LOG_CLEAN_DAYS` / `_TIME` | 01,15 / 00:01 | 日志保留期清理（每月哪几号；留空即停用） |
+| `LOG_RETENTION_DAYS` | 15 | 日志保留天数，过期记录按此值删除 |
 
 Web 端「系统配置 → 系统任务调度」分区可直接修改这些键（写入 `web/.env`）：时间点用时间选择器，
 日志清理日期是多选（每月哪几号），年度更新日期用月日选择器，全部必填。
@@ -506,28 +508,24 @@ bash scripts/tools/card.sh "github trending"
 
 ## 日志与缓存
 
-**日志** 存放在 `scripts/` 目录下，与脚本同名（`.log` 扩展名）：
+**日志统一入库**：脚本日志、Web console 日志、接口访问日志全部写入 MySQL 表
+`hp_run_logs`（`log_utils.sh` → `log_db.sh`），不再生成 `scripts/*.log`、
+`scripts/web_access.log`、`web/.runtime/*.jsonl` 等文件。每个脚本原有的
+`LOG_FILE=...` 赋值现在只作为 `source` 来源标识，不创建文件。
 
 ```bash
-tail -f scripts/reminder_daemon.log    # 守护进程日志
-tail -f scripts/workday_manager.log    # 工作日提醒日志
-tail -f scripts/annual_update.log      # 年度更新日志
-tail -f scripts/reminder.log           # 路由入口日志
-tail -f scripts/tools/tools.log        # 卡片脚本日志
-tail -f scripts/web_server.log         # Web 服务日志
-tail -f scripts/web_access.log         # 接口访问日志（当天）
+bash scripts/view_logs.sh list                  # 列出所有来源及记录数
+bash scripts/view_logs.sh view reminder_daemon  # 查看最近 50 条
+bash scripts/view_logs.sh tail web_access       # 实时跟踪（轮询库）
+bash scripts/view_logs.sh error                 # 最近错误
+bash scripts/view_logs.sh states                # 统计
 ```
 
-**接口访问日志归档**：`scripts/web_access.log` 只写当天，跨天时自动归档到
-`scripts/logs/web_access-YYYY-MM-DD.log`（单日超 5MB 会再拆出 `-1`、`-2`），
-归档**最多保留 5 天**，超期文件在每次跨天归档时自动清理。
+日志按 `LOG_RETENTION_DAYS`（默认 15 天）由 Web 定时任务与 `annual_scheduler.sh`
+删除过期记录；也可在 Web「运行日志」页查看 / 清空。「接口访问日志（历史）」
+展示的是同一来源里更早的一批记录，不再是归档文件。
 
-```bash
-ls -lh scripts/logs/                   # 查看最近 5 天的历史归档
-```
-
-也可通过 Web 界面（`http://localhost:9527` → 运行日志）在线查看；
-「接口访问日志（历史）」一项展示的是最新一份归档。
+> AI 运行追踪写 `hp_ai_run_traces`；`.cache/api_responses/` 等是业务缓存，不属于日志。
 
 **缓存** 存放在项目根目录 `.cache/` 下：
 

@@ -9,8 +9,12 @@ const router = Router();
  * @route GET /api/rbac/permissions
  * @returns {{ ok: boolean, permissionMetas: PermissionMeta[] }}
  */
-router.get('/', (_req, res) => {
-  return returnResponse(res, ErrorCode.SUCCESS, { permissionMetas: readPermissionMetas() }, 'success');
+router.get('/', async (_req, res) => {
+  try {
+    return returnResponse(res, ErrorCode.SUCCESS, { permissionMetas: await readPermissionMetas() }, 'success');
+  } catch (err) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, (err as Error).message);
+  }
 });
 
 /**
@@ -18,7 +22,7 @@ router.get('/', (_req, res) => {
  * @route POST /api/rbac/permissions
  * @body {PermissionBody}
  */
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const body = req.body as PermissionBody;
 
   if (!body.code?.trim()) {
@@ -39,7 +43,7 @@ router.post('/', (req, res) => {
       type: body.type!,
       ...(body.type === 'view' ? { route: body.route!.trim() } : {}),
     };
-    const created = createPermissionMeta(newMeta);
+    const created = await createPermissionMeta(newMeta);
     return returnResponse(res, ErrorCode.SUCCESS, { permission: created }, '权限已创建');
   } catch (e) {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, e instanceof Error ? e.message : '创建权限失败');
@@ -52,7 +56,7 @@ router.post('/', (req, res) => {
  * @param {string} req.params.code - 权限码（URL 编码）
  * @body {Omit<PermissionBody, 'code'>}
  */
-router.put('/:code', (req, res) => {
+router.put('/:code', async (req, res) => {
   const code = decodeURIComponent(req.params.code);
   const body = req.body as PermissionBody;
 
@@ -70,7 +74,7 @@ router.put('/:code', (req, res) => {
       type: body.type!,
       ...(body.type === 'view' ? { route: body.route!.trim() } : { route: undefined }),
     };
-    const updated = updatePermissionMeta(code, updates);
+    const updated = await updatePermissionMeta(code, updates);
     return returnResponse(res, ErrorCode.SUCCESS, { permission: updated }, '权限已更新');
   } catch (e) {
     return returnResponse(res, ErrorCode.BAD_REQUEST, {}, e instanceof Error ? e.message : '更新权限失败');

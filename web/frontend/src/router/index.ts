@@ -22,7 +22,7 @@ import Knowledge from '@/views/knowledge.vue';
 import Database from '@/views/database.vue';
 import Forbidden from '@/views/forbidden.vue';
 import { useAuthStore } from '@/stores/auth';
-import { useStatusStore } from '@/stores/status';
+import { useBootstrapStore } from '@/stores/bootstrap';
 import { usePermissionStore } from '@/stores/permission';
 import { Permission } from '@/types/permission';
 
@@ -222,22 +222,25 @@ const router = createRouter({
 });
 
 // 全局前置路由守卫：确保在进入任何页面前先完成认证检查 + 启动全局状态轮询 + 权限校验
-let authInitialized = false;
+// 用「在途 Promise」而非布尔标志：标志若写在 await init() 之后，await 期间的并发导航
+// （如 403 跳转）会再次执行 init，进而产生两条 verify-token / logout 请求
+let authInitPromise: Promise<void> | null = null;
 
 router.beforeEach(async (to, _from, next) => {
-  // 只在首次路由时初始化认证（避免每次路由切换都重复校验）
-  if (!authInitialized) {
-    const authStore = useAuthStore();
-    await authStore.init();
-    authInitialized = true;
+  // 首次导航立即缓存 Promise，后续并发导航共用同一份结果
+  if (!authInitPromise) {
+    authInitPromise = (async (): Promise<void> => {
+      const authStore = useAuthStore();
+      await authStore.init();
 
-    // 认证通过后立即启动全局状态轮询（fetchStatus + loadWebStatus）
-    // 放在路由守卫而非组件 mounted 中，确保刷新任何页面都能在渲染前触发加载
-    if (authStore.isLoggedIn) {
-      const statusStore = useStatusStore();
-      statusStore.startPolling();
-    }
+      // 认证通过后触发一次首屏聚合请求，由聚合 Store 分发数据并启动状态轮询；
+      // 不 await，避免阻塞导航；仪表盘 init 会复用同一个在途 Promise
+      if (authStore.isLoggedIn) {
+        void useBootstrapStore().load();
+      }
+    })();
   }
+  await authInitPromise;
 
   // 超级管理员专属页面：即使权限码被误配给其他角色，也按身份直接拦截
   // 注意：forbidden(/403) 始终是兜底页面，避免重定向死循环

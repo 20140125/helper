@@ -5,6 +5,7 @@ import { LogService } from '@/services/log-service';
 import { WebServiceService } from '@/services/web-service-service';
 import { useStatusStore } from '@/stores/status';
 import { useRulesStore } from '@/stores/rules';
+import { useBootstrapStore } from '@/stores/bootstrap';
 import type { LogItem } from '@/types/log';
 import { getLogLabels } from '@/types/log';
 import { MessagePlugin } from 'tdesign-vue-next';
@@ -429,6 +430,7 @@ export class DashboardModel extends BaseModel {
     try {
       const data = await this.logService.fetchLogs();
       this.logs.value = data.data.logs;
+      useBootstrapStore().setLogs(data.data.logs);
     } catch {
       // 请求失败时保持原有数据，不阻塞页面
     } finally {
@@ -578,10 +580,16 @@ export class DashboardModel extends BaseModel {
   /**
    * 初始化页面数据
    * @returns {Promise<void>}
-   * @description 加载规则和日志数据（系统状态和 Web 服务状态已由路由守卫 startPolling 触发，
-   *              store 数据是响应式的，界面会自动更新）
+   * @description 首屏数据优先复用路由守卫触发的 /api/bootstrap 聚合结果，不再单独请求规则与日志；
+   *   聚合接口不可用时才降级为原有的两个请求
    */
   init = async (): Promise<void> => {
+    const bootstrapStore = useBootstrapStore();
+    await bootstrapStore.load();
+    if (bootstrapStore.loaded) {
+      this.logs.value = bootstrapStore.logs;
+      return;
+    }
     this.initLoading.value = true;
     try {
       await Promise.all([

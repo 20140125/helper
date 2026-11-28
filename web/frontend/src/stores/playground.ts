@@ -5,7 +5,7 @@ import { PlaygroundService } from '@/services/playground-service';
 
 /**
  * Playground 模板全局 Store 类
- * @description 缓存 playground-templates.json 全量模板列表，
+ * @description 缓存 /api/playground 返回的全量模板列表（数据源 hp_playground_templates），
  *              供 config-model、message-templates-model、rule-form-drawer 等共享使用，
  *              避免多个页面各自请求 /api/playground 或 /api/playground/:id
  */

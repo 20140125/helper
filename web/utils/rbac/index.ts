@@ -16,6 +16,7 @@ export {
   getUserRoleConfig,
   getUserPermissionsByEmail,
   getUserRoleId,
+  getUserAuthInfo,
 } from './user-role';
 
 export { validatePermissionFields } from './validation';

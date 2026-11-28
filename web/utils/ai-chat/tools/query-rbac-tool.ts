@@ -65,8 +65,8 @@ export const queryRbacTool: ToolImpl = {
     }
 
     const kw = typeof args.keyword === 'string' ? args.keyword.toLowerCase().trim() : '';
-    const config = readRbacConfig();
-    const metas = readPermissionMetas();
+    const config = await readRbacConfig();
+    const metas = await readPermissionMetas();
 
     // ── 概览 ──
     if (target === 'overview') {
@@ -75,11 +75,11 @@ export const queryRbacTool: ToolImpl = {
         data: {
           roles: config.roles.length,
           users: config.userRoles.length,
-          permission_codes: readAllPermissionCodes().length,
+          permission_codes: (await readAllPermissionCodes()).length,
           role_names: config.roles.map((r) => r.name),
         },
         summary: `${config.roles.length} 个角色、${config.userRoles.length} 个用户绑定、`
-          + `${readAllPermissionCodes().length} 个权限码`,
+          + `${(await readAllPermissionCodes()).length} 个权限码`,
       };
     }
 

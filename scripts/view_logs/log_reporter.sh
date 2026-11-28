@@ -1,97 +1,90 @@
 #!/bin/bash
 
 # ======================================
-# 日志统计与报告模块
+# 日志统计与报告模块（数据库版）
 # ======================================
 #
 # 功能说明：
-#   1. 显示日志统计信息（行数、成功/失败/警告计数）
+#   1. 显示各来源的记录数、成功/失败/警告计数
+#   2. 生成包含今日增量与最近错误的分析报告
 #
 # 作者：智能提醒系统
-# 更新：2026-03-24
+# 更新：2026-11-28
 # ======================================
+
+# 各来源聚合统计的 SQL（列：来源 总数 成功 失败 警告 正文字节 今日数 最近时间）
+LOG_STATS_SQL="SELECT source, COUNT(*), SUM(message LIKE '✅%'), SUM(level = 'ERROR'), SUM(level = 'WARNING'), COALESCE(SUM(LENGTH(message)), 0), SUM(DATE(logged_at) = CURDATE()), DATE_FORMAT(MAX(logged_at), '%Y-%m-%d %H:%i:%s') FROM hp_run_logs GROUP BY source ORDER BY MAX(logged_at) DESC"
 
 # 显示日志统计信息
 show_states() {
+    _log_db_check || return 1
+
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}    📊 日志统计信息${NC}"
+    echo -e "${BLUE}    📊 日志统计信息（hp_run_logs）${NC}"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    
-    local total_size=0
-    local total_lines=0
-    
-    # 递归查找 LOG_DIR 及其所有子目录（如 tools/、update-tools/）下的 .log 文件
-    while IFS= read -r -d '' log_file; do
-        filename="${log_file#${LOG_DIR}/}"
-        size=$(du -k "$log_file" | cut -f1)
-        lines=$(wc -l < "$log_file")
-        success=$(grep -c "✅" "$log_file" 2>/dev/null | tr -d '[:space:]')
-        error=$(grep -c "❌" "$log_file" 2>/dev/null | tr -d '[:space:]')
-        warning=$(grep -c "⚠" "$log_file" 2>/dev/null | tr -d '[:space:]')
-        success=${success:-0}
-        error=${error:-0}
-        warning=${warning:-0}
-        
-        total_size=$((total_size + size))
-        total_lines=$((total_lines + lines))
-        
-        echo -e "${GREEN}📄 $filename${NC}"
-        echo "   行数: $lines"
-        echo -e "   成功: ${GREEN}${success}${NC}"
-        echo -e "   失败: ${RED}${error}${NC}"
-        echo -e "   警告: ${YELLOW}${warning}${NC}"
+
+    local rows
+    rows=$(log_db_query "${LOG_STATS_SQL};")
+    if [ -z "$rows" ]; then
+        echo -e "${YELLOW}⚠️  暂无日志记录${NC}"
+        return 0
+    fi
+
+    local total_lines=0 total_bytes=0
+    while IFS=$'\t' read -r source count success error warning bytes today_count modified; do
+        success=${success:-0}; error=${error:-0}; warning=${warning:-0}
+        today_count=${today_count:-0}
+        total_lines=$((total_lines + count))
+        total_bytes=$((total_bytes + bytes))
+
+        echo -e "${GREEN}📄 $source${NC}"
+        echo "   记录数: $count（今日 $today_count）"
+        echo "   最近写入: $modified"
+        echo -e "   成功: ${GREEN}${success}${NC}  失败: ${RED}${error}${NC}  警告: ${YELLOW}${warning}${NC}"
         echo ""
-    done < <(find "${LOG_DIR}" -type f -name "*.log" -print0 | sort -z)
-    
+    done <<< "$rows"
+
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${BLUE}总计：${NC}"
-    echo "   总大小: $(echo "scale=2; $total_size/1024" | bc) MB"
-    echo "   总行数: $total_lines"
+    echo "   总记录数: $total_lines"
+    echo "   正文总大小: $((total_bytes / 1024)) KB"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
 # 生成日志分析报告
 generate_report() {
-    local today=$(date +%Y-%m-%d)
+    _log_db_check || return 1
 
+    local today
+    today=$(date +%Y-%m-%d)
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}    📊 生成日志分析报告${NC}"
+    echo -e "${BLUE}    📊 生成日志分析报告 ($today)${NC}"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    
-    {
-        
-        # 递归查找 LOG_DIR 及其所有子目录（如 tools/、update-tools/）下的 .log 文件
-        while IFS= read -r -d '' log_file; do
-            filename="${log_file#${LOG_DIR}/}"
-            size=$(du -h "$log_file" | cut -f1)
-            lines=$(wc -l < "$log_file")
-            success=$(grep -c "✅" "$log_file" 2>/dev/null | tr -d '[:space:]')
-            error=$(grep -c "❌" "$log_file" 2>/dev/null | tr -d '[:space:]')
-            warning=$(grep -c "⚠" "$log_file" 2>/dev/null | tr -d '[:space:]')
-            success=${success:-0}
-            error=${error:-0}
-            warning=${warning:-0}
-            today_lines=$(grep -c "$today" "$log_file" 2>/dev/null | tr -d '[:space:]')
-            today_lines=${today_lines:-0}
-            
-            echo "📄 $filename"
-            echo "   大小: $size"
-            echo "   总行数: $lines"
-            echo "   今日行数: $today_lines"
-            echo "   成功: $success"
-            echo "   失败: $error"
-            echo "   警告: $warning"
+
+    local rows
+    rows=$(log_db_query "${LOG_STATS_SQL};")
+    if [ -z "$rows" ]; then
+        echo -e "${YELLOW}⚠️  暂无日志记录${NC}"
+        return 0
+    fi
+
+    while IFS=$'\t' read -r source count success error warning bytes today_count modified; do
+        success=${success:-0}; error=${error:-0}; warning=${warning:-0}
+        today_count=${today_count:-0}
+        echo "📄 $source"
+        echo "   大小: $((bytes / 1024)) KB"
+        echo "   总记录数: $count"
+        echo "   今日记录数: $today_count"
+        echo "   成功: $success  失败: $error  警告: $warning"
+        echo "   最近写入: $modified"
+        echo ""
+
+        if [ "$error" -gt 0 ]; then
+            echo "   最近错误："
+            log_db_query "SELECT ${LOG_LINE_SQL} FROM (SELECT id, logged_at, level, message FROM hp_run_logs WHERE source = $(log_db_quote "$source") AND level = 'ERROR' ORDER BY id DESC LIMIT 3) t ORDER BY id ASC;" | sed 's/^/     /'
             echo ""
-            
-            # 显示最近的错误
-            if [ $error -gt 0 ]; then
-                echo "   最近错误："
-                grep "❌" "$log_file" | tail -3 | sed 's/^/     /'
-                echo ""
-            fi
-        done < <(find "${LOG_DIR}" -type f -name "*.log" -print0 | sort -z)
-        
-    }
+        fi
+    done <<< "$rows"
 }

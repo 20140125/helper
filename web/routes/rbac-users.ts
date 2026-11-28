@@ -9,21 +9,25 @@ const router = Router();
  * @route GET /api/rbac/users
  * @returns {{ ok: boolean, users: UserRecord[], roles: RoleConfig[] }}
  */
-router.get('/', (_req, res) => {
-  const config = readRbacConfig();
-  const usersStore = readUsers();
+router.get('/', async (_req, res) => {
+  try {
+    const config = await readRbacConfig();
+    const usersStore = await readUsers();
 
-  const users = usersStore.users.map((u) => ({
-    ...u,
-    isSuperAdmin: isAdminEmail(u.email),
-    roleId: (() => {
-      if (isAdminEmail(u.email)) return 'super_admin';
-      const userRole = config.userRoles.find((ur) => ur.email === u.email);
-      return userRole?.roleId ?? 'viewer';
-    })(),
-  }));
+    const users = usersStore.users.map((u) => ({
+      ...u,
+      isSuperAdmin: isAdminEmail(u.email),
+      roleId: (() => {
+        if (isAdminEmail(u.email)) return 'super_admin';
+        const userRole = config.userRoles.find((ur) => ur.email === u.email);
+        return userRole?.roleId ?? 'viewer';
+      })(),
+    }));
 
-  return returnResponse(res, ErrorCode.SUCCESS, { users, roles: config.roles }, 'success');
+    return returnResponse(res, ErrorCode.SUCCESS, { users, roles: config.roles }, 'success');
+  } catch (err) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, (err as Error).message);
+  }
 });
 
 /**
@@ -32,7 +36,7 @@ router.get('/', (_req, res) => {
  * @param {string} req.params.email - 用户邮箱（URL 编码）
  * @body {{ roleId: string }}
  */
-router.put('/:email/role', (req, res) => {
+router.put('/:email/role', async (req, res) => {
   const email = decodeURIComponent(req.params.email);
   const { roleId } = req.body as { roleId?: string };
 
@@ -45,36 +49,40 @@ router.put('/:email/role', (req, res) => {
     return returnResponse(res, ErrorCode.FORBIDDEN, {}, '超级管理员的角色不可修改');
   }
 
-  const config = readRbacConfig();
+  try {
+    const config = await readRbacConfig();
 
-  // 检查角色是否存在
-  const role = config.roles.find((r) => r.id === roleId);
-  if (!role) {
-    return returnResponse(res, ErrorCode.NOT_FOUND, {}, '角色不存在');
+    // 检查角色是否存在
+    const role = config.roles.find((r) => r.id === roleId);
+    if (!role) {
+      return returnResponse(res, ErrorCode.NOT_FOUND, {}, '角色不存在');
+    }
+
+    // super_admin 角色不能手动分配给其他用户
+    if (roleId === 'super_admin') {
+      return returnResponse(res, ErrorCode.FORBIDDEN, {}, '超级管理员角色不可手动分配');
+    }
+
+    // 更新或创建绑定
+    const existing = config.userRoles.find((ur) => ur.email === email);
+    if (existing) {
+      existing.roleId = roleId;
+      existing.assignedAt = formatDate();
+    } else {
+      const newBinding: UserRole = {
+        email,
+        roleId,
+        assignedAt: formatDate(),
+      };
+      config.userRoles.push(newBinding);
+    }
+
+    await writeRbacConfig(config);
+
+    return returnResponse(res, ErrorCode.SUCCESS, {}, `用户角色已更新为「${role.name}」`);
+  } catch (err) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, (err as Error).message);
   }
-
-  // super_admin 角色不能手动分配给其他用户
-  if (roleId === 'super_admin') {
-    return returnResponse(res, ErrorCode.FORBIDDEN, {}, '超级管理员角色不可手动分配');
-  }
-
-  // 更新或创建绑定
-  const existing = config.userRoles.find((ur) => ur.email === email);
-  if (existing) {
-    existing.roleId = roleId;
-    existing.assignedAt = formatDate();
-  } else {
-    const newBinding: UserRole = {
-      email,
-      roleId,
-      assignedAt: formatDate(),
-    };
-    config.userRoles.push(newBinding);
-  }
-
-  writeRbacConfig(config);
-
-  return returnResponse(res, ErrorCode.SUCCESS, {}, `用户角色已更新为「${role.name}」`);
 });
 
 export default router;

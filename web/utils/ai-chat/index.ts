@@ -28,8 +28,9 @@ export { runAgentLoop, type AgentEvent, type RunAgentLoopInput } from './agent-l
 
 export {
   appendRunTrace,
+  flushRunTraces,
   listRunTraces,
-  pruneTraceFiles,
+  pruneRunTraces,
 } from './trace-store';
 
 export {

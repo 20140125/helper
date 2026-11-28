@@ -97,6 +97,13 @@ export class DatabaseModel extends BaseModel {
   scripts: Ref<DatabaseScriptFile[]> = ref([]);
 
   /**
+   * 建表脚本搜索关键字
+   * @type {Ref<string>}
+   * @description 用于左侧脚本列表本地模糊过滤
+   */
+  scriptKeyword: Ref<string> = ref('');
+
+  /**
    * 当前查看的脚本路径
    * @type {Ref<string>}
    * @description 相对项目根的路径
@@ -165,6 +172,20 @@ export class DatabaseModel extends BaseModel {
     const keyword = this.tableKeyword.value.trim().toLowerCase();
     if (!keyword) return this.tables.value;
     return this.tables.value.filter((table) => table.name.toLowerCase().includes(keyword));
+  });
+
+  /**
+   * 按关键字过滤后的脚本清单
+   * @type {ComputedRef<DatabaseScriptFile[]>}
+   * @description 空格分隔多词按 AND 匹配路径与模块名，仅本地过滤，不触发接口请求
+   */
+  filteredScripts: ComputedRef<DatabaseScriptFile[]> = computed(() => {
+    const terms = this.scriptKeyword.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (terms.length === 0) return this.scripts.value;
+    return this.scripts.value.filter((script) => {
+      const text = `${script.path} ${script.module}`.toLowerCase();
+      return terms.every((term) => text.includes(term));
+    });
   });
 
   /**

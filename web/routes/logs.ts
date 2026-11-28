@@ -11,19 +11,23 @@ import {
 const router = Router();
 
 /**
- * 获取所有日志文件列表
+ * 获取所有日志来源列表
  * @route GET /logs
- * @returns 日志文件信息列表（按修改时间倒序），包含 key、filename、exists、size、mtime
+ * @returns 日志来源列表（按最近写入时间倒序），包含 key、filename、exists、size、mtime
  */
-router.get('/', (_req, res) => {
-  const logs = listLogFiles();
-  return returnResponse(res, ErrorCode.SUCCESS, { logs }, 'success');
+router.get('/', async (_req, res) => {
+  try {
+    const logs = await listLogFiles();
+    return returnResponse(res, ErrorCode.SUCCESS, { logs }, 'success');
+  } catch (err) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, `日志查询失败：${(err as Error).message}`);
+  }
 });
 
 /**
  * 读取指定日志文件的内容
  * @route GET /logs/:key
- * @param key 日志文件标识符，需在 LOG_FILES 中定义
+ * @param key 日志来源标识，需在 LOG_SOURCES 中注册
  * @query lines 读取的行数，默认 100
  * @returns 日志文件内容字符串；文件尚未生成时返回空字符串
  */
@@ -47,18 +51,22 @@ router.get('/:key', async (req, res) => {
 });
 
 /**
- * 清空指定日志文件内容
+ * 清空指定来源的日志记录
  * @route DELETE /logs/:key
- * @param key 日志文件标识符，需在 LOG_FILES 中定义
+ * @param key 日志来源标识，需在 LOG_SOURCES 中注册（或为库里已存在的来源名）
  * @returns 操作结果
  */
-router.delete('/:key', (req, res) => {
+router.delete('/:key', async (req, res) => {
   const { key } = req.params;
   if (!isLogKeyValid(key)) {
-    return returnResponse(res, ErrorCode.NOT_FOUND, {}, '日志文件不存在');
+    return returnResponse(res, ErrorCode.NOT_FOUND, {}, '日志来源不存在');
   }
-  clearLogFile(key);
-  return returnResponse(res, ErrorCode.SUCCESS, {}, '日志已清空');
+  try {
+    const removed = await clearLogFile(key);
+    return returnResponse(res, ErrorCode.SUCCESS, { removed }, `已删除 ${removed} 条日志记录`);
+  } catch (err) {
+    return returnResponse(res, ErrorCode.INTERNAL_SERVER_ERROR, {}, `日志清空失败：${(err as Error).message}`);
+  }
 });
 
 export default router;

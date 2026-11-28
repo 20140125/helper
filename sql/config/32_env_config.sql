@@ -14,3 +14,7 @@ CREATE TABLE `hp_env_config` (
   PRIMARY KEY (`env_key`),
   KEY `idx_group` (`group_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统环境变量配置';
+
+-- 默认验证码种子：值为空表示关闭，运行时由系统配置页写入
+INSERT INTO `hp_env_config` (`env_key`, `env_value`, `group_name`, `description`, `is_secret`, `sort_order`)
+VALUES ('DEFAULT_AUTH_CODE', '', '邮件/登录', '超级管理员默认验证码，留空即关闭', 0, 90);

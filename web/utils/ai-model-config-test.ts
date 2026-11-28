@@ -1,4 +1,4 @@
-import { findAiModelGroupByModel } from './ai-model-config';
+import { readAiModelGroups } from './ai-model-config';
 import type { AiModelTestBody, AiModelTestResult } from '@/types/ai-model-config';
 
 /** 单模型连通性测试的超时时间（毫秒） */
@@ -9,14 +9,35 @@ const TEST_TIMEOUT_MS = 15000;
  * @param {AiModelTestBody} input - 测试请求体
  * @returns {{ baseUrl: string; apiKey: string }} 端点与真实 Key
  * @description 新增配置时表单里是明文 Key，优先使用；编辑时拿到的是脱敏串，
- *   按模型 ID 反查已保存配置组取回真实 Key
+ *   先按 groupId 取当前配置组的真实 Key（能覆盖组内新增的未保存模型），
+ *   没有 groupId 时再按模型 ID 反查已保存配置组
  */
 const resolveTestTarget = (input: AiModelTestBody): { baseUrl: string; apiKey: string } => {
-  const saved = findAiModelGroupByModel(String(input.modelId ?? '').trim());
-  const baseUrl = String(input.baseUrl ?? saved?.baseUrl ?? '').trim().replace(/\/+$/, '');
+  const modelId = String(input.modelId ?? '').trim();
+  const groups = readAiModelGroups();
+  const saved = (input.groupId ? groups.find((group) => group.id === input.groupId) : undefined)
+    ?? groups.find((group) => group.models.some((model) => model.id === modelId));
+  const rawBaseUrl = String(input.baseUrl ?? '').trim() || String(saved?.baseUrl ?? '').trim();
+  const baseUrl = rawBaseUrl.replace(/\/+$/, '');
   const inputKey = String(input.apiKey ?? '').trim();
   const apiKey = inputKey && !inputKey.includes('*') ? inputKey : saved?.apiKey ?? '';
   return { baseUrl, apiKey };
+};
+
+/**
+ * 整理 fetch 异常的可读原因
+ * @param {unknown} err - 捕获到的异常
+ * @returns {string} 可直接展示给用户的错误说明
+ * @description Node fetch 把真实网络原因放在 err.cause 里，只取 err.message 会得到无信息量的 "fetch failed"；
+ *   模型测试与主对话链路共用，避免贾维斯只报 "fetch failed"
+ */
+export const describeFetchError = (err: unknown): string => {
+  if (!(err instanceof Error)) return '请求失败';
+  if (err.name === 'AbortError' || /aborted/i.test(err.message)) return '请求超时';
+  const cause = (err as Error & { cause?: { code?: string; message?: string } }).cause;
+  if (cause?.code === 'UND_ERR_CONNECT_TIMEOUT') return '连接超时：无法直连模型服务，请检查网络或代理配置';
+  if (cause?.message === 'Request was cancelled.') return '代理连接失败或握手超时，请检查代理服务是否可用';
+  return cause?.message ? `${err.message}：${cause.message.slice(0, 160)}` : err.message;
 };
 
 /**
@@ -68,9 +89,7 @@ export const testModelAvailability = async (input: AiModelTestBody): Promise<AiM
     return {
       ok: false,
       latencyMs: Date.now() - started,
-      message: err instanceof Error && err.name === 'AbortError'
-        ? '请求超时'
-        : (err instanceof Error ? err.message : '请求失败'),
+      message: describeFetchError(err),
     };
   } finally {
     clearTimeout(timer);

@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction, Router } from 'express';
 import { Permission, type RoutePermissionConfig } from '@/types/permission';
 import { verifyJwt, isAdminEmail } from './auth';
-import { getUserPermissionsByEmail, getUserRoleId } from './rbac';
+import { getUserAuthInfo } from './rbac';
 import { returnResponse, ErrorCode } from './response';
 export type { RoutePermissionConfig } from '@/types/permission';
 
@@ -74,7 +74,7 @@ export const getAuthToken = (req: Request): string | null => {
  * @description 在 JWT 鉴权中间件通过后调用，提取 email → 查 RBAC 配置 → 计算权限列表
  *              token 取值优先级：Authorization Header > auth_token Cookie（兼容浏览器地址栏直访）
  */
-export const attachUserInfo = (req: Request): void => {
+export const attachUserInfo = async (req: Request): Promise<void> => {
   const token = getAuthToken(req);
   if (!token) return;
 
@@ -84,8 +84,9 @@ export const attachUserInfo = (req: Request): void => {
   const isSuperAdmin = isAdminEmail(payload.email);
   req.userEmail = payload.email;
   req.userIsAdmin = isSuperAdmin;
-  req.userRoleId = getUserRoleId(payload.email, isSuperAdmin);
-  req.userPermissions = getUserPermissionsByEmail(payload.email, isSuperAdmin);
+  const authInfo = await getUserAuthInfo(payload.email, isSuperAdmin);
+  req.userRoleId = authInfo.roleId;
+  req.userPermissions = authInfo.permissions;
 };
 
 /**

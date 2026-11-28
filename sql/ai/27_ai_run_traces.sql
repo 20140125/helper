@@ -1,5 +1,5 @@
 -- ============================================================
--- 27. 贾维斯运行追踪表 (ai-traces/YYYY-MM.jsonl)
+-- 27. 贾维斯运行追踪表（AI 运行日志，直接入库，不再写 .cache/ai-traces/*.jsonl）
 -- ============================================================
 DROP TABLE IF EXISTS `hp_ai_run_traces`;
 CREATE TABLE `hp_ai_run_traces` (

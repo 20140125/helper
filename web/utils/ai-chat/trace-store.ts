@@ -1,120 +1,169 @@
-import fs from 'fs';
-import path from 'path';
+/**
+ * 贾维斯运行追踪存储
+ * @description 成本 / 延迟 / 工具失败率分析的数据源。原先以 JSONL 追加到
+ *   .cache/ai-traces/YYYY-MM.jsonl，现统一写入 hp_ai_run_traces，不再产生缓存文件。
+ */
+
+import type { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { getPool } from '@/utils/database/connection';
 import {
-  AI_TRACES_DIR,
   AI_TRACE_KEEP_MONTHS,
   type AgentRunTrace,
   type TraceQuery,
 } from '@/types/ai-chat';
 
+/** 入库语句（参数化） */
+const INSERT_SQL = [
+  'INSERT INTO hp_ai_run_traces',
+  '(run_id, `user`, conversation_id, model, started_at, ended_at, duration_ms, iterations,',
+  ' prompt_tokens, completion_tokens, total_tokens, tool_calls, tool_failures,',
+  ' planning_enabled, reflections, cost_cny, error, steps)',
+  'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+].join(' ');
+
+/** 尚未完成的写入，供进程退出前排空 */
+const pending = new Set<Promise<void>>();
+
+/** 失败只告警一次 */
+let warned = false;
+
+/** 一天的毫秒数 */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 /**
- * 取时间戳对应的月份文件绝对路径
- * @param {number} ts - 时间戳（ms）
- * @returns {string} 形如 .cache/ai-traces/2026-10.jsonl 的路径
+ * 记录一次写入失败
+ * @param {unknown} err - 异常对象
+ * @description 用 stderr 而非 console.*，避免与 console 日志捕获互相触发
  */
-const monthFile = (ts: number): string => {
-  const d = new Date(ts);
-  const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  return path.join(AI_TRACES_DIR, `${month}.jsonl`);
+const warnOnce = (err: unknown): void => {
+  if (warned) return;
+  warned = true;
+  const reason = err instanceof Error ? err.message : String(err);
+  process.stderr.write(`[ai-trace] 入库失败：${reason}\n`);
 };
 
 /**
- * 确保 Trace 目录存在
- * @returns {void}
- */
-const ensureDir = (): void => {
-  if (!fs.existsSync(AI_TRACES_DIR)) {
-    fs.mkdirSync(AI_TRACES_DIR, { recursive: true });
-  }
-};
-
-/**
- * 列出查询时间范围内涉及的全部月份文件（按时间倒序）
- * @param {TraceQuery} query - 查询条件
- * @returns {string[]} 已存在的月份文件路径
- */
-const resolveMonthFiles = (query: TraceQuery): string[] => {
-  if (!fs.existsSync(AI_TRACES_DIR)) return [];
-  const now = Date.now();
-  const from = query.from ?? now - 30 * 24 * 3600 * 1000;
-  const to = query.to ?? now;
-  const files: string[] = [];
-  const cursor = new Date(from);
-  cursor.setDate(1);
-  cursor.setHours(0, 0, 0, 0);
-  while (cursor.getTime() <= to) {
-    const file = monthFile(cursor.getTime());
-    if (fs.existsSync(file) && !files.includes(file)) files.push(file);
-    cursor.setMonth(cursor.getMonth() + 1);
-  }
-  return files.reverse();
-};
-
-/**
- * 追加一条运行 Trace（append-only，每行一个 JSON）
+ * 追加一条运行追踪
  * @param {AgentRunTrace} trace - 运行追踪记录
  * @returns {void}
+ * @description 异步落库、失败静默，绝不阻塞 /send 响应
  */
 export const appendRunTrace = (trace: AgentRunTrace): void => {
+  const params: Array<string | number> = [
+    trace.run_id,
+    trace.user,
+    trace.conversation_id,
+    trace.model,
+    trace.started_at,
+    trace.ended_at,
+    trace.duration_ms ?? 0,
+    trace.iterations ?? 0,
+    trace.prompt_tokens ?? 0,
+    trace.completion_tokens ?? 0,
+    trace.total_tokens ?? 0,
+    trace.tool_calls ?? 0,
+    trace.tool_failures ?? 0,
+    trace.planning_enabled ? 1 : 0,
+    trace.reflections ?? 0,
+    trace.cost_cny ?? 0,
+    trace.error ?? '',
+    JSON.stringify(trace.steps ?? []),
+  ];
+
+  let task: Promise<void>;
   try {
-    ensureDir();
-    fs.appendFileSync(monthFile(trace.started_at), `${JSON.stringify(trace)}\n`, 'utf-8');
+    task = getPool()
+      .execute(INSERT_SQL, params)
+      .then(() => undefined)
+      .catch(warnOnce)
+      .finally(() => pending.delete(task));
+    pending.add(task);
   } catch (err) {
-    // Trace 落盘失败不能影响主链路，只记录日志
-    console.warn(`[ai-trace] 写入失败：${(err as Error).message}`);
+    warnOnce(err);
   }
 };
 
 /**
- * 查询运行 Trace 列表
- * @param {TraceQuery} query - 查询条件（时间倒序返回）
- * @returns {AgentRunTrace[]} 命中的 Trace 列表
+ * 等待所有在途 Trace 写入完成
+ * @returns {Promise<void>}
  */
-export const listRunTraces = (query: TraceQuery = {}): AgentRunTrace[] => {
+export const flushRunTraces = async (): Promise<void> => {
+  if (pending.size === 0) return;
+  await Promise.allSettled(Array.from(pending));
+};
+
+/**
+ * 把数据库行还原成 AgentRunTrace
+ * @param {RowDataPacket} row - 查询结果行
+ * @returns {AgentRunTrace} 运行追踪记录
+ */
+const toTrace = (row: RowDataPacket): AgentRunTrace => {
+  let steps: AgentRunTrace['steps'] = [];
+  try {
+    steps = JSON.parse(String(row.steps ?? '[]')) as AgentRunTrace['steps'];
+  } catch {
+    steps = [];
+  }
+  return {
+    run_id: String(row.run_id),
+    user: String(row.user),
+    conversation_id: String(row.conversation_id),
+    model: String(row.model),
+    started_at: Number(row.started_at),
+    ended_at: Number(row.ended_at),
+    duration_ms: Number(row.duration_ms),
+    iterations: Number(row.iterations),
+    prompt_tokens: Number(row.prompt_tokens),
+    completion_tokens: Number(row.completion_tokens),
+    total_tokens: Number(row.total_tokens),
+    tool_calls: Number(row.tool_calls),
+    tool_failures: Number(row.tool_failures),
+    planning_enabled: Boolean(row.planning_enabled),
+    reflections: Number(row.reflections),
+    cost_cny: Number(row.cost_cny),
+    error: String(row.error ?? ''),
+    steps,
+  };
+};
+
+/**
+ * 查询运行追踪列表
+ * @param {TraceQuery} query - 时间范围 / 用户 / 条数
+ * @returns {Promise<AgentRunTrace[]>} 按开始时间倒序的追踪列表
+ */
+export const listRunTraces = async (query: TraceQuery = {}): Promise<AgentRunTrace[]> => {
   const now = Date.now();
-  const from = query.from ?? now - 30 * 24 * 3600 * 1000;
+  const from = query.from ?? now - 30 * DAY_MS;
   const to = query.to ?? now;
   const limit = query.limit ?? 500;
-  const traces: AgentRunTrace[] = [];
-
-  for (const file of resolveMonthFiles({ ...query, from, to })) {
-    const lines = fs.readFileSync(file, 'utf-8').split('\n');
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      try {
-        const trace = JSON.parse(line) as AgentRunTrace;
-        if (query.user && trace.user !== query.user) continue;
-        if (trace.started_at < from || trace.started_at > to) continue;
-        traces.push(trace);
-      } catch {
-        // 损坏行忽略
-      }
-    }
+  const conditions = ['started_at >= ?', 'started_at <= ?'];
+  const params: Array<string | number> = [from, to];
+  if (query.user) {
+    conditions.push('`user` = ?');
+    params.push(query.user);
   }
+  params.push(limit);
 
-  traces.sort((a, b) => b.started_at - a.started_at);
-  return traces.slice(0, limit);
+  const [rows] = await getPool().query<RowDataPacket[]>(
+    `SELECT * FROM hp_ai_run_traces WHERE ${conditions.join(' AND ')} ORDER BY started_at DESC LIMIT ?`,
+    params,
+  );
+  return rows.map(toTrace);
 };
 
 /**
- * 清理过期的月份 Trace 文件
+ * 清理过期运行追踪
  * @param {number} [keepMonths] - 保留月数（默认 AI_TRACE_KEEP_MONTHS）
- * @returns {string[]} 被删除的文件名列表
- * @description 与 api_responses 归档同策略：历史数据对排障无意义，只留近期窗口；
- *   删除前先按文件名排序，保证只删最老的几个月。
+ * @returns {Promise<number>} 删除的记录数
+ * @description 替代原先「删除 .cache/ai-traces 下的按月文件」，按 started_at 删除库记录
  */
-export const pruneTraceFiles = (keepMonths: number = AI_TRACE_KEEP_MONTHS): string[] => {
-  if (!fs.existsSync(AI_TRACES_DIR)) return [];
-  const files = fs.readdirSync(AI_TRACES_DIR).filter((f) => f.endsWith('.jsonl')).sort();
-  if (files.length <= keepMonths) return [];
-  const removed: string[] = [];
-  for (const file of files.slice(0, files.length - keepMonths)) {
-    try {
-      fs.unlinkSync(path.join(AI_TRACES_DIR, file));
-      removed.push(file);
-    } catch {
-      // 删除失败忽略
-    }
-  }
-  return removed;
+export const pruneRunTraces = async (
+  keepMonths: number = AI_TRACE_KEEP_MONTHS,
+): Promise<number> => {
+  const boundary = Date.now() - keepMonths * 30 * DAY_MS;
+  const [result] = await getPool().execute<ResultSetHeader>(
+    'DELETE FROM hp_ai_run_traces WHERE started_at < ?',
+    [boundary],
+  );
+  return result.affectedRows;
 };

@@ -20,9 +20,9 @@ const nowStamp = (): string => {
  * @returns {{ ok: true; list: Permission[] } | { ok: false; reason: string }} 校验结果
  * @description 权限码必须已在 .cache/permission_metas.json 中登记，防止 LLM 编造权限码
  */
-const parsePermissions = (
+const parsePermissions = async (
   raw: unknown,
-): { ok: true; list: Permission[] } | { ok: false; reason: string } => {
+): Promise<{ ok: true; list: Permission[] } | { ok: false; reason: string }> => {
   const arr = Array.isArray(raw)
     ? raw.map((x) => String(x).trim()).filter(Boolean)
     : typeof raw === 'string'
@@ -30,7 +30,7 @@ const parsePermissions = (
       : [];
   if (arr.length === 0) return { ok: false, reason: 'permissions 不能为空' };
 
-  const allowed = new Set<string>(readAllPermissionCodes());
+  const allowed = new Set<string>(await readAllPermissionCodes());
   const unknown = arr.filter((p) => !allowed.has(p));
   if (unknown.length > 0) {
     return { ok: false, reason: `未知权限码：${unknown.join('、')}（先用 query_rbac 查已登记的权限码）` };
@@ -81,7 +81,7 @@ export const manageRbacTool: ToolImpl = {
     const roleName = typeof args.role_name === 'string' ? args.role_name.trim() : '';
     const description = typeof args.description === 'string' ? args.description.trim() : '';
 
-    const config = readRbacConfig();
+    const config = await readRbacConfig();
 
     // ── 分配 / 改角色 ──
     if (action === 'assign_role') {
@@ -98,7 +98,7 @@ export const manageRbacTool: ToolImpl = {
       const binding: UserRole = { email, roleId, assignedAt: stamp };
       if (idx === -1) config.userRoles.push(binding);
       else config.userRoles[idx] = binding;
-      writeRbacConfig(config);
+      await writeRbacConfig(config);
       return {
         ok: true,
         data: { email, role_id: roleId, role_name: role.name },
@@ -114,14 +114,14 @@ export const manageRbacTool: ToolImpl = {
       if (config.userRoles.length === before) {
         return { ok: false, data: `${email} 当前没有分配任何角色，无需收回` };
       }
-      writeRbacConfig(config);
+      await writeRbacConfig(config);
       return { ok: true, data: { email, revoked: true }, summary: `已收回 ${email} 的角色` };
     }
 
     // ── 新建角色 ──
     if (action === 'create_role') {
       if (!roleName) return { ok: false, data: 'role_name 不能为空' };
-      const parsed = parsePermissions(args.permissions);
+      const parsed = await parsePermissions(args.permissions);
       if (!parsed.ok) return { ok: false, data: parsed.reason };
       const stamp = nowStamp();
       const id = `role_${Date.now()}`;
@@ -135,7 +135,7 @@ export const manageRbacTool: ToolImpl = {
         updated_at: stamp,
       };
       config.roles.push(role);
-      writeRbacConfig(config);
+      await writeRbacConfig(config);
       return {
         ok: true,
         data: { role_id: id, name: role.name, permissions: role.permissions },
@@ -152,11 +152,11 @@ export const manageRbacTool: ToolImpl = {
           data: `角色 ${roleId || '空'} 不存在。现有角色：${config.roles.map((r) => `${r.id}(${r.name})`).join('、')}`,
         };
       }
-      const parsed = parsePermissions(args.permissions);
+      const parsed = await parsePermissions(args.permissions);
       if (!parsed.ok) return { ok: false, data: parsed.reason };
       role.permissions = parsed.list;
       role.updated_at = nowStamp();
-      writeRbacConfig(config);
+      await writeRbacConfig(config);
       return {
         ok: true,
         data: { role_id: role.id, name: role.name, permissions: role.permissions },

@@ -66,7 +66,7 @@ bash -c 'source scripts/weather_config.sh 2>/dev/null; echo "MAIL_HOST=${MAIL_HO
 
 **跑一次脚本**：命令行 `bash scripts/xxx.sh`，或直接让贾维斯执行（它会调 `trigger_script`）。原「手动触发」页已下线。
 
-**看日志**：运行日志 → 选日志文件 → 查看/清空。等价于 `view_logs.sh`；也可以让贾维斯查（`query_logs`）或清（`manage_logs`，默认会先建审批单）。
+**看日志**：运行日志 → 选日志来源 → 查看/清空（数据来自 `hp_run_logs`）。等价于 `view_logs.sh`；也可以让贾维斯查（`query_logs`）或清（`manage_logs`，默认会先建审批单）。
 
 **批贾维斯的增删改**：AI 审批 → 待审批 → 通过并执行 / 驳回。详见 [14 贾维斯使用说明](14-贾维斯使用说明.md) 第 9.5 节。
 

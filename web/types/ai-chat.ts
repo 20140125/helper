@@ -5,9 +5,6 @@ import type { AiSkillEffect } from './ai-chat-skill';
 /** AI 会话存储目录（按用户邮箱分子目录） */
 export const AI_CONVERSATIONS_DIR = path.join(CACHE_DIR, 'ai-conversations');
 
-/** AI 运行追踪存储目录（按月分文件的 JSONL，append-only） */
-export const AI_TRACES_DIR = path.join(CACHE_DIR, 'ai-traces');
-
 /** AI 长期记忆存储目录（按用户邮箱一个 JSON 文件） */
 export const AI_MEMORY_DIR = path.join(CACHE_DIR, 'ai-memory');
 
@@ -514,7 +511,7 @@ export interface TraceToolBucket {
   avg_duration_ms: number;
 }
 
-/** Trace 文件最多保留的月数（更早的按月文件由 pruneTraceFiles 清理） */
+/** Trace 记录最多保留的月数（更早的记录由 pruneRunTraces 清理） */
 export const AI_TRACE_KEEP_MONTHS = 6;
 
 // ──────────────────────────
